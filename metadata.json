@@ -1,0 +1,5 @@
+{
+  "name": "쇼핑몰 상세페이지 빌더",
+  "description": "Google Gemini API를 활용한 상품 상세페이지 자동 생성 및 현지화 웹 애플리케이션",
+  "requestFramePermissions": []
+}
