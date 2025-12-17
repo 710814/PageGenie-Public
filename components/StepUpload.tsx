@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Upload, Link as LinkIcon, Image as ImageIcon, LayoutTemplate, Loader2, AlertCircle, RefreshCw, ArrowRight, X, Layers } from 'lucide-react';
 import { AppMode, UploadedFile, Template } from '../types';
 import { getTemplates } from '../services/templateService';
+import { optimizeImages, needsOptimization, optimizeImage } from '../utils/imageOptimizer';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface Props {
   mode: AppMode;
@@ -13,6 +15,7 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const toast = useToastContext();
   
   // Upload Method State
   const [activeMethod, setActiveMethod] = useState<'upload' | 'url' | 'drive'>('upload');
@@ -151,10 +154,24 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
           }
       }
 
+      // 이미지 최적화 (필요한 경우)
+      let optimizedBlob = blob;
+      try {
+        const tempFile = new File([blob], 'temp.jpg', { type: blob.type });
+        if (needsOptimization(tempFile)) {
+          const optimizedFile = await optimizeImage(tempFile);
+          optimizedBlob = await optimizedFile.arrayBuffer().then(buf => new Blob([buf], { type: blob.type }));
+          toast.success('이미지가 최적화되었습니다.');
+        }
+      } catch (optError) {
+        console.warn('이미지 최적화 실패, 원본 사용:', optError);
+      }
+
       // Append to existing files instead of replacing
-      const uploadedData = await createUploadedFile(blob, source);
+      const uploadedData = await createUploadedFile(optimizedBlob, source);
       setPreviewFiles(prev => [...prev, uploadedData]);
       setUrlInput(''); // Clear input on success
+      toast.success('이미지가 추가되었습니다.');
 
     } catch (err) {
       console.error(err);
@@ -174,9 +191,37 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
 
   const processFiles = async (files: File[]) => {
     setIsLoading(true);
+    setErrorMsg('');
+    
     try {
-        const newUploadedFiles = await Promise.all(files.map(async (file) => {
-            return new Promise<UploadedFile>((resolve) => {
+        // 이미지 최적화가 필요한 파일 확인
+        const needsOpt = files.some(file => needsOptimization(file));
+        
+        if (needsOpt) {
+          toast.info('대용량 이미지를 최적화하고 있습니다...', 3000);
+        }
+
+        // 이미지 최적화 (필요한 경우)
+        let optimizedFiles: File[];
+        try {
+          optimizedFiles = await optimizeImages(files);
+          
+          // 최적화 결과 알림
+          const originalSize = files.reduce((sum, f) => sum + f.size, 0);
+          const optimizedSize = optimizedFiles.reduce((sum, f) => sum + f.size, 0);
+          const savedPercent = Math.round((1 - optimizedSize / originalSize) * 100);
+          
+          if (savedPercent > 5) {
+            toast.success(`이미지 최적화 완료! ${savedPercent}% 용량 절감`, 3000);
+          }
+        } catch (optError) {
+          console.warn('이미지 최적화 실패, 원본 파일 사용:', optError);
+          optimizedFiles = files; // 최적화 실패 시 원본 사용
+        }
+
+        // 최적화된 파일을 base64로 변환
+        const newUploadedFiles = await Promise.all(optimizedFiles.map(async (file) => {
+            return new Promise<UploadedFile>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     if (e.target?.result) {
@@ -187,15 +232,22 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
                             base64,
                             mimeType: file.type
                         });
+                    } else {
+                        reject(new Error('파일을 읽을 수 없습니다.'));
                     }
                 };
+                reader.onerror = () => reject(new Error('파일 읽기 실패'));
                 reader.readAsDataURL(file);
             });
         }));
+        
         setPreviewFiles(prev => [...prev, ...newUploadedFiles]);
+        toast.success(`${newUploadedFiles.length}개 파일이 추가되었습니다.`);
     } catch (e) {
         console.error(e);
-        setErrorMsg("파일 처리 중 오류가 발생했습니다.");
+        const errorMessage = e instanceof Error ? e.message : "파일 처리 중 오류가 발생했습니다.";
+        setErrorMsg(errorMessage);
+        toast.error(errorMessage);
     } finally {
         setIsLoading(false);
     }

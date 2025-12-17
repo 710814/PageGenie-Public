@@ -3,10 +3,9 @@ import { ProductAnalysis, AppMode, UploadedFile } from '../types';
 import { Download, Code, CheckCircle, ExternalLink, Table, Loader2, RefreshCw, Settings, X, MessageSquare, Image as ImageIcon } from 'lucide-react';
 import { saveToGoogleSheet, openGoogleSheet, generateCSV, getGasUrl, DEFAULT_GAS_URL } from '../services/googleSheetService';
 import { generateSectionImage } from '../services/geminiService';
-// @ts-ignore
+import { useToastContext } from '../contexts/ToastContext';
 import JSZip from 'jszip';
-// @ts-ignore
-import FileSaver from 'file-saver';
+import { saveAs } from 'file-saver';
 
 interface Props {
   data: ProductAnalysis;
@@ -21,6 +20,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
   const [isSaving, setIsSaving] = useState(false);
   const [saveType, setSaveType] = useState<'sheet' | 'drive' | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const toast = useToastContext();
   
   // 프롬프트 수정 모달 상태
   const [editModal, setEditModal] = useState<{ isOpen: boolean; sectionId: string; prompt: string } | null>(null);
@@ -129,12 +129,12 @@ ${data.marketingCopy}
       zip.file("index.html", htmlContent);
 
       const content = await zip.generateAsync({type:"blob"});
-      FileSaver.saveAs(content, `[Gemini]_${data.productName.replace(/\s+/g, '_')}_package.zip`);
+      saveAs(content, `[Gemini]_${data.productName.replace(/\s+/g, '_')}_package.zip`);
       
-      alert("📦 드라이브 업로드용 패키지(ZIP)가 생성되었습니다.\n구글 드라이브에 이 파일을 업로드하세요.");
+      toast.success("📦 드라이브 업로드용 패키지(ZIP)가 생성되었습니다. 구글 드라이브에 이 파일을 업로드하세요.");
     } catch (e) {
       console.error(e);
-      alert("파일 생성 중 오류가 발생했습니다.");
+      toast.error("파일 생성 중 오류가 발생했습니다.");
     } finally {
       setIsSaving(false);
       setSaveType(null);
@@ -170,14 +170,21 @@ ${data.marketingCopy}
           
           await saveToGoogleSheet(data, mode);
           
-          const confirmOpen = window.confirm(
+          toast.success(
             '✅ 저장 성공!\n\n' +
             '1. 구글 시트에 텍스트 데이터가 저장되었습니다.\n' +
             '2. 구글 드라이브에 상품명으로 폴더가 생성되었습니다.\n' +
-            '3. 생성된 이미지가 드라이브 폴더에 저장되었습니다.\n\n' +
-            '시트를 열어 확인하시겠습니까?'
+            '3. 생성된 이미지가 드라이브 폴더에 저장되었습니다.',
+            8000
           );
-          if (confirmOpen) openGoogleSheet();
+          
+          // 시트 열기 확인
+          setTimeout(() => {
+            if (window.confirm('시트를 열어 확인하시겠습니까?')) {
+              openGoogleSheet();
+            }
+          }, 500);
+          
           return;
         }
       } catch (e) {
@@ -187,17 +194,29 @@ ${data.marketingCopy}
            // Fallthrough to CSV
         } else {
            console.error('GAS Error', e);
-           alert('구글 시트 전송 중 문제가 발생했습니다.\n\n[체크사항]\n1. GAS 스크립트가 최신 버전("GOOGLE_APPS_SCRIPT_CODE.js")인지 확인하세요.\n2. [설정] 메뉴의 웹 앱 URL이 정확한지 확인하세요.\n\n데이터 보존을 위해 CSV 파일로 다운로드합니다.');
+           if (e instanceof Error && e.message === 'IMAGE_SIZE_TOO_LARGE') {
+             toast.warning('⚠️ 이미지 용량이 너무 커서 텍스트 데이터만 저장되었습니다. (구글 드라이브 이미지 저장은 건너뛰었습니다.)', 8000);
+           } else {
+             toast.error(
+               '구글 시트 전송 중 문제가 발생했습니다.\n\n' +
+               '[체크사항]\n' +
+               '1. GAS 스크립트가 최신 버전("GOOGLE_APPS_SCRIPT_CODE.js")인지 확인하세요.\n' +
+               '2. [설정] 메뉴의 웹 앱 URL이 정확한지 확인하세요.\n\n' +
+               '데이터 보존을 위해 CSV 파일로 다운로드합니다.',
+               10000
+             );
+           }
         }
       }
 
       // 2. CSV 다운로드 (Fallback)
       const csvContent = generateCSV(data, mode);
       const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-      FileSaver.saveAs(blob, `[DATA]_${data.productName}_sheet.csv`);
+      saveAs(blob, `[DATA]_${data.productName}_sheet.csv`);
+      toast.info('CSV 파일로 다운로드되었습니다.');
 
     } catch (e) {
-      alert('저장 처리 중 오류가 발생했습니다.');
+      toast.error('저장 처리 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
       setSaveType(null);
@@ -239,9 +258,11 @@ ${data.marketingCopy}
       );
       
       onUpdate({ ...data, sections: newSections });
+      toast.success("이미지가 재생성되었습니다.");
     } catch (e) {
       console.error(e);
-      alert("이미지 재생성 중 오류가 발생했습니다.");
+      const errorMessage = e instanceof Error ? e.message : "이미지 재생성 중 오류가 발생했습니다.";
+      toast.error(errorMessage);
     } finally {
       setRegeneratingId(null);
     }

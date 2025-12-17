@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import { ProductAnalysis, SectionData } from '../types';
 import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 
@@ -9,22 +9,22 @@ interface Props {
   isLoading: boolean;
 }
 
-export const StepAnalysis: React.FC<Props> = ({ analysis, onUpdate, onConfirm, isLoading }) => {
+export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, onConfirm, isLoading }) => {
   // 섹션 리스트 컨테이너 참조 (스크롤 이동용)
   const sectionsContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleFieldChange = (field: keyof ProductAnalysis, value: any) => {
+  const handleFieldChange = useCallback((field: keyof ProductAnalysis, value: any) => {
     const newData = { ...analysis, [field]: value };
     onUpdate(newData);
-  };
+  }, [analysis, onUpdate]);
 
-  const handleSectionChange = (index: number, field: keyof SectionData, value: string) => {
+  const handleSectionChange = useCallback((index: number, field: keyof SectionData, value: string) => {
     const newSections = [...analysis.sections];
     newSections[index] = { ...newSections[index], [field]: value };
     handleFieldChange('sections', newSections);
-  };
+  }, [analysis.sections, handleFieldChange]);
 
-  const addSection = () => {
+  const addSection = useCallback(() => {
     const newSection: SectionData = {
       id: `new-${Date.now()}`,
       title: "새 섹션",
@@ -40,17 +40,17 @@ export const StepAnalysis: React.FC<Props> = ({ analysis, onUpdate, onConfirm, i
         lastChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 100);
-  };
+  }, [analysis.sections, handleFieldChange]);
 
-  const removeSection = (index: number) => {
+  const removeSection = useCallback((index: number) => {
     if (confirm('이 섹션을 삭제하시겠습니까?')) {
       const newSections = analysis.sections.filter((_, i) => i !== index);
       handleFieldChange('sections', newSections);
     }
-  };
+  }, [analysis.sections, handleFieldChange]);
 
   // 섹션 순서 변경 함수
-  const moveSection = (index: number, direction: 'up' | 'down') => {
+  const moveSection = useCallback((index: number, direction: 'up' | 'down') => {
     const newSections = [...analysis.sections];
     if (direction === 'up' && index > 0) {
       // 위로 이동 (Swap with index-1)
@@ -60,7 +60,10 @@ export const StepAnalysis: React.FC<Props> = ({ analysis, onUpdate, onConfirm, i
       [newSections[index + 1], newSections[index]] = [newSections[index], newSections[index + 1]];
     }
     handleFieldChange('sections', newSections);
-  };
+  }, [analysis.sections, handleFieldChange]);
+
+  // 메모이제이션된 섹션 개수
+  const sectionCount = useMemo(() => analysis.sections.length, [analysis.sections.length]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -150,7 +153,7 @@ export const StepAnalysis: React.FC<Props> = ({ analysis, onUpdate, onConfirm, i
         {/* Right Col: Sections */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="font-bold text-gray-800">섹션 구성 ({analysis.sections.length})</h3>
+            <h3 className="font-bold text-gray-800">섹션 구성 ({sectionCount})</h3>
             <button
               onClick={addSection}
               className="text-sm flex items-center text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 transition-colors"
@@ -242,4 +245,6 @@ export const StepAnalysis: React.FC<Props> = ({ analysis, onUpdate, onConfirm, i
       </div>
     </div>
   );
-};
+});
+
+StepAnalysis.displayName = 'StepAnalysis';

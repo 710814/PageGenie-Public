@@ -25,9 +25,15 @@ export interface SheetRowData {
 
 /**
  * 저장된 GAS Web App URL 가져오기
+ * @param includeDefault - true면 저장된 값이 없을 때 기본값 반환, false면 null 반환
  */
-export const getGasUrl = (): string | null => {
-  return localStorage.getItem(GAS_URL_KEY) || DEFAULT_GAS_URL;
+export const getGasUrl = (includeDefault: boolean = true): string | null => {
+  const savedUrl = localStorage.getItem(GAS_URL_KEY);
+  // 빈 문자열이나 null인 경우
+  if (!savedUrl || savedUrl.trim() === '') {
+    return includeDefault ? DEFAULT_GAS_URL : null;
+  }
+  return savedUrl;
 };
 
 /**
@@ -139,6 +145,62 @@ export const generateCSV = (data: ProductAnalysis, mode: AppMode): string => {
 };
 
 /**
+ * HTML 페이지 생성 함수
+ */
+const generateHTML = (data: ProductAnalysis): string => {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${data.productName}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .hero { text-align: center; padding: 60px 20px; background-color: #f9fafb; }
+        .hero h1 { font-size: 2.5rem; margin-bottom: 20px; color: #111; }
+        .hero p { font-size: 1.2rem; color: #555; max-width: 600px; margin: 0 auto; }
+        .features { padding: 40px 20px; background: #fff; }
+        .features ul { max-width: 600px; margin: 0 auto; padding-left: 20px; }
+        .features li { margin-bottom: 10px; font-size: 1.1rem; }
+        .section { padding: 60px 20px; border-bottom: 1px solid #eee; text-align: center; }
+        .section img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section h2 { font-size: 2rem; margin-bottom: 20px; }
+        .section p { font-size: 1.1rem; color: #666; max-width: 700px; margin: 0 auto; white-space: pre-wrap; }
+        .footer { padding: 40px; text-align: center; font-size: 0.9rem; color: #999; background: #f1f1f1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="hero">
+            <h1>${data.productName}</h1>
+            <p>${data.marketingCopy}</p>
+        </header>
+
+        <section class="features">
+            <ul>
+                ${data.mainFeatures.map(f => `<li>${f}</li>`).join('')}
+            </ul>
+        </section>
+
+        ${data.sections.map(section => `
+        <section class="section">
+            ${section.imageUrl ? `<img src="images/section_${section.id}.png" alt="${section.title}" />` : ''}
+            <h2>${section.title}</h2>
+            <p>${section.content}</p>
+        </section>
+        `).join('')}
+
+        <footer class="footer">
+            <p>© ${new Date().getFullYear()} ${data.productName}. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>`;
+};
+
+/**
  * Google Apps Script로 데이터 전송 (Real DB Save)
  * 이미지를 별도의 경량 배열로 변환하여 전송 성공률을 높입니다.
  * 전송 실패(Failed to fetch) 시 이미지 제외하고 재시도합니다.
@@ -163,20 +225,35 @@ export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): P
     if (section.imageUrl && section.imageUrl.startsWith('data:image')) {
       return {
         index: index,
+        id: section.id, // 섹션 ID도 전송하여 HTML에서 매칭 가능하도록
         title: section.title,
         base64: section.imageUrl.split(',')[1] // 헤더(data:image...) 제거 후 순수 데이터만 전송
       };
     }
     return null;
   }).filter(item => item !== null);
+  
+  // 4. 섹션 데이터도 전송 (HTML에서 이미지 경로 매칭을 위해)
+  const sectionsData = data.sections.map((section, index) => ({
+    id: section.id,
+    index: index,
+    title: section.title
+  }));
 
-  // Payload: Full (With Images)
+  // 4. HTML 파일 생성
+  const htmlContent = generateHTML(data);
+  const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent))); // UTF-8 인코딩 후 Base64 변환
+
+  // Payload: Full (With Images and HTML)
   const payloadFull = {
     ...rowData, 
     sheetId: getSheetId(),
     folderName: folderName,
     saveImagesToDrive: true,
-    images: imagesToSave
+    images: imagesToSave,
+    sections: sectionsData, // 섹션 데이터 전송 (HTML 이미지 경로 매칭용)
+    htmlContent: htmlBase64, // HTML 파일을 Base64로 인코딩하여 전송
+    htmlFileName: `${safeProductName}_detail_page.html`
   };
 
   // Payload: Text Only (Fallback)
@@ -185,7 +262,9 @@ export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): P
     sheetId: getSheetId(),
     folderName: folderName,
     saveImagesToDrive: false,
-    images: []
+    images: [],
+    htmlContent: htmlBase64, // HTML은 텍스트만 있어도 저장 가능
+    htmlFileName: `${safeProductName}_detail_page.html`
   };
 
   const postData = async (payload: any) => {
@@ -211,8 +290,8 @@ export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): P
     try {
       // Attempt 2: Text Only
       await postData(payloadTextOnly);
-      alert('⚠️ 이미지 용량이 너무 커서 텍스트 데이터만 저장되었습니다.\n(구글 드라이브 이미지 저장은 건너뛰었습니다.)');
-      return true;
+      // Toast는 호출하는 컴포넌트에서 처리
+      throw new Error('IMAGE_SIZE_TOO_LARGE');
     } catch (retryError) {
       console.error('🔴 [Google Sheet Service] Error:', retryError);
       throw retryError;

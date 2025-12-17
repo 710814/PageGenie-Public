@@ -3,6 +3,7 @@ import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edi
 import { getGasUrl, setGasUrl as saveGasUrl, getSheetId, setSheetId as saveSheetId } from '../services/googleSheetService';
 import { getTemplates, saveTemplate, deleteTemplate } from '../services/templateService';
 import { extractTemplateFromImage, fileToGenerativePart } from '../services/geminiService';
+import { useToastContext } from '../contexts/ToastContext';
 import { Template, SectionData } from '../types';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'templates'>('general');
+  const toast = useToastContext();
   
   // General Settings State
   const [gasUrl, setGasUrlState] = useState('');
@@ -28,11 +30,18 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
-      setGasUrlState(getGasUrl() || '');
+      // 기본값을 포함하지 않고 가져와서, 사용자가 실제로 입력한 값만 표시
+      const savedUrl = getGasUrl(false);
+      setGasUrlState(savedUrl || '');
       setSheetIdState(getSheetId()); 
       setTemplates(getTemplates());
       setSaveStatus('idle');
       setEditingTemplate(null); // Reset edit mode on open
+      
+      // 디버깅: localStorage에 저장된 실제 값 확인
+      console.log('[Settings] localStorage에서 GAS URL 확인:', localStorage.getItem('gemini_commerce_gas_url'));
+      console.log('[Settings] getGasUrl(false) 결과:', savedUrl);
+      console.log('[Settings] getGasUrl(true) 결과:', getGasUrl(true));
     }
   }, [isOpen]);
 
@@ -50,6 +59,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     setSaveStatus('saving');
     setTimeout(() => {
         setSaveStatus('success');
+        toast.success('설정이 저장되었습니다.');
         setTimeout(() => {
             setSaveStatus('idle');
         }, 2000);
@@ -68,11 +78,12 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       
       saveTemplate(newTemplate);
       setTemplates(getTemplates()); 
-      alert(`'${newTemplate.name}' 템플릿이 추가되었습니다!`);
+      toast.success(`'${newTemplate.name}' 템플릿이 추가되었습니다!`);
 
     } catch (error) {
       console.error(error);
-      alert('템플릿 분석에 실패했습니다. 다시 시도해주세요.');
+      const errorMessage = error instanceof Error ? error.message : '템플릿 분석에 실패했습니다.';
+      toast.error(errorMessage + ' 다시 시도해주세요.');
     } finally {
       setIsAnalyzing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

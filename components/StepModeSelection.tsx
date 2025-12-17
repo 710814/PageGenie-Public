@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { AppMode } from '../types';
 import { Sparkles, Globe, ArrowRight } from 'lucide-react';
 
@@ -6,11 +6,18 @@ interface Props {
   onSelectMode: (mode: AppMode) => void;
 }
 
-export const StepModeSelection: React.FC<Props> = ({ onSelectMode }) => {
+export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) => {
+  const handleCreationClick = useCallback(() => {
+    onSelectMode(AppMode.CREATION);
+  }, [onSelectMode]);
+
+  const handleLocalizationClick = useCallback(() => {
+    onSelectMode(AppMode.LOCALIZATION);
+  }, [onSelectMode]);
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+    <div className="max-w-4xl mx-auto px-4 py-12" style={{ maxWidth: '896px', margin: '0 auto', padding: '48px 16px' }}>
+      <div className="text-center mb-12" style={{ textAlign: 'center', marginBottom: '48px' }}>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4" style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#111827', marginBottom: '16px' }}>
           Gemini Commerce Architect
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -22,7 +29,7 @@ export const StepModeSelection: React.FC<Props> = ({ onSelectMode }) => {
       <div className="grid md:grid-cols-2 gap-8">
         {/* Mode A: Creation */}
         <button
-          onClick={() => onSelectMode(AppMode.CREATION)}
+          onClick={handleCreationClick}
           className="group relative flex flex-col items-start p-8 bg-white border-2 border-transparent hover:border-blue-500 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 text-left"
         >
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -45,7 +52,7 @@ export const StepModeSelection: React.FC<Props> = ({ onSelectMode }) => {
 
         {/* Mode B: Localization */}
         <button
-          onClick={() => onSelectMode(AppMode.LOCALIZATION)}
+          onClick={handleLocalizationClick}
           className="group relative flex flex-col items-start p-8 bg-white border-2 border-transparent hover:border-indigo-500 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 text-left"
         >
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -68,4 +75,6 @@ export const StepModeSelection: React.FC<Props> = ({ onSelectMode }) => {
       </div>
     </div>
   );
-};
+});
+
+StepModeSelection.displayName = 'StepModeSelection';
