@@ -1,7 +1,7 @@
-# 🛒 Gemini Commerce Architect (상품 상세페이지 자동 생성 빌더)
+# 🛒 PageGenie (AI 상품 페이지 자동 생성)
 
 ## 1. 프로젝트 개요
-**Gemini Commerce Architect**는 Google Gemini API(Multimodal)를 활용하여 이커머스 상품 상세페이지를 자동으로 기획, 디자인, 생성 및 현지화하는 웹 애플리케이션입니다. React 기반의 단일 페이지 애플리케이션(SPA)으로, Serverless 환경(Google Apps Script 활용)에서 동작하도록 설계되었습니다.
+**PageGenie**는 Google Gemini API(Multimodal)를 활용하여 이커머스 상품 상세페이지를 자동으로 기획, 디자인, 생성 및 현지화하는 웹 애플리케이션입니다. React 기반의 단일 페이지 애플리케이션(SPA)으로, Serverless 환경(Google Apps Script 활용)에서 동작하도록 설계되었습니다.
 
 ### 🎯 핵심 기능 (Modes)
 1.  **Mode A: 신규 생성 (Creation)**

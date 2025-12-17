@@ -335,9 +335,9 @@ function doPost(e) {
  * GET 요청 처리 (웹 앱 접속 시 표시)
  */
 function doGet(e) {
-  var html = '<html><head><meta charset="UTF-8"><title>Product Pagebuilder API</title></head>';
+  var html = '<html><head><meta charset="UTF-8"><title>PageGenie API</title></head>';
   html += '<body style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">';
-  html += '<h1>✅ Product Pagebuilder API</h1>';
+  html += '<h1>✅ PageGenie API</h1>';
   html += '<p style="color: green; font-size: 18px;">웹 앱이 정상적으로 배포되었습니다!</p>';
   html += '<hr style="margin: 30px 0;">';
   html += '<h3>설정 확인</h3>';

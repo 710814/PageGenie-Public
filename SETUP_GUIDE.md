@@ -6,7 +6,7 @@
 
 1. [Google Apps Script](https://script.google.com/) 접속
 2. "새 프로젝트" 클릭
-3. 프로젝트 이름 설정 (예: "Gemini Commerce API Proxy")
+3. 프로젝트 이름 설정 (예: "PageGenie API Proxy")
 
 ### 2단계: 코드 복사 및 붙여넣기
 
@@ -31,7 +31,7 @@
 2. **"유형 선택"** 옆의 톱니바퀴 아이콘 클릭
 3. **"웹 앱"** 선택
 4. 배포 설정:
-   - **설명**: "Gemini Commerce API Proxy" (선택사항)
+   - **설명**: "PageGenie API Proxy" (선택사항)
    - **실행 대상**: "나"
    - **액세스 권한**: "모든 사용자" 또는 "나"
 5. **"배포"** 클릭

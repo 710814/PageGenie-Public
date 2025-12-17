@@ -18,7 +18,7 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
     <div className="max-w-4xl mx-auto px-4 py-12" style={{ maxWidth: '896px', margin: '0 auto', padding: '48px 16px' }}>
       <div className="text-center mb-12" style={{ textAlign: 'center', marginBottom: '48px' }}>
         <h1 className="text-4xl font-bold text-gray-900 mb-4" style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#111827', marginBottom: '16px' }}>
-          Gemini Commerce Architect
+          PageGenie
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           상품 이미지만 있으면 AI가 상세페이지를 자동으로 설계하고 디자인합니다.<br/>
