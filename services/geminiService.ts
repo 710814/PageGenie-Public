@@ -1,5 +1,6 @@
 import { AppMode, ProductAnalysis, SectionData, Template } from "../types";
 import { getGasUrl, DEFAULT_GAS_URL } from "./googleSheetService";
+import { getCategoryPromptGuidelines } from "./categoryPresets";
 import type {
   GeminiRequest,
   GeminiResponse,
@@ -402,15 +403,50 @@ export const analyzeProductImage = async (
       Return JSON with 'sections' array containing EXACTLY ${sectionCount} sections with matching IDs.
     `;
   } else if (mode === AppMode.CREATION) {
+    // 카테고리별 가이드라인 생성
+    const categoryGuidelines = getCategoryPromptGuidelines();
+    
     prompt = `
-      You are an expert e-commerce merchandiser. 
-      Analyze the provided product image(s).
-      1. Identify the product by looking at all angles/details provided.
-      2. Create a catchy Product Name in Korean.
-      3. List key features visible or implied.
-      4. Write a short, persuasive marketing copy in Korean.
-      5. Suggest a structure for a "Detail Page" (Landing Page) with 4-5 distinct sections (e.g., Intro, Feature 1, Feature 2, Usage, Specs).
-      6. For each section, provide an image generation prompt (Korean or English) that could be used to generate a supporting image.
+      You are an expert e-commerce merchandiser specializing in the Korean market.
+      
+      ## STEP 1: Analyze Product & Detect Category
+      Analyze the provided product image(s) and determine the product category:
+      - Fashion/Apparel (패션/의류): clothing, shoes, bags, accessories
+      - Beauty/Cosmetics (뷰티/화장품): skincare, makeup, cosmetics
+      - Furniture/Interior (가구/인테리어): furniture, home decor
+      - Living/Kitchen (생활용품/주방): kitchenware, household items
+      - Food/Health (식품/건강식품): food, snacks, supplements
+      - Electronics (전자제품/가전): gadgets, appliances, devices
+      - Kids/Baby (유아/아동용품): baby products, toys, children's items
+      - Pet Supplies (반려동물용품): pet food, pet accessories
+      
+      ## STEP 2: Create Product Information
+      1. Create a catchy Product Name in Korean
+      2. List 4-5 key features visible or implied
+      3. Write a short, persuasive marketing copy in Korean (2-3 sentences)
+      4. Set 'detectedCategory' to the detected category ID (fashion, beauty, furniture, living, food, electronics, kids, pet)
+      
+      ## STEP 3: Category-Optimized Section Structure
+      Based on the detected category, create 6 sections following these category-specific guidelines:
+      
+      ${categoryGuidelines}
+      
+      ## IMPORTANT RULES:
+      1. You MUST detect the category first and use the corresponding section structure
+      2. Each section should have:
+         - A compelling Korean title matching the category template
+         - Detailed Korean content (3-5 sentences) tailored to the product
+         - An image generation prompt that matches the category's visual style
+      3. The section structure should feel natural and optimized for the product type
+      4. All content should be in Korean except imagePrompt (Korean or English)
+      
+      ## Output Format:
+      Return JSON with:
+      - productName: Korean product name
+      - mainFeatures: array of 4-5 features
+      - marketingCopy: Korean marketing text
+      - detectedCategory: category ID (fashion, beauty, furniture, living, food, electronics, kids, pet)
+      - sections: array of 6 category-optimized sections
     `;
   } else {
     // Mode B: Localization
