@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edit2, ArrowUp, ArrowDown, ChevronLeft, Layout, FileText, Image as ImageIcon, Upload, ToggleLeft, ToggleRight, Type } from 'lucide-react';
-import { getGasUrl, setGasUrl as saveGasUrl, getSheetId, setSheetId as saveSheetId } from '../services/googleSheetService';
+import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edit2, ArrowUp, ArrowDown, ChevronLeft, Layout, FileText, Image as ImageIcon, Upload, ToggleLeft, ToggleRight, Type, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { getGasUrl, setGasUrl as saveGasUrl, getSheetId, setSheetId as saveSheetId, DEFAULT_GAS_URL } from '../services/googleSheetService';
 import { getTemplates, saveTemplate, deleteTemplate } from '../services/templateService';
 import { extractTemplateFromImage, fileToGenerativePart } from '../services/geminiService';
+import { 
+  isAutoBackupEnabled, 
+  setAutoBackupEnabled, 
+  backupSettingsToDrive, 
+  restoreSettingsFromDrive,
+  applyRestoredSettings,
+  getLastBackupDate
+} from '../services/settingsBackupService';
 import { useToastContext } from '../contexts/ToastContext';
 import { Template, SectionData } from '../types';
 
@@ -40,6 +48,12 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sectionImageInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
+  // Auto Backup State
+  const [autoBackupEnabled, setAutoBackupState] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       // 기본값을 포함하지 않고 가져와서, 사용자가 실제로 입력한 값만 표시
@@ -50,6 +64,10 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setSaveStatus('idle');
       setEditingTemplate(null); // Reset edit mode on open
       
+      // 자동 백업 상태 초기화
+      setAutoBackupState(isAutoBackupEnabled());
+      setLastBackupDate(getLastBackupDate());
+      
       // 디버깅: localStorage에 저장된 실제 값 확인
       console.log('[Settings] localStorage에서 GAS URL 확인:', localStorage.getItem('gemini_commerce_gas_url'));
       console.log('[Settings] getGasUrl(false) 결과:', savedUrl);
@@ -57,7 +75,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  const handleSaveGeneral = () => {
+  const handleSaveGeneral = async () => {
     // 공백 제거 후 저장
     const cleanGasUrl = gasUrl.trim();
     const cleanSheetId = sheetId.trim();
@@ -69,6 +87,15 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     saveSheetId(cleanSheetId);
 
     setSaveStatus('saving');
+    
+    // 자동 백업이 활성화되어 있고, 유효한 GAS URL이 있으면 백업 실행
+    if (autoBackupEnabled && cleanGasUrl && cleanGasUrl !== DEFAULT_GAS_URL) {
+      const result = await backupSettingsToDrive();
+      if (result.success) {
+        setLastBackupDate(new Date().toISOString());
+      }
+    }
+    
     setTimeout(() => {
         setSaveStatus('success');
         toast.success('설정이 저장되었습니다.');
@@ -76,6 +103,92 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             setSaveStatus('idle');
         }, 2000);
     }, 500);
+  };
+
+  // 자동 백업 토글 핸들러
+  const handleAutoBackupToggle = async (enabled: boolean) => {
+    // GAS URL이 기본값이면 백업 불가
+    if (enabled && (!gasUrl || gasUrl.trim() === '' || gasUrl === DEFAULT_GAS_URL)) {
+      toast.warning('자동 백업을 사용하려면 먼저 개인 GAS URL을 설정해주세요.');
+      return;
+    }
+    
+    setAutoBackupState(enabled);
+    setAutoBackupEnabled(enabled);
+    
+    if (enabled) {
+      // 백업 활성화 시 즉시 백업 실행
+      setIsBackingUp(true);
+      const result = await backupSettingsToDrive();
+      setIsBackingUp(false);
+      
+      if (result.success) {
+        setLastBackupDate(new Date().toISOString());
+        toast.success('자동 백업이 활성화되었습니다. 설정이 Google Drive에 저장되었습니다.');
+      } else {
+        toast.error('백업 실패: ' + result.message);
+        setAutoBackupState(false);
+        setAutoBackupEnabled(false);
+      }
+    } else {
+      toast.info('자동 백업이 비활성화되었습니다.');
+    }
+  };
+
+  // 수동 백업 핸들러
+  const handleManualBackup = async () => {
+    if (!gasUrl || gasUrl.trim() === '' || gasUrl === DEFAULT_GAS_URL) {
+      toast.warning('백업을 사용하려면 먼저 개인 GAS URL을 설정해주세요.');
+      return;
+    }
+    
+    setIsBackingUp(true);
+    const result = await backupSettingsToDrive();
+    setIsBackingUp(false);
+    
+    if (result.success) {
+      setLastBackupDate(new Date().toISOString());
+      toast.success('설정이 Google Drive에 백업되었습니다.');
+    } else {
+      toast.error('백업 실패: ' + result.message);
+    }
+  };
+
+  // 수동 복원 핸들러
+  const handleManualRestore = async () => {
+    if (!gasUrl || gasUrl.trim() === '' || gasUrl === DEFAULT_GAS_URL) {
+      toast.warning('복원을 사용하려면 먼저 개인 GAS URL을 설정해주세요.');
+      return;
+    }
+    
+    if (!confirm('Google Drive에서 백업된 설정을 복원하시겠습니까?\n현재 설정이 백업 시점의 설정으로 교체됩니다.')) {
+      return;
+    }
+    
+    setIsRestoring(true);
+    const result = await restoreSettingsFromDrive();
+    setIsRestoring(false);
+    
+    if (result.success && result.settings) {
+      applyRestoredSettings(result.settings);
+      
+      // UI 상태 업데이트
+      if (result.settings.gasUrl) {
+        setGasUrlState(result.settings.gasUrl);
+      }
+      if (result.settings.sheetId) {
+        setSheetIdState(result.settings.sheetId);
+      }
+      setTemplates(getTemplates());
+      
+      const backupDateStr = result.settings.backupDate 
+        ? new Date(result.settings.backupDate).toLocaleString('ko-KR')
+        : '알 수 없음';
+      
+      toast.success(`설정이 복원되었습니다! (백업 시점: ${backupDateStr})`);
+    } else {
+      toast.error('복원 실패: ' + result.message);
+    }
   };
 
   const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -410,6 +523,93 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         {saveStatus === 'idle' && '설정 저장하기'}
                       </button>
                   </div>
+              </div>
+
+              {/* 자동 백업 섹션 */}
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                  <h3 className="font-bold text-gray-800 border-b pb-2 flex items-center">
+                    <Cloud className="w-5 h-5 mr-2 text-blue-600" />
+                    설정 자동 백업
+                  </h3>
+                  
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 flex items-start leading-relaxed">
+                      <Info className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-blue-600" />
+                      <span>
+                        <strong>자동 백업:</strong> 설정과 템플릿을 Google Drive에 자동으로 백업합니다. 
+                        다른 기기나 브라우저에서도 같은 설정을 사용할 수 있습니다.
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* 자동 백업 토글 */}
+                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div className="flex items-center">
+                      {autoBackupEnabled ? (
+                        <Cloud className="w-5 h-5 text-green-600 mr-3" />
+                      ) : (
+                        <CloudOff className="w-5 h-5 text-gray-400 mr-3" />
+                      )}
+                      <div>
+                        <span className="font-semibold text-gray-800">자동 백업 활성화</span>
+                        {lastBackupDate && autoBackupEnabled && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            마지막 백업: {new Date(lastBackupDate).toLocaleString('ko-KR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAutoBackupToggle(!autoBackupEnabled)}
+                      disabled={isBackingUp}
+                      className={`flex items-center transition-colors ${
+                        autoBackupEnabled ? 'text-green-600' : 'text-gray-400'
+                      } ${isBackingUp ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {isBackingUp ? (
+                        <Loader2 className="w-8 h-8 animate-spin" />
+                      ) : autoBackupEnabled ? (
+                        <ToggleRight className="w-10 h-10" />
+                      ) : (
+                        <ToggleLeft className="w-10 h-10" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 수동 백업/복원 버튼 */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button
+                      onClick={handleManualBackup}
+                      disabled={isBackingUp || isRestoring || !gasUrl || gasUrl === DEFAULT_GAS_URL}
+                      className="py-2.5 px-4 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isBackingUp ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Cloud className="w-4 h-4 mr-2" />
+                      )}
+                      지금 백업
+                    </button>
+                    <button
+                      onClick={handleManualRestore}
+                      disabled={isBackingUp || isRestoring || !gasUrl || gasUrl === DEFAULT_GAS_URL}
+                      className="py-2.5 px-4 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isRestoring ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      백업 복원
+                    </button>
+                  </div>
+                  
+                  {(!gasUrl || gasUrl === DEFAULT_GAS_URL) && (
+                    <p className="text-xs text-amber-600 flex items-center mt-2">
+                      <Info className="w-3 h-3 mr-1" />
+                      백업 기능을 사용하려면 먼저 개인 GAS URL을 설정하세요.
+                    </p>
+                  )}
               </div>
             </div>
           )}

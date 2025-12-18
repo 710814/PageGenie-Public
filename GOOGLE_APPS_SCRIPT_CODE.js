@@ -78,9 +78,19 @@ function handleGeminiRequest(e) {
 function doPost(e) {
   // 경로에 따라 라우팅
   var path = e.parameter.path || '';
+  var action = e.parameter.action || '';
   
-  if (path === 'gemini' || e.parameter.action === 'gemini') {
+  if (path === 'gemini' || action === 'gemini') {
     return handleGeminiRequest(e);
+  }
+  
+  // 설정 백업/복원 라우팅
+  if (action === 'backup-settings') {
+    return handleBackupSettings(e);
+  }
+  
+  if (action === 'restore-settings') {
+    return handleRestoreSettings(e);
   }
   
     // 기존 시트 저장 로직
@@ -437,5 +447,115 @@ function testDrivePermission() {
     Logger.log('⚠️ 이 오류가 발생하면 권한 승인 팝업이 나타나야 합니다.');
     Logger.log('⚠️ 팝업이 나타나지 않으면, 실제 애플리케이션에서 사용할 때 권한이 요청될 수 있습니다.');
     throw error;
+  }
+}
+
+// ----------------------------------------------------------------
+// [설정 백업/복원 기능]
+// 사용자 설정과 템플릿을 Google Drive에 자동 백업합니다.
+// ----------------------------------------------------------------
+
+/**
+ * 설정 백업 저장
+ * 사용자의 설정(GAS URL, Sheet ID, 템플릿)을 Google Drive에 저장
+ */
+function handleBackupSettings(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var settings = data.settings;
+    
+    if (!settings) {
+      throw new Error('백업할 설정 데이터가 없습니다.');
+    }
+    
+    // 숨김 폴더 찾기 또는 생성
+    var folderName = '.pagegenie_backup';
+    var folders = DriveApp.getFoldersByName(folderName);
+    var folder;
+    
+    if (folders.hasNext()) {
+      folder = folders.next();
+      Logger.log('기존 백업 폴더 사용: ' + folderName);
+    } else {
+      folder = DriveApp.createFolder(folderName);
+      Logger.log('새 백업 폴더 생성: ' + folderName);
+    }
+    
+    // 기존 백업 파일 삭제 (최신 하나만 유지)
+    var existingFiles = folder.getFilesByName('settings.json');
+    while (existingFiles.hasNext()) {
+      existingFiles.next().setTrashed(true);
+    }
+    
+    // 새 백업 파일 생성
+    var settingsJson = JSON.stringify(settings, null, 2);
+    var blob = Utilities.newBlob(settingsJson, 'application/json', 'settings.json');
+    var file = folder.createFile(blob);
+    
+    Logger.log('✅ 설정 백업 완료: ' + file.getUrl());
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      message: '설정이 Google Drive에 백업되었습니다.',
+      fileId: file.getId(),
+      backupDate: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    Logger.log('❌ 설정 백업 실패: ' + error.toString());
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * 설정 복원
+ * Google Drive에서 백업된 설정을 읽어옴
+ */
+function handleRestoreSettings(e) {
+  try {
+    var folderName = '.pagegenie_backup';
+    var folders = DriveApp.getFoldersByName(folderName);
+    
+    if (!folders.hasNext()) {
+      Logger.log('백업 폴더가 없습니다.');
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'not_found',
+        message: '백업 파일이 없습니다. 먼저 백업을 생성해주세요.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var folder = folders.next();
+    var files = folder.getFilesByName('settings.json');
+    
+    if (!files.hasNext()) {
+      Logger.log('백업 파일이 없습니다.');
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'not_found',
+        message: '백업 파일이 없습니다. 먼저 백업을 생성해주세요.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var file = files.next();
+    var content = file.getBlob().getDataAsString();
+    var settings = JSON.parse(content);
+    
+    Logger.log('✅ 설정 복원 성공: ' + file.getUrl());
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      settings: settings,
+      message: '설정이 복원되었습니다.',
+      backupDate: settings.backupDate || null
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    Logger.log('❌ 설정 복원 실패: ' + error.toString());
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { AppMode, Step, UploadedFile, ProductAnalysis } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider, useToastContext } from './contexts/ToastContext';
@@ -9,6 +9,12 @@ import { StepResult } from './components/StepResult';
 import { SettingsModal } from './components/SettingsModal';
 import { analyzeProductImage, generateSectionImage } from './services/geminiService';
 import { getTemplates } from './services/templateService';
+import { 
+  isAutoBackupEnabled, 
+  isSettingsEmpty, 
+  restoreSettingsFromDrive, 
+  applyRestoredSettings 
+} from './services/settingsBackupService';
 import { Loader2, Settings } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -22,8 +28,45 @@ const AppContent: React.FC = () => {
   // Settings Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
+  // 자동 복원 상태
+  const [isAutoRestoring, setIsAutoRestoring] = useState(false);
+  
   // Toast 알림 시스템
   const toast = useToastContext();
+
+  // 앱 시작 시 자동 복원 시도
+  useEffect(() => {
+    const tryAutoRestore = async () => {
+      // 자동 백업이 활성화되어 있고, 현재 설정이 비어있을 때만 복원 시도
+      if (isAutoBackupEnabled() && isSettingsEmpty()) {
+        console.log('[App] 자동 복원 시도...');
+        setIsAutoRestoring(true);
+        
+        try {
+          const result = await restoreSettingsFromDrive();
+          
+          if (result.success && result.settings) {
+            applyRestoredSettings(result.settings);
+            
+            const backupDateStr = result.settings.backupDate 
+              ? new Date(result.settings.backupDate).toLocaleString('ko-KR')
+              : '';
+            
+            toast.success(`설정이 자동으로 복원되었습니다!${backupDateStr ? ` (${backupDateStr})` : ''}`);
+            console.log('[App] 자동 복원 성공');
+          } else if (result.status !== 'not_found') {
+            console.log('[App] 자동 복원 실패:', result.message);
+          }
+        } catch (error) {
+          console.error('[App] 자동 복원 오류:', error);
+        } finally {
+          setIsAutoRestoring(false);
+        }
+      }
+    };
+    
+    tryAutoRestore();
+  }, [toast]);
 
   const handleModeSelect = useCallback((selectedMode: AppMode) => {
     setMode(selectedMode);
