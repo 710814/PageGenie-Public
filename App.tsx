@@ -131,7 +131,13 @@ const AppContent: React.FC = () => {
          if (section.isOriginalImage && section.imageUrl) {
            console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
            newSections.push(section);
-         } else if (section.imagePrompt) {
+         } 
+         // 미리보기로 이미 생성된 이미지가 있는 섹션도 건너뛰기
+         else if (section.isPreview && section.imageUrl) {
+           console.log(`[Generate] 섹션 "${section.title}": 미리보기 이미지 사용 (재생성 건너뜀)`);
+           newSections.push({ ...section, isPreview: false }); // 최종 확정으로 변경
+         }
+         else if (section.imagePrompt) {
            console.log(`[Generate] 섹션 "${section.title}": AI 이미지 생성 중...`);
            const imageUrl = await generateSectionImage(
              section.imagePrompt,
@@ -225,6 +231,8 @@ const AppContent: React.FC = () => {
                 onUpdate={setAnalysisResult} 
                 onConfirm={handleGenerate}
                 isLoading={isLoading}
+                uploadedFiles={uploadedFiles}
+                mode={mode}
               />
             )}
             {step === Step.RESULT && analysisResult && (

@@ -18,6 +18,7 @@ export interface SectionData {
   imagePrompt: string; // Prompt used/to be used for image generation
   imageUrl?: string; // Generated or Original Image URL
   isOriginalImage?: boolean; // Whether to keep original or generate new
+  isPreview?: boolean; // 미리보기로 생성된 이미지인지 여부
   
   // 템플릿 고정 요소 (Template Fixed Elements)
   fixedText?: string; // 항상 포함될 고정 문구 (예: "100% 국내산", 인증문구 등)

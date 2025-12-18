@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ProductAnalysis, AppMode, UploadedFile } from '../types';
-import { Download, Code, CheckCircle, ExternalLink, Table, Loader2, RefreshCw, Settings, X, MessageSquare, Image as ImageIcon } from 'lucide-react';
+import { Download, Code, CheckCircle, ExternalLink, Table, Loader2, RefreshCw, Settings, X, MessageSquare, Image as ImageIcon, Eye } from 'lucide-react';
 import { saveToGoogleSheet, openGoogleSheet, generateCSV, getGasUrl, DEFAULT_GAS_URL } from '../services/googleSheetService';
 import { generateSectionImage } from '../services/geminiService';
 import { useToastContext } from '../contexts/ToastContext';
@@ -25,7 +25,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
   // 프롬프트 수정 모달 상태
   const [editModal, setEditModal] = useState<{ isOpen: boolean; sectionId: string; prompt: string } | null>(null);
   
-  // HTML 생성 함수
+  // HTML 생성 함수 (다운로드용 - 이미지는 상대 경로)
   const generateHTML = () => {
     return `
 <!DOCTYPE html>
@@ -79,6 +79,175 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
 </html>
     `;
   };
+
+  // HTML 생성 함수 (미리보기용 - 이미지 data URL 직접 포함)
+  const generateHTMLForPreview = useCallback(() => {
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${data.productName} - 미리보기</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            color: #333; 
+            line-height: 1.8;
+            background: #fff;
+        }
+        .container { max-width: 860px; margin: 0 auto; }
+        .hero { 
+            text-align: center; 
+            padding: 80px 30px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .hero h1 { 
+            font-size: 2.8rem; 
+            margin-bottom: 20px; 
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .hero p { 
+            font-size: 1.3rem; 
+            max-width: 650px; 
+            margin: 0 auto; 
+            opacity: 0.95;
+            line-height: 1.8;
+        }
+        .features { 
+            padding: 50px 30px; 
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .features h3 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: #1e293b;
+        }
+        .features ul { 
+            max-width: 650px; 
+            margin: 0 auto; 
+            padding-left: 0;
+            list-style: none;
+        }
+        .features li { 
+            margin-bottom: 15px; 
+            font-size: 1.1rem; 
+            padding: 15px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+            padding-left: 50px;
+        }
+        .features li::before {
+            content: "✓";
+            position: absolute;
+            left: 20px;
+            color: #10b981;
+            font-weight: bold;
+        }
+        .section { 
+            padding: 70px 30px; 
+            border-bottom: 1px solid #e5e7eb; 
+            text-align: center;
+        }
+        .section:nth-child(even) {
+            background: #fafafa;
+        }
+        .section img { 
+            max-width: 100%; 
+            height: auto; 
+            border-radius: 12px; 
+            margin-bottom: 35px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        }
+        .section h2 { 
+            font-size: 2rem; 
+            margin-bottom: 20px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        .section p { 
+            font-size: 1.15rem; 
+            color: #64748b; 
+            max-width: 750px; 
+            margin: 0 auto; 
+            white-space: pre-wrap;
+            line-height: 1.9;
+        }
+        .footer { 
+            padding: 50px 30px; 
+            text-align: center; 
+            font-size: 0.95rem; 
+            color: #94a3b8; 
+            background: #1e293b;
+        }
+        .preview-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-badge">🔍 미리보기</div>
+    <div class="container">
+        <header class="hero">
+            <h1>${data.productName}</h1>
+            <p>${data.marketingCopy}</p>
+        </header>
+
+        <section class="features">
+            <h3>✨ 주요 특징</h3>
+            <ul>
+                ${data.mainFeatures.map(f => `<li>${f}</li>`).join('')}
+            </ul>
+        </section>
+
+        ${data.sections.map((section, index) => `
+        <section class="section">
+            ${section.imageUrl ? `<img src="${section.imageUrl}" alt="${section.title}" />` : ''}
+            <h2>${section.title}</h2>
+            <p>${section.content}</p>
+        </section>
+        `).join('')}
+
+        <footer class="footer">
+            <p>© ${new Date().getFullYear()} ${data.productName}. All rights reserved.</p>
+            <p style="margin-top: 10px; font-size: 0.8rem;">이 페이지는 PageGenie로 생성되었습니다.</p>
+        </footer>
+    </div>
+</body>
+</html>`;
+  }, [data]);
+
+  // 새 창에서 미리보기
+  const handlePreviewInNewWindow = useCallback(() => {
+    const html = generateHTMLForPreview();
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(html);
+      newWindow.document.close();
+      toast.success('새 창에서 미리보기가 열렸습니다.');
+    } else {
+      toast.error('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+    }
+  }, [generateHTMLForPreview, toast]);
 
   const downloadHtml = () => {
     const html = generateHTML();
@@ -279,6 +448,15 @@ ${data.marketingCopy}
           <p className="text-gray-500 mt-1">모든 이미지가 생성되었고 코드가 준비되었습니다.</p>
         </div>
         <div className="flex gap-3 flex-wrap justify-end">
+          {/* 새 창 미리보기 버튼 */}
+          <button
+            onClick={handlePreviewInNewWindow}
+            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            새 창 미리보기
+          </button>
+          
           <button
             onClick={downloadHtml}
             className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"

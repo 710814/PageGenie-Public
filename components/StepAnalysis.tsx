@@ -1,17 +1,103 @@
-import React, { useRef, useCallback, useMemo } from 'react';
-import { ProductAnalysis, SectionData } from '../types';
-import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type } from 'lucide-react';
+import React, { useRef, useCallback, useMemo, useState } from 'react';
+import { ProductAnalysis, SectionData, UploadedFile, AppMode } from '../types';
+import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3 } from 'lucide-react';
+import { generateSectionImage } from '../services/geminiService';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface Props {
   analysis: ProductAnalysis;
   onUpdate: (updated: ProductAnalysis) => void;
   onConfirm: () => void;
   isLoading: boolean;
+  uploadedFiles?: UploadedFile[];
+  mode?: AppMode;
 }
 
-export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, onConfirm, isLoading }) => {
+export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, onConfirm, isLoading, uploadedFiles = [], mode = AppMode.CREATION }) => {
   // 섹션 리스트 컨테이너 참조 (스크롤 이동용)
   const sectionsContainerRef = useRef<HTMLDivElement>(null);
+  const toast = useToastContext();
+  
+  // 이미지 미리보기 생성 상태
+  const [generatingPreviewId, setGeneratingPreviewId] = useState<string | null>(null);
+  
+  // 프롬프트 수정 모달 상태
+  const [editPromptModal, setEditPromptModal] = useState<{
+    sectionId: string;
+    prompt: string;
+  } | null>(null);
+
+  // 이미지 미리보기 생성 함수
+  const handleGeneratePreview = useCallback(async (sectionId: string, customPrompt?: string) => {
+    const section = analysis.sections.find(s => s.id === sectionId);
+    const prompt = customPrompt || section?.imagePrompt;
+    
+    if (!prompt) {
+      toast.error('이미지 프롬프트가 없습니다.');
+      return;
+    }
+    
+    setGeneratingPreviewId(sectionId);
+    
+    try {
+      const primaryFile = uploadedFiles.length > 0 ? uploadedFiles[0] : null;
+      
+      const imageUrl = await generateSectionImage(
+        prompt,
+        primaryFile?.base64,
+        primaryFile?.mimeType,
+        mode
+      );
+      
+      // 해당 섹션에 이미지 추가
+      const updatedSections = analysis.sections.map(s =>
+        s.id === sectionId 
+          ? { ...s, imageUrl, imagePrompt: prompt, isPreview: true }
+          : s
+      );
+      
+      onUpdate({ ...analysis, sections: updatedSections });
+      toast.success('이미지 미리보기가 생성되었습니다.');
+    } catch (error) {
+      console.error('Preview generation failed:', error);
+      toast.error('이미지 생성에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setGeneratingPreviewId(null);
+    }
+  }, [analysis, uploadedFiles, mode, onUpdate, toast]);
+
+  // 프롬프트 수정 모달 열기
+  const handleOpenEditPrompt = useCallback((sectionId: string) => {
+    const section = analysis.sections.find(s => s.id === sectionId);
+    setEditPromptModal({
+      sectionId,
+      prompt: section?.imagePrompt || ''
+    });
+  }, [analysis.sections]);
+
+  // 프롬프트 수정 후 이미지 생성
+  const handleConfirmEditPrompt = useCallback(() => {
+    if (!editPromptModal) return;
+    
+    const { sectionId, prompt } = editPromptModal;
+    setEditPromptModal(null);
+    handleGeneratePreview(sectionId, prompt);
+  }, [editPromptModal, handleGeneratePreview]);
+
+  // 이미지 미리보기 제거
+  const handleRemovePreview = useCallback((sectionId: string) => {
+    const updatedSections = analysis.sections.map(s =>
+      s.id === sectionId 
+        ? { ...s, imageUrl: undefined, isPreview: false }
+        : s
+    );
+    onUpdate({ ...analysis, sections: updatedSections });
+  }, [analysis, onUpdate]);
+
+  // 미리보기가 있는 섹션 수
+  const previewCount = useMemo(() => 
+    analysis.sections.filter(s => s.imageUrl && !s.isOriginalImage).length,
+  [analysis.sections]);
 
   const handleFieldChange = useCallback((field: keyof ProductAnalysis, value: any) => {
     const newData = { ...analysis, [field]: value };
@@ -280,13 +366,80 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         }
                       </p>
                       <textarea
-                        rows={section.useFixedImage ? 3 : 6}
+                        rows={section.useFixedImage ? 3 : 4}
                         value={section.imagePrompt}
                         onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
                         disabled={section.useFixedImage}
                         className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
                         placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
                       />
+                      
+                      {/* 이미지 미리보기 버튼 및 결과 */}
+                      {!section.useFixedImage && (
+                        <div className="mt-3">
+                          {section.imageUrl && !section.isOriginalImage ? (
+                            // 이미지가 생성된 경우
+                            <div className="space-y-2">
+                              <div className="relative group">
+                                <img 
+                                  src={section.imageUrl}
+                                  alt="미리보기"
+                                  className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleOpenEditPrompt(section.id)}
+                                    className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                    title="프롬프트 수정 후 재생성"
+                                  >
+                                    <Edit3 className="w-3 h-3 mr-1" />
+                                    수정
+                                  </button>
+                                  <button
+                                    onClick={() => handleGeneratePreview(section.id)}
+                                    disabled={generatingPreviewId === section.id}
+                                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                    title="동일 프롬프트로 재생성"
+                                  >
+                                    <RefreshCw className={`w-3 h-3 mr-1 ${generatingPreviewId === section.id ? 'animate-spin' : ''}`} />
+                                    재생성
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemovePreview(section.id)}
+                                    className="bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                                    title="미리보기 제거"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-xs text-green-600 flex items-center">
+                                <Eye className="w-3 h-3 mr-1" />
+                                미리보기 생성 완료 - 마우스를 올려 수정/재생성
+                              </p>
+                            </div>
+                          ) : (
+                            // 이미지가 없는 경우
+                            <button
+                              onClick={() => handleGeneratePreview(section.id)}
+                              disabled={generatingPreviewId === section.id || !section.imagePrompt}
+                              className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {generatingPreviewId === section.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  이미지 생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-4 h-4" />
+                                  이미지 미리보기 생성
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -295,6 +448,77 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </div>
         </div>
       </div>
+      
+      {/* 하단 고정 액션 바 */}
+      {previewCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-2xl border border-gray-200 rounded-full px-6 py-3 flex items-center gap-4 z-30">
+          <span className="text-sm text-gray-600">
+            <Eye className="w-4 h-4 inline mr-1" />
+            미리보기 {previewCount}개 생성됨
+          </span>
+          <div className="w-px h-6 bg-gray-200"></div>
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-full font-semibold flex items-center shadow-lg disabled:opacity-50 text-sm"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            나머지 생성 후 완료
+          </button>
+        </div>
+      )}
+      
+      {/* 프롬프트 수정 모달 */}
+      {editPromptModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
+              <h3 className="text-lg font-bold text-white flex items-center">
+                <Edit3 className="w-5 h-5 mr-2" />
+                이미지 프롬프트 수정
+              </h3>
+              <p className="text-indigo-100 text-sm mt-1">프롬프트를 수정하고 새로운 이미지를 생성합니다.</p>
+            </div>
+            
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                이미지 생성 프롬프트 (한국어/영어 가능)
+              </label>
+              <textarea
+                rows={5}
+                value={editPromptModal.prompt}
+                onChange={(e) => setEditPromptModal({ ...editPromptModal, prompt: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                💡 팁: 구체적인 설명을 추가할수록 원하는 이미지를 얻을 수 있습니다.
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setEditPromptModal(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirmEditPrompt}
+                disabled={!editPromptModal.prompt.trim()}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                이미지 재생성
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
