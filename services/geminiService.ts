@@ -113,6 +113,78 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
 /**
  * Schema for the product analysis output (JSON Schema format for Gemini API)
  */
+/**
+ * 템플릿 구조를 기반으로 AI 결과를 매핑
+ * - 템플릿의 섹션 구조(ID, 개수, 순서, 레이아웃)를 100% 유지
+ * - AI가 생성한 콘텐츠(제목, 설명)만 적용
+ * - 고정 이미지, 고정 문구, 레이아웃은 절대 변경 불가
+ */
+const applyTemplateStructure = (
+  aiResult: ProductAnalysis,
+  template: Template
+): ProductAnalysis => {
+  // 템플릿 섹션을 기준으로 구조 완전 유지
+  const mappedSections: SectionData[] = template.sections.map((templateSection, index) => {
+    // AI 결과에서 동일 ID의 섹션 찾기 (우선), 없으면 인덱스 기반 매칭
+    const aiSection = aiResult.sections.find(s => s.id === templateSection.id) 
+                     || aiResult.sections[index]
+                     || null;
+    
+    // 기본 섹션 구조 (템플릿에서 100% 유지)
+    const baseSection: SectionData = {
+      // 템플릿 구조 완전 유지 (절대 변경 불가)
+      id: templateSection.id,
+      layoutType: templateSection.layoutType,
+      fixedText: templateSection.fixedText,
+      fixedImageBase64: templateSection.fixedImageBase64,
+      fixedImageMimeType: templateSection.fixedImageMimeType,
+      useFixedImage: templateSection.useFixedImage,
+      
+      // AI가 생성한 콘텐츠 적용 (없으면 템플릿 기본값 사용)
+      title: aiSection?.title || templateSection.title,
+      content: buildContentWithFixedText(
+        aiSection?.content || templateSection.content,
+        templateSection.fixedText
+      ),
+      
+      // 이미지 프롬프트: 고정 이미지면 템플릿 것 유지, 아니면 AI 것 사용
+      imagePrompt: templateSection.useFixedImage 
+        ? templateSection.imagePrompt 
+        : (aiSection?.imagePrompt || templateSection.imagePrompt),
+    };
+    
+    // 고정 이미지가 활성화되어 있으면 즉시 이미지 URL 설정
+    if (templateSection.useFixedImage && templateSection.fixedImageBase64) {
+      baseSection.imageUrl = `data:${templateSection.fixedImageMimeType};base64,${templateSection.fixedImageBase64}`;
+      baseSection.isOriginalImage = true; // AI 생성 건너뛰기 플래그
+    }
+    
+    return baseSection;
+  });
+  
+  return {
+    ...aiResult,
+    sections: mappedSections,
+  };
+};
+
+/**
+ * 고정 문구를 콘텐츠에 자연스럽게 통합
+ * - 고정 문구가 이미 포함되어 있으면 중복 추가 안함
+ * - 없으면 콘텐츠 앞에 추가
+ */
+const buildContentWithFixedText = (content: string, fixedText?: string): string => {
+  if (!fixedText) return content;
+  
+  // 이미 고정 문구가 포함되어 있는지 확인
+  if (content.includes(fixedText)) {
+    return content;
+  }
+  
+  // 고정 문구를 콘텐츠 앞에 강조하여 추가
+  return `✓ ${fixedText}\n\n${content}`;
+};
+
 const productAnalysisSchema = {
   type: "object",
   properties: {
@@ -286,27 +358,48 @@ export const analyzeProductImage = async (
   let prompt = "";
   
   if (template) {
-    // TEMPLATE MODE
+    // TEMPLATE MODE - 템플릿 구조 100% 유지
     const templateStructure = JSON.stringify(template.sections.map(s => ({
-      title: s.title,
-      description_of_content_needed: s.content,
-      visual_style: s.imagePrompt
-    })));
+      id: s.id,
+      section_purpose: s.title,
+      content_guideline: s.content,
+      visual_style: s.imagePrompt,
+      fixed_text: s.fixedText || null,
+      layout_type: s.layoutType || 'full-width',
+      has_fixed_image: !!s.fixedImageBase64
+    })), null, 2);
+
+    const sectionCount = template.sections.length;
+    const sectionIds = template.sections.map(s => s.id).join(', ');
 
     prompt = `
-      You are an expert e-commerce merchandiser.
-      I have a specific "Winning Layout Template" that I want to apply to a new product.
+      You are an expert e-commerce merchandiser. You MUST follow a STRICT template structure.
       
-      Input Image(s): Photos of the product to sell.
-      Target Template Structure: ${templateStructure}
+      ## CRITICAL RULES (MUST FOLLOW):
+      1. You MUST generate EXACTLY ${sectionCount} sections - no more, no less.
+      2. You MUST use these EXACT section IDs in order: [${sectionIds}]
+      3. You MUST NOT add, remove, or reorder any sections.
+      4. You MUST preserve the template's storyline flow exactly as given.
       
-      Tasks:
-      1. Analyze ALL input images to fully understand the product (front, back, details, etc.).
-      2. Fill in the "Target Template Structure" with content specific to this product.
-      3. For each section in the template:
-         - Keep the original structural intent.
-         - Write persuasive Korean content for 'title' and 'content'.
-         - Refine the 'imagePrompt' to combine the Template's Visual Style with the Input Product's visual details found in the images.
+      ## Input:
+      - Product Image(s): Photos of the product to sell
+      - Template Structure (MUST FOLLOW EXACTLY):
+      ${templateStructure}
+      
+      ## Your Tasks:
+      1. Analyze ALL input images to understand the product thoroughly.
+      2. For EACH section in the template (in exact order):
+         - Use the EXACT 'id' provided - do not change it
+         - Write a compelling 'title' in Korean that fits the section's purpose
+         - Write detailed 'content' in Korean based on the 'content_guideline'
+         - Create an 'imagePrompt' that combines the 'visual_style' with the actual product
+      
+      ## Special Instructions:
+      - If 'fixed_text' exists: You MUST include it prominently in the 'content'
+      - If 'has_fixed_image' is true: Keep the 'imagePrompt' similar to the 'visual_style'
+      
+      ## Output Format:
+      Return JSON with 'sections' array containing EXACTLY ${sectionCount} sections with matching IDs.
     `;
   } else if (mode === AppMode.CREATION) {
     prompt = `
@@ -391,7 +484,14 @@ export const analyzeProductImage = async (
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error("No response from Gemini");
       
-      return JSON.parse(text) as ProductAnalysis;
+      const analysis = JSON.parse(text) as ProductAnalysis;
+      
+      // 템플릿 모드: 템플릿 구조를 기반으로 강제 매핑 (100% 구조 유지)
+      if (template) {
+        return applyTemplateStructure(analysis, template);
+      }
+      
+      return analysis;
     }
     
     // GAS 프록시를 사용할 수 없는 경우
@@ -460,7 +560,14 @@ export const analyzeProductImage = async (
     
     if (!text) throw new Error("No response from Gemini");
 
-    return JSON.parse(text) as ProductAnalysis;
+    const analysis = JSON.parse(text) as ProductAnalysis;
+    
+    // 템플릿 모드: 템플릿 구조를 기반으로 강제 매핑 (100% 구조 유지)
+    if (template) {
+      return applyTemplateStructure(analysis, template);
+    }
+    
+    return analysis;
   } catch (error) {
     console.error("Analysis failed:", error);
     throw error;

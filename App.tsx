@@ -84,7 +84,12 @@ const AppContent: React.FC = () => {
 
       const newSections = [];
       for (const section of finalResult.sections) {
-         if (section.imagePrompt) {
+         // 고정 이미지가 있는 섹션은 AI 생성 건너뛰기
+         if (section.isOriginalImage && section.imageUrl) {
+           console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
+           newSections.push(section);
+         } else if (section.imagePrompt) {
+           console.log(`[Generate] 섹션 "${section.title}": AI 이미지 생성 중...`);
            const imageUrl = await generateSectionImage(
              section.imagePrompt,
              primaryFile?.base64, // Use the first image as reference style

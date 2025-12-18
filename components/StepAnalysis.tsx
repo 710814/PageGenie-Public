@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo } from 'react';
 import { ProductAnalysis, SectionData } from '../types';
-import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
+import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type } from 'lucide-react';
 
 interface Props {
   analysis: ProductAnalysis;
@@ -170,6 +170,24 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                     <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded mr-2">
                       SECTION {index + 1}
                     </span>
+                    {/* 고정 요소 표시 배지 */}
+                    {section.fixedText && (
+                      <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full mr-1 flex items-center" title="고정 문구 포함">
+                        <Type className="w-3 h-3 mr-0.5" />
+                        고정문구
+                      </span>
+                    )}
+                    {section.useFixedImage && section.fixedImageBase64 && (
+                      <span className="bg-emerald-100 text-emerald-700 text-[10px] font-medium px-2 py-0.5 rounded-full mr-1 flex items-center" title="고정 이미지 사용">
+                        <ImageIcon className="w-3 h-3 mr-0.5" />
+                        고정이미지
+                      </span>
+                    )}
+                    {section.layoutType && section.layoutType !== 'full-width' && (
+                      <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full mr-1" title={`레이아웃: ${section.layoutType}`}>
+                        {section.layoutType}
+                      </span>
+                    )}
                     {/* Reorder Buttons */}
                     <div className="flex items-center space-x-1 ml-1 opacity-60 group-hover:opacity-100 transition-opacity">
                         <button 
@@ -221,21 +239,55 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         placeholder="섹션 내용을 입력하세요"
                       />
                     </div>
+                    
+                    {/* 고정 문구 표시 */}
+                    {section.fixedText && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <label className="text-xs font-semibold text-amber-700 uppercase flex items-center mb-1">
+                          <Lock className="w-3 h-3 mr-1" />
+                          고정 문구
+                        </label>
+                        <p className="text-sm text-amber-800">{section.fixedText}</p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
-                    <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      이미지 생성 프롬프트 (English)
-                    </label>
-                    <p className="text-xs text-gray-500 mb-2">Gemini가 이 프롬프트를 기반으로 섹션 이미지를 생성합니다.</p>
-                    <textarea
-                      rows={6}
-                      value={section.imagePrompt}
-                      onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-mono"
-                      placeholder="e.g. Detailed product shot on a wooden table..."
-                    />
+                  <div className="space-y-3">
+                    {/* 고정 이미지 미리보기 */}
+                    {section.useFixedImage && section.fixedImageBase64 && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                        <label className="text-xs font-semibold text-emerald-700 uppercase flex items-center mb-2">
+                          <Lock className="w-3 h-3 mr-1" />
+                          고정 이미지 (AI 생성 대신 사용)
+                        </label>
+                        <img 
+                          src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
+                          alt="고정 이미지"
+                          className="w-full h-32 object-contain bg-white rounded border border-emerald-200"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
+                      <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        이미지 생성 프롬프트 (English)
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {section.useFixedImage 
+                          ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
+                          : 'Gemini가 이 프롬프트를 기반으로 섹션 이미지를 생성합니다.'
+                        }
+                      </p>
+                      <textarea
+                        rows={section.useFixedImage ? 3 : 6}
+                        value={section.imagePrompt}
+                        onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
+                        disabled={section.useFixedImage}
+                        className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-mono ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                        placeholder="e.g. Detailed product shot on a wooden table..."
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

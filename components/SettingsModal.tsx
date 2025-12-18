@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edit2, ArrowUp, ArrowDown, ChevronLeft, Layout, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edit2, ArrowUp, ArrowDown, ChevronLeft, Layout, FileText, Image as ImageIcon, Upload, ToggleLeft, ToggleRight, Type } from 'lucide-react';
 import { getGasUrl, setGasUrl as saveGasUrl, getSheetId, setSheetId as saveSheetId } from '../services/googleSheetService';
 import { getTemplates, saveTemplate, deleteTemplate } from '../services/templateService';
 import { extractTemplateFromImage, fileToGenerativePart } from '../services/geminiService';
 import { useToastContext } from '../contexts/ToastContext';
 import { Template, SectionData } from '../types';
+
+// 레이아웃 타입 옵션
+const LAYOUT_OPTIONS: { value: SectionData['layoutType']; label: string }[] = [
+  { value: 'full-width', label: '전체 너비' },
+  { value: 'split-left', label: '좌측 이미지' },
+  { value: 'split-right', label: '우측 이미지' },
+  { value: 'grid-2', label: '2열 그리드' },
+  { value: 'grid-3', label: '3열 그리드' },
+  { value: 'text-only', label: '텍스트만' },
+  { value: 'image-only', label: '이미지만' },
+];
 
 interface Props {
   isOpen: boolean;
@@ -27,6 +38,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // Template Editing State
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sectionImageInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -162,6 +174,82 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         const newSections = editingTemplate.sections.filter((_, i) => i !== index);
         setEditingTemplate({ ...editingTemplate, sections: newSections });
     }
+  };
+
+  // --- 고정 이미지 업로드 핸들러 ---
+  const handleSectionImageUpload = async (sectionIndex: number, file: File) => {
+    if (!editingTemplate) return;
+    
+    try {
+      // 파일을 Base64로 변환
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        const base64Data = base64String.split(',')[1]; // data:image/...;base64, 부분 제거
+        
+        const newSections = [...editingTemplate.sections];
+        newSections[sectionIndex] = {
+          ...newSections[sectionIndex],
+          fixedImageBase64: base64Data,
+          fixedImageMimeType: file.type,
+          useFixedImage: true
+        };
+        setEditingTemplate({ ...editingTemplate, sections: newSections });
+        toast.success('고정 이미지가 추가되었습니다.');
+      };
+      reader.onerror = () => {
+        toast.error('이미지 업로드에 실패했습니다.');
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error);
+      toast.error('이미지 업로드 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 고정 이미지 삭제
+  const removeFixedImage = (sectionIndex: number) => {
+    if (!editingTemplate) return;
+    
+    const newSections = [...editingTemplate.sections];
+    newSections[sectionIndex] = {
+      ...newSections[sectionIndex],
+      fixedImageBase64: undefined,
+      fixedImageMimeType: undefined,
+      useFixedImage: false
+    };
+    setEditingTemplate({ ...editingTemplate, sections: newSections });
+    toast.info('고정 이미지가 삭제되었습니다.');
+  };
+
+  // 고정 이미지 사용 토글
+  const toggleUseFixedImage = (sectionIndex: number) => {
+    if (!editingTemplate) return;
+    
+    const section = editingTemplate.sections[sectionIndex];
+    if (!section.fixedImageBase64) {
+      toast.warning('먼저 고정 이미지를 업로드해주세요.');
+      return;
+    }
+    
+    const newSections = [...editingTemplate.sections];
+    newSections[sectionIndex] = {
+      ...newSections[sectionIndex],
+      useFixedImage: !section.useFixedImage
+    };
+    setEditingTemplate({ ...editingTemplate, sections: newSections });
+  };
+
+  // 레이아웃 타입 변경
+  const updateLayoutType = (sectionIndex: number, layoutType: SectionData['layoutType']) => {
+    if (!editingTemplate) return;
+    
+    const newSections = [...editingTemplate.sections];
+    newSections[sectionIndex] = {
+      ...newSections[sectionIndex],
+      layoutType
+    };
+    setEditingTemplate({ ...editingTemplate, sections: newSections });
   };
 
   // --- Helper: Wireframe Preview ---
@@ -502,6 +590,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                   </div>
                               </div>
                               <div className="p-5 space-y-4">
+                                  {/* 기본 정보 */}
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div>
                                           <label className="text-xs font-semibold text-gray-500 block mb-1.5">섹션 제목 (예시)</label>
@@ -525,17 +614,124 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                           </div>
                                       </div>
                                   </div>
+
+                                  {/* 레이아웃 타입 선택 */}
                                   <div>
-                                      <label className="text-xs font-bold text-indigo-600 block mb-1.5 flex items-center">
-                                        <ImageIcon className="w-3 h-3 mr-1"/>
-                                        이미지 스타일 프롬프트 (English)
+                                      <label className="text-xs font-semibold text-gray-500 block mb-1.5 flex items-center">
+                                        <Layout className="w-3 h-3 mr-1"/>
+                                        레이아웃 타입
                                       </label>
+                                      <select
+                                          value={section.layoutType || 'full-width'}
+                                          onChange={(e) => updateLayoutType(idx, e.target.value as SectionData['layoutType'])}
+                                          className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                                      >
+                                          {LAYOUT_OPTIONS.map(opt => (
+                                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+
+                                  {/* 고정 문구 입력 */}
+                                  <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-4">
+                                      <label className="text-xs font-bold text-amber-700 block mb-1.5 flex items-center">
+                                        <Type className="w-3 h-3 mr-1"/>
+                                        고정 문구 (선택사항)
+                                      </label>
+                                      <p className="text-xs text-amber-600 mb-2">상세페이지에 항상 포함될 문구를 입력하세요.</p>
                                       <textarea 
                                           rows={2}
-                                          value={section.imagePrompt}
-                                          onChange={(e) => updateSection(idx, 'imagePrompt', e.target.value)}
-                                          className="w-full text-sm border border-indigo-100 bg-indigo-50/30 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-700 font-mono resize-none"
+                                          value={section.fixedText || ''}
+                                          onChange={(e) => updateSection(idx, 'fixedText', e.target.value)}
+                                          placeholder="예: '100% 국내산 원료 사용', 'KC 인증 완료', '무료 배송' 등"
+                                          className="w-full text-sm border border-amber-200 bg-white rounded-lg p-2.5 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none resize-none"
                                       />
+                                  </div>
+
+                                  {/* 이미지 설정 영역 */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {/* 이미지 생성 프롬프트 */}
+                                      <div>
+                                          <label className="text-xs font-bold text-indigo-600 block mb-1.5 flex items-center">
+                                            <ImageIcon className="w-3 h-3 mr-1"/>
+                                            AI 이미지 생성 프롬프트 (English)
+                                          </label>
+                                          <textarea 
+                                              rows={3}
+                                              value={section.imagePrompt}
+                                              onChange={(e) => updateSection(idx, 'imagePrompt', e.target.value)}
+                                              disabled={section.useFixedImage}
+                                              className={`w-full text-sm border border-indigo-100 bg-indigo-50/30 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-700 font-mono resize-none ${section.useFixedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                          />
+                                          {section.useFixedImage && (
+                                            <p className="text-xs text-gray-400 mt-1">⚠️ 고정 이미지 사용 중 - 프롬프트 비활성화</p>
+                                          )}
+                                      </div>
+
+                                      {/* 고정 이미지 업로드 */}
+                                      <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-4">
+                                          <label className="text-xs font-bold text-emerald-700 block mb-1.5 flex items-center">
+                                            <Upload className="w-3 h-3 mr-1"/>
+                                            고정 이미지 (선택사항)
+                                          </label>
+                                          <p className="text-xs text-emerald-600 mb-3">로고, 인증마크, 배너 등 항상 사용할 이미지</p>
+                                          
+                                          {section.fixedImageBase64 ? (
+                                            <div className="space-y-3">
+                                              {/* 이미지 미리보기 */}
+                                              <div className="relative group">
+                                                <img 
+                                                  src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
+                                                  alt="고정 이미지"
+                                                  className="w-full h-24 object-contain bg-white rounded-lg border border-emerald-200"
+                                                />
+                                                <button
+                                                  onClick={() => removeFixedImage(idx)}
+                                                  className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  title="이미지 삭제"
+                                                >
+                                                  <X className="w-3 h-3" />
+                                                </button>
+                                              </div>
+                                              
+                                              {/* 고정 이미지 사용 토글 */}
+                                              <div className="flex items-center justify-between bg-white rounded-lg p-2 border border-emerald-200">
+                                                <span className="text-xs text-gray-600">고정 이미지 사용</span>
+                                                <button
+                                                  onClick={() => toggleUseFixedImage(idx)}
+                                                  className={`flex items-center transition-colors ${section.useFixedImage ? 'text-emerald-600' : 'text-gray-400'}`}
+                                                >
+                                                  {section.useFixedImage ? (
+                                                    <ToggleRight className="w-6 h-6" />
+                                                  ) : (
+                                                    <ToggleLeft className="w-6 h-6" />
+                                                  )}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div>
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                ref={(el) => { sectionImageInputRefs.current[idx] = el; }}
+                                                onChange={(e) => {
+                                                  const file = e.target.files?.[0];
+                                                  if (file) handleSectionImageUpload(idx, file);
+                                                  e.target.value = '';
+                                                }}
+                                                className="hidden"
+                                              />
+                                              <button
+                                                onClick={() => sectionImageInputRefs.current[idx]?.click()}
+                                                className="w-full py-3 border-2 border-dashed border-emerald-300 rounded-lg text-emerald-600 hover:bg-emerald-100 hover:border-emerald-400 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                                              >
+                                                <Upload className="w-4 h-4" />
+                                                이미지 업로드
+                                              </button>
+                                            </div>
+                                          )}
+                                      </div>
                                   </div>
                               </div>
                           </div>

@@ -18,6 +18,15 @@ export interface SectionData {
   imagePrompt: string; // Prompt used/to be used for image generation
   imageUrl?: string; // Generated or Original Image URL
   isOriginalImage?: boolean; // Whether to keep original or generate new
+  
+  // 템플릿 고정 요소 (Template Fixed Elements)
+  fixedText?: string; // 항상 포함될 고정 문구 (예: "100% 국내산", 인증문구 등)
+  fixedImageBase64?: string; // 고정 이미지 Base64 데이터 (로고, 인증마크 등)
+  fixedImageMimeType?: string; // 고정 이미지 MIME 타입
+  useFixedImage?: boolean; // 고정 이미지 사용 여부 (true: 고정 이미지 사용, false: AI 생성)
+  
+  // 레이아웃 정보 (선택적)
+  layoutType?: 'full-width' | 'split-left' | 'split-right' | 'grid-2' | 'grid-3' | 'text-only' | 'image-only';
 }
 
 export interface ProductAnalysis {
