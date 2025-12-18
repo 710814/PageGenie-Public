@@ -26,6 +26,13 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     sectionId: string;
     prompt: string;
   } | null>(null);
+  
+  // 이미지 확대 모달 상태
+  const [imageViewModal, setImageViewModal] = useState<{
+    imageUrl: string;
+    sectionTitle: string;
+    sectionId: string;
+  } | null>(null);
 
   // 이미지 미리보기 생성 함수
   const handleGeneratePreview = useCallback(async (sectionId: string, customPrompt?: string) => {
@@ -349,7 +356,13 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         <img 
                           src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
                           alt="고정 이미지"
-                          className="w-full h-32 object-contain bg-white rounded border border-emerald-200"
+                          className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
+                          onClick={() => setImageViewModal({
+                            imageUrl: `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
+                            sectionTitle: `${section.title} (고정 이미지)`,
+                            sectionId: section.id
+                          })}
+                          title="클릭하여 크게 보기"
                         />
                       </div>
                     )}
@@ -384,11 +397,35 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                 <img 
                                   src={section.imageUrl}
                                   alt="미리보기"
-                                  className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200"
+                                  className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
+                                  onClick={() => setImageViewModal({
+                                    imageUrl: section.imageUrl!,
+                                    sectionTitle: section.title,
+                                    sectionId: section.id
+                                  })}
+                                  title="클릭하여 크게 보기"
                                 />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
                                   <button
-                                    onClick={() => handleOpenEditPrompt(section.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setImageViewModal({
+                                        imageUrl: section.imageUrl!,
+                                        sectionTitle: section.title,
+                                        sectionId: section.id
+                                      });
+                                    }}
+                                    className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                    title="이미지 크게 보기"
+                                  >
+                                    <Eye className="w-3 h-3 mr-1" />
+                                    크게보기
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditPrompt(section.id);
+                                    }}
                                     className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
                                     title="프롬프트 수정 후 재생성"
                                   >
@@ -396,7 +433,10 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     수정
                                   </button>
                                   <button
-                                    onClick={() => handleGeneratePreview(section.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleGeneratePreview(section.id);
+                                    }}
                                     disabled={generatingPreviewId === section.id}
                                     className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
                                     title="동일 프롬프트로 재생성"
@@ -405,7 +445,10 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     재생성
                                   </button>
                                   <button
-                                    onClick={() => handleRemovePreview(section.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemovePreview(section.id);
+                                    }}
                                     className="bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
                                     title="미리보기 제거"
                                   >
@@ -515,6 +558,74 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                 <Sparkles className="w-4 h-4 mr-2" />
                 이미지 재생성
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 이미지 확대 보기 모달 */}
+      {imageViewModal && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setImageViewModal(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center">
+                  <ImageIcon className="w-5 h-5 mr-2" />
+                  이미지 미리보기
+                </h3>
+                <p className="text-blue-100 text-sm mt-0.5">{imageViewModal.sectionTitle}</p>
+              </div>
+              <button
+                onClick={() => setImageViewModal(null)}
+                className="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* 이미지 영역 */}
+            <div className="flex-1 overflow-auto p-6 bg-gray-100 flex items-center justify-center">
+              <img 
+                src={imageViewModal.imageUrl}
+                alt={imageViewModal.sectionTitle}
+                className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
+              />
+            </div>
+            
+            {/* 액션 버튼 */}
+            <div className="bg-white border-t px-6 py-4 flex justify-between items-center">
+              <p className="text-sm text-gray-500">
+                💡 이미지가 마음에 들지 않으면 프롬프트를 수정하여 재생성하세요.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setImageViewModal(null);
+                    handleOpenEditPrompt(imageViewModal.sectionId);
+                  }}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium flex items-center transition-colors"
+                >
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  프롬프트 수정
+                </button>
+                <button
+                  onClick={() => {
+                    setImageViewModal(null);
+                    handleGeneratePreview(imageViewModal.sectionId);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  재생성
+                </button>
+              </div>
             </div>
           </div>
         </div>
