@@ -740,7 +740,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </div>
 
                   {/* Middle: Sections */}
-                  <div className="space-y-4 pb-20">
+                  <div className="space-y-4 pb-32">
                       <div className="flex justify-between items-center px-1">
                           <h3 className="font-bold text-gray-800 flex items-center gap-2">
                               <Layout className="w-4 h-4 text-gray-500"/>
@@ -938,8 +938,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       ))}
                   </div>
 
-                  {/* Bottom: Action Buttons */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t p-4 flex justify-between items-center z-20">
+                  {/* Bottom: Action Buttons - Sticky */}
+                  <div className="sticky bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 flex justify-between items-center z-20 mt-6 shadow-lg">
                       <button 
                           onClick={cancelEditing}
                           className="px-5 py-2.5 text-gray-600 hover:text-gray-900 font-medium flex items-center hover:bg-gray-100 rounded-lg transition-colors"
