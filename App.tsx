@@ -7,6 +7,7 @@ import { StepUpload } from './components/StepUpload';
 import { StepAnalysis } from './components/StepAnalysis';
 import { StepResult } from './components/StepResult';
 import { SettingsModal } from './components/SettingsModal';
+import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
 import { analyzeProductImage, generateSectionImage } from './services/geminiService';
 import { getTemplates } from './services/templateService';
 import { 
@@ -30,6 +31,16 @@ const AppContent: React.FC = () => {
   
   // 자동 복원 상태
   const [isAutoRestoring, setIsAutoRestoring] = useState(false);
+  
+  // 이미지 생성 진행 상태
+  const [generationProgress, setGenerationProgress] = useState<GenerationProgress>({
+    current: 0,
+    total: 0,
+    currentSectionId: '',
+    currentSectionTitle: '',
+    completedSectionIds: [],
+    startTime: null
+  });
   
   // Toast 알림 시스템
   const toast = useToastContext();
@@ -118,7 +129,21 @@ const AppContent: React.FC = () => {
     
     setStep(Step.GENERATING);
     setIsLoading(true);
-    setLoadingMessage("섹션별 상세 이미지를 생성하고 레이아웃을 구성하고 있습니다... (약 10-20초 소요)");
+    
+    // 생성할 섹션 계산 (고정 이미지, 미리보기 제외)
+    const sectionsToGenerate = analysisResult.sections.filter(
+      s => !s.isOriginalImage && !s.isPreview && s.imagePrompt && !s.imageUrl
+    );
+    
+    // 진행 상태 초기화
+    setGenerationProgress({
+      current: 0,
+      total: sectionsToGenerate.length,
+      currentSectionId: '',
+      currentSectionTitle: '',
+      completedSectionIds: [],
+      startTime: Date.now()
+    });
 
     try {
       // Deep copy to modify
@@ -126,18 +151,37 @@ const AppContent: React.FC = () => {
       const primaryFile = uploadedFiles.length > 0 ? uploadedFiles[0] : null;
 
       const newSections = [];
+      let completedCount = 0;
+      
       for (const section of finalResult.sections) {
          // 고정 이미지가 있는 섹션은 AI 생성 건너뛰기
          if (section.isOriginalImage && section.imageUrl) {
            console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
            newSections.push(section);
+           // 완료 목록에 추가
+           setGenerationProgress(prev => ({
+             ...prev,
+             completedSectionIds: [...prev.completedSectionIds, section.id]
+           }));
          } 
          // 미리보기로 이미 생성된 이미지가 있는 섹션도 건너뛰기
          else if (section.isPreview && section.imageUrl) {
            console.log(`[Generate] 섹션 "${section.title}": 미리보기 이미지 사용 (재생성 건너뜀)`);
            newSections.push({ ...section, isPreview: false }); // 최종 확정으로 변경
+           // 완료 목록에 추가
+           setGenerationProgress(prev => ({
+             ...prev,
+             completedSectionIds: [...prev.completedSectionIds, section.id]
+           }));
          }
          else if (section.imagePrompt) {
+           // 현재 생성 중인 섹션 표시
+           setGenerationProgress(prev => ({
+             ...prev,
+             currentSectionId: section.id,
+             currentSectionTitle: section.title
+           }));
+           
            console.log(`[Generate] 섹션 "${section.title}": AI 이미지 생성 중...`);
            const imageUrl = await generateSectionImage(
              section.imagePrompt,
@@ -146,6 +190,16 @@ const AppContent: React.FC = () => {
              mode
            );
            newSections.push({ ...section, imageUrl });
+           completedCount++;
+           
+           // 진행률 업데이트
+           setGenerationProgress(prev => ({
+             ...prev,
+             current: completedCount,
+             completedSectionIds: [...prev.completedSectionIds, section.id],
+             currentSectionId: '',
+             currentSectionTitle: ''
+           }));
          } else {
            newSections.push(section);
          }
@@ -162,6 +216,15 @@ const AppContent: React.FC = () => {
       setStep(Step.RESULT);
     } finally {
       setIsLoading(false);
+      // 진행 상태 초기화
+      setGenerationProgress({
+        current: 0,
+        total: 0,
+        currentSectionId: '',
+        currentSectionTitle: '',
+        completedSectionIds: [],
+        startTime: null
+      });
     }
   }, [analysisResult, uploadedFiles, mode, toast]);
 
@@ -215,7 +278,15 @@ const AppContent: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1" style={{ minHeight: 'calc(100vh - 80px)' }}>
-        {isLoading ? (
+        {/* Step.GENERATING일 때 진행 상태 표시 */}
+        {step === Step.GENERATING && analysisResult && (
+          <GeneratingProgress 
+            sections={analysisResult.sections}
+            progress={generationProgress}
+          />
+        )}
+        
+        {isLoading && step !== Step.GENERATING ? (
           <div className="flex flex-col items-center justify-center h-[60vh]">
             <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Gemini가 작업 중입니다</h3>
