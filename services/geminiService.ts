@@ -399,6 +399,14 @@ export const analyzeProductImage = async (
       - If 'fixed_text' exists: You MUST include it prominently in the 'content'
       - If 'has_fixed_image' is true: Keep the 'imagePrompt' similar to the 'visual_style'
       
+      ## CRITICAL - imagePrompt Guidelines:
+      When creating 'imagePrompt', you MUST:
+      - Always describe the SAME EXACT product from the uploaded images
+      - Focus on changing ONLY: background, lighting, angle, props, scene
+      - NEVER describe a different or modified product
+      - The product must remain identical to the reference image
+      - Example: "The same product on a marble surface, studio lighting, minimal background"
+      
       ## Output Format:
       Return JSON with 'sections' array containing EXACTLY ${sectionCount} sections with matching IDs.
     `;
@@ -440,6 +448,15 @@ export const analyzeProductImage = async (
       3. The section structure should feel natural and optimized for the product type
       4. All content should be in Korean except imagePrompt (Korean or English)
       
+      ## CRITICAL - imagePrompt Guidelines:
+      When creating 'imagePrompt' for each section, you MUST:
+      - Always describe the SAME EXACT product from the uploaded images
+      - Focus on changing ONLY: background, lighting, angle, props, scene, styling
+      - NEVER describe a different or modified product
+      - The product's shape, color, design, texture must remain identical
+      - Example format: "The same [product name] placed on a wooden table, soft natural lighting, lifestyle setting"
+      - Always start with "The same product..." or "The exact product from the reference..."
+      
       ## Output Format:
       Return JSON with:
       - productName: Korean product name
@@ -460,6 +477,13 @@ export const analyzeProductImage = async (
       3. Maintain the original section flow.
       4. For 'imagePrompt', describe the visual content of each section so it can be regenerated or replaced.
          If text exists in the image, instruct to replace it with Korean translation in the prompt.
+      
+      ## CRITICAL - imagePrompt Guidelines:
+      When creating 'imagePrompt' for each section:
+      - The product/visual elements must remain IDENTICAL to the original
+      - Focus on: recreating the layout, changing text to Korean, adjusting composition
+      - NEVER describe a different product
+      - Example: "The same product layout with Korean text overlay, maintaining the original visual style"
     `;
   }
 
@@ -612,6 +636,7 @@ export const analyzeProductImage = async (
 
 /**
  * Generate a new image for a section using Gemini
+ * 원본 이미지의 제품을 그대로 유지하면서 새로운 장면/구도로 생성
  */
 export const generateSectionImage = async (
   prompt: string,
@@ -622,10 +647,36 @@ export const generateSectionImage = async (
   try {
     let fullPrompt = "";
     
-    if (mode === AppMode.LOCALIZATION) {
-       fullPrompt = `High quality product image. Based on the reference, recreate the visual content. ${prompt}`;
+    if (referenceImageBase64 && referenceMimeType) {
+      // 원본 이미지가 있는 경우 - 제품 동일성 유지 강조
+      if (mode === AppMode.LOCALIZATION) {
+        fullPrompt = `
+CRITICAL: Keep the EXACT same product from the reference image.
+- The product's shape, color, design, texture must be IDENTICAL
+- Do NOT modify the product itself
+- Only recreate the visual layout with Korean text if needed
+
+Based on the reference image, recreate: ${prompt}
+High quality, professional product photography.
+        `.trim();
+      } else {
+        fullPrompt = `
+CRITICAL INSTRUCTION: You MUST keep the EXACT same product from the reference image.
+- The product's shape, color, design, texture, and all visual details must be IDENTICAL to the reference
+- Do NOT change, modify, or replace the product in any way
+- You may ONLY change: background, lighting, camera angle, props, or scene composition
+- The product must be clearly recognizable as the SAME item from the reference
+
+Generate a professional product photo with these specifications:
+${prompt}
+
+REMEMBER: The product itself must remain EXACTLY as shown in the reference image.
+High quality, 4K resolution, professional e-commerce photography.
+        `.trim();
+      }
     } else {
-       fullPrompt = `Professional product photography, high quality, 4k: ${prompt}`;
+      // 원본 이미지가 없는 경우 - 기존 방식
+      fullPrompt = `Professional product photography, high quality, 4k: ${prompt}`;
     }
 
     const parts: GeminiPart[] = [{ text: fullPrompt } as GeminiTextPart];
