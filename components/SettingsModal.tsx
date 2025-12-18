@@ -854,14 +854,16 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                       <div>
                                           <label className="text-xs font-bold text-indigo-600 block mb-1.5 flex items-center">
                                             <ImageIcon className="w-3 h-3 mr-1"/>
-                                            AI 이미지 생성 프롬프트 (English)
+                                            AI 이미지 생성 프롬프트 (한국어/영어 가능)
                                           </label>
+                                          <p className="text-xs text-indigo-500 mb-2">한국어 또는 영어로 이미지 스타일을 설명하세요.</p>
                                           <textarea 
                                               rows={3}
                                               value={section.imagePrompt}
                                               onChange={(e) => updateSection(idx, 'imagePrompt', e.target.value)}
                                               disabled={section.useFixedImage}
-                                              className={`w-full text-sm border border-indigo-100 bg-indigo-50/30 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-700 font-mono resize-none ${section.useFixedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                              placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
+                                              className={`w-full text-sm border border-indigo-100 bg-indigo-50/30 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-700 resize-none ${section.useFixedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
                                           />
                                           {section.useFixedImage && (
                                             <p className="text-xs text-gray-400 mt-1">⚠️ 고정 이미지 사용 중 - 프롬프트 비활성화</p>

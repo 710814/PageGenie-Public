@@ -271,12 +271,12 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                     <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
                       <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
                         <Sparkles className="w-3 h-3 mr-1" />
-                        이미지 생성 프롬프트 (English)
+                        이미지 생성 프롬프트 (한국어/영어 가능)
                       </label>
                       <p className="text-xs text-gray-500 mb-2">
                         {section.useFixedImage 
                           ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
-                          : 'Gemini가 이 프롬프트를 기반으로 섹션 이미지를 생성합니다.'
+                          : '한국어 또는 영어로 이미지 스타일을 설명하세요. Gemini가 이 프롬프트를 기반으로 섹션 이미지를 생성합니다.'
                         }
                       </p>
                       <textarea
@@ -284,8 +284,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         value={section.imagePrompt}
                         onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
                         disabled={section.useFixedImage}
-                        className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-mono ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                        placeholder="e.g. Detailed product shot on a wooden table..."
+                        className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                        placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
                       />
                     </div>
                   </div>

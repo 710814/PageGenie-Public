@@ -204,7 +204,7 @@ const productAnalysisSchema = {
           id: { type: "string" },
           title: { type: "string", description: "Section header in Korean" },
           content: { type: "string", description: "Detailed section body text in Korean" },
-          imagePrompt: { type: "string", description: "Prompt to generate an image for this section (in English)" },
+          imagePrompt: { type: "string", description: "Prompt to generate an image for this section (Korean or English)" },
         },
         required: ["id", "title", "content", "imagePrompt"]
       }
@@ -225,7 +225,7 @@ export const extractTemplateFromImage = async (
     1. Identify the structural flow (Layout).
     2. Break it down into logical sections (e.g., Intro, Problems, Solution, Certifications, Reviews, FAQ).
     3. For each section, provide a generic 'title' (e.g., "Main Feature 1", "User Reviews") and a 'content' description describing what kind of text usually goes here.
-    4. Crucially, provide an 'imagePrompt' that describes the visual style and composition of that section (e.g., "A grid layout showing 3 color variations", "Close up of texture").
+    4. Crucially, provide an 'imagePrompt' that describes the visual style and composition of that section. You can use Korean or English (e.g., "3가지 색상 변형을 보여주는 그리드 레이아웃" or "A grid layout showing 3 color variations", "텍스처 클로즈업" or "Close up of texture").
     
     Output strictly in JSON format.
   `;
@@ -392,7 +392,7 @@ export const analyzeProductImage = async (
          - Use the EXACT 'id' provided - do not change it
          - Write a compelling 'title' in Korean that fits the section's purpose
          - Write detailed 'content' in Korean based on the 'content_guideline'
-         - Create an 'imagePrompt' that combines the 'visual_style' with the actual product
+         - Create an 'imagePrompt' (Korean or English) that combines the 'visual_style' with the actual product
       
       ## Special Instructions:
       - If 'fixed_text' exists: You MUST include it prominently in the 'content'
@@ -410,7 +410,7 @@ export const analyzeProductImage = async (
       3. List key features visible or implied.
       4. Write a short, persuasive marketing copy in Korean.
       5. Suggest a structure for a "Detail Page" (Landing Page) with 4-5 distinct sections (e.g., Intro, Feature 1, Feature 2, Usage, Specs).
-      6. For each section, provide an English prompt that could be used to generate a supporting image.
+      6. For each section, provide an image generation prompt (Korean or English) that could be used to generate a supporting image.
     `;
   } else {
     // Mode B: Localization
