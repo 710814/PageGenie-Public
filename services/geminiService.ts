@@ -494,21 +494,57 @@ export const analyzeProductImage = async (
     // Mode B: Localization
     prompt = `
       You are an expert translator and localization specialist for the Korean market.
-      The provided image(s) are screenshots of an existing product detail page.
+      The provided image(s) are screenshots of an existing product detail page in a foreign language (English, Chinese, etc.).
       
-      Tasks:
-      1. Extract the content and structure from all images.
-      2. Localize the content into natural, persuasive Korean.
-      3. Maintain the original section flow.
-      4. For 'imagePrompt', describe the visual content of each section so it can be regenerated or replaced.
-         If text exists in the image, instruct to replace it with Korean translation in the prompt.
+      ## Your Tasks:
+      1. **Extract Content**: Analyze all images and extract:
+         - All visible text content (product names, descriptions, features, prices, etc.)
+         - Section structure and layout
+         - Visual elements (product images, icons, graphics)
+      
+      2. **Translate Content**: Convert all foreign language text into natural, persuasive Korean:
+         - Product names and descriptions
+         - Marketing copy and features
+         - Section titles and content
+         - Maintain the original meaning and tone
+      
+      3. **Maintain Structure**: Keep the original section flow and layout exactly as shown
+      
+      4. **Image Prompt Strategy** (CRITICAL for 'imagePrompt' field):
+         For each section, analyze the image and determine:
+         
+         **Case A: Text is CLEAR and TRANSLATABLE**
+         - If the text in the image is clearly readable and can be accurately translated:
+           → Create an imagePrompt that instructs: "Recreate this layout with Korean text replacing the original text"
+           → Example: "The same product layout with Korean text overlay: '[translated text]', maintaining the original visual style and composition"
+         
+         **Case B: Text is UNCLEAR or UNTRANSLATABLE**
+         - If the text is blurry, low resolution, partially obscured, or cannot be accurately translated:
+           → Create an imagePrompt that instructs: "Remove all text from the image, keep only the visual elements"
+           → Example: "The same product and visual elements without any text overlay, clean design, professional photography"
+           → Default action: REMOVE TEXT (this is the default when translation is uncertain)
+         
+         **Decision Rule**:
+         - If you can clearly read and translate 80%+ of the text → Use Case A
+         - If text is unclear, blurry, or less than 80% readable → Use Case B (REMOVE TEXT)
+         - When in doubt → Use Case B (REMOVE TEXT) - this is the default
       
       ## CRITICAL - imagePrompt Guidelines:
       When creating 'imagePrompt' for each section:
       - The product/visual elements must remain IDENTICAL to the original
-      - Focus on: recreating the layout, changing text to Korean, adjusting composition
+      - The product's shape, color, design, texture must be EXACTLY the same
       - NEVER describe a different product
-      - Example: "The same product layout with Korean text overlay, maintaining the original visual style"
+      - For text handling:
+        * If text is clear and translatable: "Korean text: '[translated text]' replacing original text"
+        * If text is unclear/unt translatable: "No text overlay, clean image without text"
+        * Default: Remove text when uncertain
+      
+      ## Output Requirements:
+      - All 'title' and 'content' fields must be in Korean (translated from original)
+      - 'imagePrompt' must clearly indicate:
+        * Whether to include Korean text or remove text
+        * How to handle the visual elements
+        * Default to text removal when translation is uncertain
     `;
   }
 
@@ -675,15 +711,71 @@ export const generateSectionImage = async (
     if (referenceImageBase64 && referenceMimeType) {
       // 원본 이미지가 있는 경우 - 제품 동일성 유지 강조
       if (mode === AppMode.LOCALIZATION) {
-        fullPrompt = `
-CRITICAL: Keep the EXACT same product from the reference image.
-- The product's shape, color, design, texture must be IDENTICAL
-- Do NOT modify the product itself
-- Only recreate the visual layout with Korean text if needed
+        // 프롬프트에서 텍스트 처리 지시 확인
+        const shouldRemoveText = prompt.toLowerCase().includes('no text') || 
+                                 prompt.toLowerCase().includes('remove text') ||
+                                 prompt.toLowerCase().includes('without text') ||
+                                 prompt.toLowerCase().includes('clean image');
+        
+        const hasKoreanText = prompt.includes('한국어') || 
+                             prompt.includes('Korean text') ||
+                             prompt.match(/['"](.*?)['"]/); // 따옴표로 둘러싸인 텍스트
+        
+        if (shouldRemoveText) {
+          // 텍스트 제거 모드
+          fullPrompt = `
+CRITICAL INSTRUCTIONS FOR LOCALIZATION:
+1. Keep the EXACT same product from the reference image
+   - Product's shape, color, design, texture must be IDENTICAL
+   - Do NOT modify the product itself
+2. REMOVE ALL TEXT from the image
+   - Remove any text overlays, labels, or text elements
+   - Keep only the visual elements (product, background, graphics)
+   - Create a clean, text-free version
+3. Maintain the original visual style and composition
+   - Same lighting, angle, and scene composition
+   - Same background style (if applicable)
+   - Professional, high-quality photography
 
 Based on the reference image, recreate: ${prompt}
-High quality, professional product photography.
-        `.trim();
+High quality, professional product photography without any text.
+          `.trim();
+        } else if (hasKoreanText) {
+          // 한국어 텍스트 포함 모드
+          fullPrompt = `
+CRITICAL INSTRUCTIONS FOR LOCALIZATION:
+1. Keep the EXACT same product from the reference image
+   - Product's shape, color, design, texture must be IDENTICAL
+   - Do NOT modify the product itself
+2. REPLACE original text with Korean text
+   - Remove original foreign language text
+   - Add Korean text as specified in the prompt
+   - Maintain the same text position and style
+3. Maintain the original visual style and composition
+   - Same layout and composition
+   - Same lighting and background style
+   - Professional, high-quality photography
+
+Based on the reference image, recreate: ${prompt}
+High quality, professional product photography with Korean text.
+          `.trim();
+        } else {
+          // 기본: 텍스트 제거 (불확실한 경우)
+          fullPrompt = `
+CRITICAL INSTRUCTIONS FOR LOCALIZATION:
+1. Keep the EXACT same product from the reference image
+   - Product's shape, color, design, texture must be IDENTICAL
+   - Do NOT modify the product itself
+2. DEFAULT ACTION: REMOVE ALL TEXT
+   - Remove any text overlays, labels, or text elements
+   - Keep only the visual elements (product, background, graphics)
+   - Create a clean, text-free version
+3. Maintain the original visual style and composition
+
+Based on the reference image, recreate: ${prompt}
+High quality, professional product photography without any text overlay.
+          `.trim();
+        }
       } else {
         fullPrompt = `
 CRITICAL INSTRUCTION: You MUST keep the EXACT same product from the reference image.
