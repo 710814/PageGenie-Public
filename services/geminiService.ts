@@ -63,9 +63,20 @@ async function callGeminiViaProxy(requestData: {
     }
     
     // 타임아웃 설정
-    // 이미지 생성 모델은 더 오래 걸리므로 5분, 텍스트 분석은 2분
-    const isImageGeneration = requestData.model.includes('image') || requestData.model.includes('IMAGE_GEN');
-    const defaultTimeout = isImageGeneration ? 300000 : 120000; // 이미지 생성: 5분, 텍스트: 2분
+    // 이미지 생성 모델은 더 오래 걸리므로 5분
+    // 이미지 분석(텍스트 감지)도 큰 이미지나 복잡한 이미지의 경우 시간이 걸릴 수 있으므로 3분
+    // 일반 텍스트 분석은 2분
+    const isImageGeneration = requestData.model.includes('image') || requestData.model === MODEL_IMAGE_GEN;
+    const isImageAnalysis = requestData.model === MODEL_TEXT_VISION && 
+                            requestData.contents?.parts?.some((p: any) => p.inlineData);
+    
+    let defaultTimeout = 120000; // 기본 2분
+    if (isImageGeneration) {
+      defaultTimeout = 300000; // 이미지 생성: 5분
+    } else if (isImageAnalysis) {
+      defaultTimeout = 180000; // 이미지 분석(텍스트 감지): 3분
+    }
+    
     const timeout = timeoutMs || defaultTimeout;
     
     const controller = new AbortController();
@@ -751,6 +762,7 @@ Output JSON format:
 
     // 분석 요청
     reportProgress('1단계', '텍스트 감지 및 번역 가능 여부 판단 중...');
+    // 이미지 분석은 시간이 걸릴 수 있으므로 명시적으로 3분 타임아웃 적용
     const analysisResult = await callGeminiViaProxy({
       model: MODEL_TEXT_VISION,
       contents: {
@@ -781,8 +793,9 @@ Output JSON format:
           required: ["action", "detectedText", "reason"]
         },
         temperature: 0.3,
-      }
-    });
+      },
+      180000 // 이미지 분석: 3분 타임아웃
+    );
 
     const analysisText = analysisResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!analysisText) throw new Error("이미지 분석 실패");
@@ -860,10 +873,13 @@ High quality, professional product photography without text overlay.
     if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
       // GAS 프록시 사용
       reportProgress('2단계', '이미지 생성 중... (시간이 다소 걸릴 수 있습니다)');
+      // 이미지 생성은 시간이 오래 걸리므로 명시적으로 5분 타임아웃 적용
       const result = await callGeminiViaProxy({
         model: MODEL_IMAGE_GEN,
         contents: { parts },
-      });
+      },
+      300000 // 이미지 생성: 5분 타임아웃
+      );
 
       reportProgress('2단계', '생성된 이미지 처리 중...');
       for (const part of result.candidates?.[0]?.content?.parts || []) {
