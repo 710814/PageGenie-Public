@@ -90,28 +90,53 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
       templatesCount: settings.templates.length 
     });
     
-    // GAS에 백업 요청
-    const response = await fetch(`${gasUrl}?action=backup-settings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify({ settings }),
-      redirect: 'follow'
-    });
+    // GAS에 백업 요청 (타임아웃 설정)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.status === 'success') {
-      setLastBackupDate(new Date().toISOString());
-      console.log('[Backup] 백업 성공:', result);
-      return { success: true, message: '설정이 Google Drive에 백업되었습니다.' };
-    } else {
-      throw new Error(result.message || '백업 실패');
+    try {
+      const response = await fetch(`${gasUrl}?action=backup-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({ settings }),
+        redirect: 'follow',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '응답을 읽을 수 없습니다');
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      // 응답 텍스트를 먼저 확인
+      const responseText = await response.text();
+      console.log('[Backup] 응답 텍스트:', responseText.substring(0, 200));
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('[Backup] JSON 파싱 실패:', parseError, '응답:', responseText);
+        throw new Error('서버 응답을 파싱할 수 없습니다: ' + responseText.substring(0, 100));
+      }
+      
+      if (result.status === 'success') {
+        setLastBackupDate(new Date().toISOString());
+        console.log('[Backup] 백업 성공:', result);
+        return { success: true, message: '설정이 Google Drive에 백업되었습니다.' };
+      } else {
+        throw new Error(result.message || '백업 실패');
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error('백업 요청이 타임아웃되었습니다. 네트워크 연결을 확인하세요.');
+      }
+      throw fetchError;
     }
     
   } catch (error) {
@@ -149,42 +174,66 @@ export const restoreSettingsFromDrive = async (): Promise<{
     
     console.log('[Restore] 설정 복원 시도...');
     
-    // GAS에 복원 요청
-    const response = await fetch(`${gasUrl}?action=restore-settings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify({}),
-      redirect: 'follow'
-    });
+    // GAS에 복원 요청 (타임아웃 설정)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.status === 'success' && result.settings) {
-      console.log('[Restore] 복원 성공:', { 
-        templatesCount: result.settings.templates?.length || 0,
-        backupDate: result.settings.backupDate 
+    try {
+      const response = await fetch(`${gasUrl}?action=restore-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({}),
+        redirect: 'follow',
+        signal: controller.signal
       });
-      return { 
-        success: true, 
-        settings: result.settings, 
-        message: '설정이 복원되었습니다.' 
-      };
-    } else if (result.status === 'not_found') {
-      return { 
-        success: false, 
-        settings: null, 
-        message: '백업 파일이 없습니다.' 
-      };
-    } else {
-      throw new Error(result.message || '복원 실패');
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '응답을 읽을 수 없습니다');
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      // 응답 텍스트를 먼저 확인
+      const responseText = await response.text();
+      console.log('[Restore] 응답 텍스트:', responseText.substring(0, 200));
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('[Restore] JSON 파싱 실패:', parseError, '응답:', responseText);
+        throw new Error('서버 응답을 파싱할 수 없습니다: ' + responseText.substring(0, 100));
+      }
+      
+      if (result.status === 'success' && result.settings) {
+        console.log('[Restore] 복원 성공:', { 
+          templatesCount: result.settings.templates?.length || 0,
+          backupDate: result.settings.backupDate 
+        });
+        return { 
+          success: true, 
+          settings: result.settings, 
+          message: '설정이 복원되었습니다.' 
+        };
+      } else if (result.status === 'not_found') {
+        return { 
+          success: false, 
+          settings: null, 
+          message: '백업 파일이 없습니다.' 
+        };
+      } else {
+        throw new Error(result.message || '복원 실패');
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error('복원 요청이 타임아웃되었습니다. 네트워크 연결을 확인하세요.');
+      }
+      throw fetchError;
     }
-    
   } catch (error) {
     console.error('[Restore] 복원 실패:', error);
     return { 

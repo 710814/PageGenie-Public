@@ -55,25 +55,50 @@ async function callGeminiViaProxy(requestData: {
     // GAS는 CORS preflight를 처리하지 않으므로 simple request로 보냄
     // Content-Type: text/plain으로 변경하면 preflight 없이 요청 가능
     // GAS는 여전히 e.postData.contents로 JSON을 파싱할 수 있음
-    const response = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify({
-        model: requestData.model,
-        contents: requestData.contents,
-        config: requestData.config
-      }),
-      redirect: 'follow' // GAS 리다이렉트 따라가기
-    });
+    
+    // URL 유효성 검증
+    if (!gasUrl || !gasUrl.includes('script.google.com')) {
+      throw new Error('GAS URL이 올바르지 않습니다. Google Apps Script 웹 앱 URL을 확인하세요.');
+    }
+    
+    // 타임아웃 설정
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2분 타임아웃 (이미지 생성은 시간이 걸릴 수 있음)
+    
+    let response: Response;
+    try {
+      response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          model: requestData.model,
+          contents: requestData.contents,
+          config: requestData.config
+        }),
+        redirect: 'follow', // GAS 리다이렉트 따라가기
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
-    console.log('GAS 프록시 응답 상태:', response.status, response.statusText);
+      console.log('GAS 프록시 응답 상태:', response.status, response.statusText);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GAS 프록시 오류 응답:', errorText);
-      throw new Error(`GAS 프록시 오류 (${response.status}): ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '응답을 읽을 수 없습니다');
+        console.error('GAS 프록시 오류 응답:', errorText);
+        throw new Error(`GAS 프록시 오류 (${response.status}): ${errorText}`);
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error('GAS 프록시 요청이 타임아웃되었습니다. 네트워크 연결을 확인하거나 GAS URL이 올바른지 확인하세요.');
+      }
+      if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+        throw new Error('GAS 웹 앱에 연결할 수 없습니다. 다음을 확인하세요:\n1. GAS URL이 올바른지 확인\n2. GAS 웹 앱이 배포되었는지 확인\n3. 네트워크 연결 확인\n4. 브라우저 콘솔에서 자세한 오류 확인');
+      }
+      throw fetchError;
     }
 
     const result = await response.json();
