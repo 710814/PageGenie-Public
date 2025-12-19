@@ -8,6 +8,13 @@
 //    - 속성: GEMINI_API_KEY
 //    - 값: (Google AI Studio에서 발급받은 API 키)
 // 2. 배포 시 "실행 사용자"를 "나"로 설정하세요.
+//
+// ★★★ CORS 설정 (매우 중요!) ★★★
+// 웹 앱 배포 시 반드시 다음 설정을 확인하세요:
+// - 실행 사용자: "나" (Me)
+// - 액세스 권한: "모든 사용자" (Anyone) ← 이 설정이 CORS를 허용합니다!
+//
+// "나만" 또는 "조직 내 사용자만"으로 설정하면 CORS 오류가 발생합니다.
 // ----------------------------------------------------------------
 
 // Gemini API 엔드포인트
@@ -64,67 +71,38 @@ function handleGeminiRequest(e) {
     var requestData = JSON.parse(e.postData.contents);
     var result = callGeminiAPI(requestData);
     
-    var response = ContentService.createTextOutput(JSON.stringify({
+    // GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
+    return ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       data: result
     })).setMimeType(ContentService.MimeType.JSON);
-    
-    // CORS 헤더 추가
-    response.setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
-    
-    return response;
   } catch (error) {
-    var errorResponse = ContentService.createTextOutput(JSON.stringify({
+    return ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
-    
-    // CORS 헤더 추가
-    errorResponse.setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
-    
-    return errorResponse;
   }
 }
 
 function doPost(e) {
-  // CORS 헤더를 모든 응답에 포함하기 위한 헬퍼 함수
-  var addCorsHeaders = function(response) {
-    var headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '3600'
-    };
-    response.setHeaders(headers);
-    return response;
-  };
+  // ★중요★: GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
+  // setHeaders()는 GAS에서 지원되지 않으므로 사용하지 않음
   
   // 경로에 따라 라우팅
   var path = e.parameter.path || '';
   var action = e.parameter.action || '';
   
   if (path === 'gemini' || action === 'gemini') {
-    var geminiResponse = handleGeminiRequest(e);
-    return addCorsHeaders(geminiResponse);
+    return handleGeminiRequest(e);
   }
   
   // 설정 백업/복원 라우팅
   if (action === 'backup-settings') {
-    var backupResponse = handleBackupSettings(e);
-    return addCorsHeaders(backupResponse);
+    return handleBackupSettings(e);
   }
   
   if (action === 'restore-settings') {
-    var restoreResponse = handleRestoreSettings(e);
-    return addCorsHeaders(restoreResponse);
+    return handleRestoreSettings(e);
   }
   
     // 기존 시트 저장 로직
@@ -380,25 +358,20 @@ function doPost(e) {
     
     Logger.log('시트에 데이터 저장 완료: ' + data.productName);
 
-    var successResponse = ContentService.createTextOutput(JSON.stringify({ 
+    // GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
+    return ContentService.createTextOutput(JSON.stringify({ 
       status: "success", 
       result: resultLog 
     })).setMimeType(ContentService.MimeType.JSON);
-    
-    // CORS 헤더 추가 (헬퍼 함수 사용)
-    return addCorsHeaders(successResponse);
 
   } catch (error) {
     Logger.log('❌ doPost 오류: ' + error.toString());
     Logger.log('오류 스택: ' + (error.stack || '스택 정보 없음'));
     
-    var errorResponse = ContentService.createTextOutput(JSON.stringify({ 
+    return ContentService.createTextOutput(JSON.stringify({ 
       status: "error", 
       message: error.toString() 
     })).setMimeType(ContentService.MimeType.JSON);
-    
-    // CORS 헤더 추가 (헬퍼 함수 사용)
-    return addCorsHeaders(errorResponse);
   }
 }
 
@@ -440,29 +413,9 @@ function doGet(e) {
   return HtmlService.createHtmlOutput(html);
 }
 
-function doOptions(e) {
-  // CORS preflight 요청 처리
-  // 보안 강화: 특정 도메인만 허용하도록 변경 권장
-  // 실제 배포 시에는 '*' 대신 특정 도메인을 지정하세요
-  var allowedOrigins = '*'; // 예: 'https://yourdomain.com' 또는 'https://poduct-pagebuilder-kdh.vercel.app'
-  
-  Logger.log('🔍 CORS preflight 요청 수신');
-  
-  var headers = {
-    'Access-Control-Allow-Origin': allowedOrigins,
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '3600',
-    'Access-Control-Allow-Credentials': 'true'
-  };
-  
-  var response = ContentService.createTextOutput('');
-  response.setMimeType(ContentService.MimeType.TEXT);
-  response.setHeaders(headers);
-  
-  Logger.log('✅ CORS preflight 응답 전송');
-  return response;
-}
+// ★참고★: GAS 웹 앱은 OPTIONS 요청을 자동으로 처리합니다.
+// doOptions 함수는 GAS에서 호출되지 않습니다.
+// CORS는 웹 앱을 "모든 사용자"로 배포하면 자동으로 처리됩니다.
 
 /**
  * 권한 승인용 테스트 함수
@@ -754,17 +707,8 @@ function testDrivePermission() {
  * 사용자의 설정(GAS URL, Sheet ID, 템플릿)을 Google Drive에 저장
  */
 function handleBackupSettings(e) {
-  // CORS 헤더 헬퍼 함수
-  var addCorsHeaders = function(response) {
-    var headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '3600'
-    };
-    response.setHeaders(headers);
-    return response;
-  };
+  // ★중요★: GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
+  // setHeaders()는 GAS ContentService에서 지원되지 않으므로 사용하지 않음
   
   try {
     Logger.log('📦 [Backup] 백업 요청 수신');
@@ -839,19 +783,17 @@ function handleBackupSettings(e) {
       backupDate: new Date().toISOString()
     })).setMimeType(ContentService.MimeType.JSON);
     
-    return addCorsHeaders(successResponse);
+    return successResponse;
     
   } catch (error) {
     Logger.log('❌ [Backup] 설정 백업 실패: ' + error.toString());
     Logger.log('❌ [Backup] 에러 스택: ' + (error.stack || '스택 정보 없음'));
     
-    var errorResponse = ContentService.createTextOutput(JSON.stringify({
+    return ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString(),
       errorType: error.name || 'UnknownError'
     })).setMimeType(ContentService.MimeType.JSON);
-    
-    return addCorsHeaders(errorResponse);
   }
 }
 
@@ -860,17 +802,7 @@ function handleBackupSettings(e) {
  * Google Drive에서 백업된 설정을 읽어옴
  */
 function handleRestoreSettings(e) {
-  // CORS 헤더 헬퍼 함수
-  var addCorsHeaders = function(response) {
-    var headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '3600'
-    };
-    response.setHeaders(headers);
-    return response;
-  };
+  // ★중요★: GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
   
   try {
     var folderName = '.pagegenie_backup';
@@ -878,11 +810,10 @@ function handleRestoreSettings(e) {
     
     if (!folders.hasNext()) {
       Logger.log('백업 폴더가 없습니다.');
-      var notFoundResponse = ContentService.createTextOutput(JSON.stringify({
+      return ContentService.createTextOutput(JSON.stringify({
         status: 'not_found',
         message: '백업 파일이 없습니다. 먼저 백업을 생성해주세요.'
       })).setMimeType(ContentService.MimeType.JSON);
-      return addCorsHeaders(notFoundResponse);
     }
     
     var folder = folders.next();
@@ -890,11 +821,10 @@ function handleRestoreSettings(e) {
     
     if (!files.hasNext()) {
       Logger.log('백업 파일이 없습니다.');
-      var notFoundResponse2 = ContentService.createTextOutput(JSON.stringify({
+      return ContentService.createTextOutput(JSON.stringify({
         status: 'not_found',
         message: '백업 파일이 없습니다. 먼저 백업을 생성해주세요.'
       })).setMimeType(ContentService.MimeType.JSON);
-      return addCorsHeaders(notFoundResponse2);
     }
     
     var file = files.next();
@@ -910,16 +840,14 @@ function handleRestoreSettings(e) {
       backupDate: settings.backupDate || null
     })).setMimeType(ContentService.MimeType.JSON);
     
-    return addCorsHeaders(successResponse);
+    return successResponse;
     
   } catch (error) {
     Logger.log('❌ 설정 복원 실패: ' + error.toString());
     
-    var errorResponse = ContentService.createTextOutput(JSON.stringify({
+    return ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
-    
-    return addCorsHeaders(errorResponse);
   }
 }
