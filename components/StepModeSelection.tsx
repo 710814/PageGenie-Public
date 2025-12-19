@@ -20,7 +20,7 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
   }, [onSelectMode]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12" style={{ maxWidth: '896px', margin: '0 auto', padding: '48px 16px' }}>
+    <div className="max-w-7xl mx-auto px-4 py-12" style={{ maxWidth: '1280px', margin: '0 auto', padding: '48px 16px' }}>
       <div className="text-center mb-12" style={{ textAlign: 'center', marginBottom: '48px' }}>
         <h1 className="text-4xl font-bold text-gray-900 mb-4" style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#111827', marginBottom: '16px' }}>
           PageGenie
@@ -31,7 +31,7 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Mode A: Creation */}
         <button
           onClick={handleCreationClick}
