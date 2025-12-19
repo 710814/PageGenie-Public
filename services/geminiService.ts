@@ -541,54 +541,67 @@ export const analyzeProductImage = async (
       You are an expert translator and localization specialist for the Korean market.
       The provided image(s) are screenshots of an existing product detail page in a foreign language (English, Chinese, etc.).
       
+      ## CRITICAL MISSION:
+      Your goal is to accurately translate foreign language text in product images to natural, persuasive Korean (의역 - free translation) while maintaining 100% visual consistency with the original images. The product and all visual elements must remain ABSOLUTELY IDENTICAL - only text language changes.
+      
       ## Your Tasks:
       1. **Extract Content**: Analyze all images and extract:
          - All visible text content (product names, descriptions, features, prices, etc.)
          - Section structure and layout
          - Visual elements (product images, icons, graphics)
+         - Text positions, sizes, styles, and colors (for accurate replacement)
       
       2. **Translate Content**: Convert all foreign language text into natural, persuasive Korean:
-         - Product names and descriptions
-         - Marketing copy and features
-         - Section titles and content
-         - Maintain the original meaning and tone
+         - Use 의역 (free translation) for natural, marketing-effective Korean
+         - Product names and descriptions: natural Korean or transliteration as appropriate
+         - Marketing copy and features: persuasive and natural in Korean
+         - Section titles and content: maintain original meaning and tone
+         - Consider Korean market preferences and expressions
       
       3. **Maintain Structure**: Keep the original section flow and layout exactly as shown
       
       4. **Image Prompt Strategy** (CRITICAL for 'imagePrompt' field):
          For each section, analyze the image and determine:
          
-         **Case A: Text is CLEAR and TRANSLATABLE**
+         **Case A: Text is CLEAR and TRANSLATABLE (80%+ readable)**
          - If the text in the image is clearly readable and can be accurately translated:
-           → Create an imagePrompt that instructs: "Recreate this layout with Korean text replacing the original text"
-           → Example: "The same product layout with Korean text overlay: '[translated text]', maintaining the original visual style and composition"
+           → Create an imagePrompt that instructs: "Recreate this EXACT layout with Korean text replacing the original text at the SAME position, size, and style"
+           → Include the Korean translation in the prompt
+           → Example format: "The EXACT same product and layout from the reference image, with Korean text '[translated text]' replacing the original text at [position], maintaining the same text size, style, and color"
          
-         **Case B: Text is UNCLEAR or UNTRANSLATABLE**
+         **Case B: Text is UNCLEAR or UNTRANSLATABLE (Default)**
          - If the text is blurry, low resolution, partially obscured, or cannot be accurately translated:
-           → Create an imagePrompt that instructs: "Remove all text from the image, keep only the visual elements"
-           → Example: "The same product and visual elements without any text overlay, clean design, professional photography"
-           → Default action: REMOVE TEXT (this is the default when translation is uncertain)
+         - If text readability is less than 80%:
+         - If translation is uncertain due to image quality:
+           → Create an imagePrompt that instructs: "Remove ALL text from the image, keep ONLY the visual elements"
+           → Example: "The EXACT same product and visual elements from the reference image without any text overlay, clean design, professional photography"
+           → **DEFAULT ACTION: REMOVE TEXT** (this is the default when translation is uncertain)
          
          **Decision Rule**:
-         - If you can clearly read and translate 80%+ of the text → Use Case A
-         - If text is unclear, blurry, or less than 80% readable → Use Case B (REMOVE TEXT)
+         - If you can clearly read and translate 80%+ of the text → Use Case A (TRANSLATE)
+         - If text is unclear, blurry, or less than 80% readable → Use Case B (REMOVE TEXT) - DEFAULT
          - When in doubt → Use Case B (REMOVE TEXT) - this is the default
+         - If image resolution is low → Use Case B (REMOVE TEXT)
+         - If text is stylized graphics that are hard to translate → Use Case B (REMOVE TEXT)
       
       ## CRITICAL - imagePrompt Guidelines:
-      When creating 'imagePrompt' for each section:
-      - The product/visual elements must remain IDENTICAL to the original
+      When creating 'imagePrompt' for each section, you MUST:
+      - **ABSOLUTELY MAINTAIN** the product/visual elements IDENTICAL to the original
       - The product's shape, color, design, texture must be EXACTLY the same
-      - NEVER describe a different product
+      - Background, layout, composition, lighting, shadows must remain EXACTLY the same
+      - Camera angle, perspective, scene composition must be IDENTICAL
+      - NEVER describe a different or modified product
       - For text handling:
-        * If text is clear and translatable: "Korean text: '[translated text]' replacing original text"
-        * If text is unclear/unt translatable: "No text overlay, clean image without text"
-        * Default: Remove text when uncertain
+        * If text is clear and translatable: "Korean text: '[translated text]' replacing original text at [position], same size/style/color"
+        * If text is unclear/unt translatable: "No text overlay, clean image without text, EXACT same visual elements"
+        * Default: Remove text when uncertain (REMOVE TEXT is the default)
       
       ## Output Requirements:
-      - All 'title' and 'content' fields must be in Korean (translated from original)
+      - All 'title' and 'content' fields must be in Korean (translated from original using 의역)
       - 'imagePrompt' must clearly indicate:
-        * Whether to include Korean text or remove text
-        * How to handle the visual elements
+        * Whether to include Korean text or remove text (default: remove if uncertain)
+        * How to maintain 100% visual consistency with original
+        * Exact text position, size, style if translating
         * Default to text removal when translation is uncertain
     `;
   }
@@ -1056,7 +1069,8 @@ export const generateSectionImage = async (
         const shouldRemoveText = prompt.toLowerCase().includes('no text') || 
                                  prompt.toLowerCase().includes('remove text') ||
                                  prompt.toLowerCase().includes('without text') ||
-                                 prompt.toLowerCase().includes('clean image');
+                                 prompt.toLowerCase().includes('clean image') ||
+                                 prompt.toLowerCase().includes('text-free');
         
         const hasKoreanText = prompt.includes('한국어') || 
                              prompt.includes('Korean text') ||
@@ -1065,56 +1079,85 @@ export const generateSectionImage = async (
         if (shouldRemoveText) {
           // 텍스트 제거 모드
           fullPrompt = `
-CRITICAL INSTRUCTIONS FOR LOCALIZATION:
-1. Keep the EXACT same product from the reference image
-   - Product's shape, color, design, texture must be IDENTICAL
-   - Do NOT modify the product itself
-2. REMOVE ALL TEXT from the image
+## CRITICAL INSTRUCTIONS FOR LOCALIZATION - MUST FOLLOW EXACTLY:
+
+### 1. MAINTAIN 100% VISUAL CONSISTENCY WITH ORIGINAL IMAGE
+   - The product's shape, color, design, texture, and ALL visual details must be IDENTICAL to the reference
+   - Background, layout, composition, lighting, shadows, reflections must remain EXACTLY the same
+   - Camera angle, perspective, and scene composition must be IDENTICAL
+   - Do NOT modify, change, or replace ANY visual element except text
+   - The image should look like the original with ONLY text removed
+
+### 2. REMOVE ALL TEXT FROM THE IMAGE
    - Remove any text overlays, labels, or text elements
    - Keep only the visual elements (product, background, graphics)
    - Create a clean, text-free version
-3. Maintain the original visual style and composition
-   - Same lighting, angle, and scene composition
-   - Same background style (if applicable)
-   - Professional, high-quality photography
+   - Fill any text areas naturally with background or product elements
+
+### 3. FINAL CHECK
+   - Compare side-by-side: Original vs. Edited
+   - The ONLY difference should be the absence of text
+   - Everything else (product, background, layout, colors, lighting) must be IDENTICAL
+   - The edited image should be indistinguishable from the original except for text removal
 
 Based on the reference image, recreate: ${prompt}
-High quality, professional product photography without any text.
+High quality, professional product photography without any text. Pixel-perfect consistency with original.
           `.trim();
         } else if (hasKoreanText) {
           // 한국어 텍스트 포함 모드
           fullPrompt = `
-CRITICAL INSTRUCTIONS FOR LOCALIZATION:
-1. Keep the EXACT same product from the reference image
-   - Product's shape, color, design, texture must be IDENTICAL
-   - Do NOT modify the product itself
-2. REPLACE original text with Korean text
+## CRITICAL INSTRUCTIONS FOR LOCALIZATION - MUST FOLLOW EXACTLY:
+
+### 1. MAINTAIN 100% VISUAL CONSISTENCY WITH ORIGINAL IMAGE
+   - The product's shape, color, design, texture, and ALL visual details must be IDENTICAL to the reference
+   - Background, layout, composition, lighting, shadows, reflections must remain EXACTLY the same
+   - Camera angle, perspective, and scene composition must be IDENTICAL
+   - Do NOT modify, change, or replace ANY visual element except text
+   - The image should look like the original with ONLY text language changed
+
+### 2. REPLACE TEXT WITH KOREAN TRANSLATIONS
    - Remove original foreign language text
    - Add Korean text as specified in the prompt
-   - Maintain the same text position and style
-3. Maintain the original visual style and composition
-   - Same layout and composition
-   - Same lighting and background style
-   - Professional, high-quality photography
+   - Maintain the EXACT same text position, size, style, and color as the original
+   - Use natural, professional Korean typography that fits the design
+   - Keep the same visual hierarchy and text alignment
+   - If text was bold/italic in original, keep it bold/italic in Korean
+   - Text should look like it was originally designed in Korean
+
+### 3. FINAL CHECK
+   - Compare side-by-side: Original vs. Edited
+   - The ONLY difference should be the language of the text
+   - Everything else (product, background, layout, colors, lighting) must be IDENTICAL
+   - The edited image should be indistinguishable from the original except for text language
 
 Based on the reference image, recreate: ${prompt}
-High quality, professional product photography with Korean text.
+High quality, professional product photography with Korean text. Pixel-perfect consistency with original.
           `.trim();
         } else {
           // 기본: 텍스트 제거 (불확실한 경우)
           fullPrompt = `
-CRITICAL INSTRUCTIONS FOR LOCALIZATION:
-1. Keep the EXACT same product from the reference image
-   - Product's shape, color, design, texture must be IDENTICAL
-   - Do NOT modify the product itself
-2. DEFAULT ACTION: REMOVE ALL TEXT
+## CRITICAL INSTRUCTIONS FOR LOCALIZATION - MUST FOLLOW EXACTLY:
+
+### 1. MAINTAIN 100% VISUAL CONSISTENCY WITH ORIGINAL IMAGE
+   - The product's shape, color, design, texture, and ALL visual details must be IDENTICAL to the reference
+   - Background, layout, composition, lighting, shadows, reflections must remain EXACTLY the same
+   - Camera angle, perspective, and scene composition must be IDENTICAL
+   - Do NOT modify, change, or replace ANY visual element except text
+   - The image should look like the original with ONLY text removed
+
+### 2. DEFAULT ACTION: REMOVE ALL TEXT (When translation is uncertain)
    - Remove any text overlays, labels, or text elements
    - Keep only the visual elements (product, background, graphics)
    - Create a clean, text-free version
-3. Maintain the original visual style and composition
+   - Fill any text areas naturally with background or product elements
+
+### 3. FINAL CHECK
+   - Compare side-by-side: Original vs. Edited
+   - The ONLY difference should be the absence of text
+   - Everything else (product, background, layout, colors, lighting) must be IDENTICAL
 
 Based on the reference image, recreate: ${prompt}
-High quality, professional product photography without any text overlay.
+High quality, professional product photography without any text overlay. Pixel-perfect consistency with original.
           `.trim();
         }
       } else {
