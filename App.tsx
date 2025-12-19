@@ -338,6 +338,31 @@ const AppContent: React.FC = () => {
           />
         )}
         
+        {/* 모드 C: 이미지 수정 중 로딩 화면 */}
+        {step === Step.GENERATING && mode === AppMode.IMAGE_EDIT && !analysisResult && (
+          <div className="flex flex-col items-center justify-center h-[60vh]">
+            <Loader2 className="w-16 h-16 text-green-600 animate-spin mb-6" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">이미지 분석 및 수정 중...</h3>
+            <p className="text-gray-500 animate-pulse mb-4">{loadingMessage || '이미지의 외국어 텍스트를 감지하고 있습니다...'}</p>
+            <div className="max-w-md mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-4">
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                  이미지 분석 중...
+                </div>
+                <div className="flex items-center text-sm text-gray-400">
+                  <div className="w-2 h-2 bg-gray-300 rounded-full mr-2"></div>
+                  텍스트 감지 및 번역 가능 여부 판단
+                </div>
+                <div className="flex items-center text-sm text-gray-400">
+                  <div className="w-2 h-2 bg-gray-300 rounded-full mr-2"></div>
+                  수정된 이미지 생성 중
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {isLoading && step !== Step.GENERATING ? (
           <div className="flex flex-col items-center justify-center h-[60vh]">
             <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
@@ -368,8 +393,8 @@ const AppContent: React.FC = () => {
                 onOpenSettings={handleOpenSettings}
               />
             )}
-            {/* 디버깅: step이 예상과 다른 경우 */}
-            {step !== Step.SELECT_MODE && step !== Step.UPLOAD_DATA && step !== Step.ANALYSIS_REVIEW && step !== Step.RESULT && (
+            {/* 디버깅: step이 예상과 다른 경우 (GENERATING 제외) */}
+            {step !== Step.SELECT_MODE && step !== Step.UPLOAD_DATA && step !== Step.ANALYSIS_REVIEW && step !== Step.RESULT && step !== Step.GENERATING && (
               <div className="flex items-center justify-center h-[60vh]">
                 <div className="text-center">
                   <p className="text-gray-500">현재 Step: {step}</p>
