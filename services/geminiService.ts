@@ -32,12 +32,13 @@ function normalizeUrlForComparison(url: string): string {
 
 /**
  * GAS 프록시를 통해 Gemini API 호출
+ * @param timeoutMs 타임아웃 시간 (밀리초). 기본값: 120000 (2분), 이미지 생성 시: 300000 (5분)
  */
 async function callGeminiViaProxy(requestData: {
   model: string;
   contents: GeminiRequest['contents'];
   config?: GeminiGenerationConfig;
-}): Promise<GeminiResponse> {
+}, timeoutMs?: number): Promise<GeminiResponse> {
   const gasUrl = getGasUrl(true);
   
   if (!gasUrl) {
@@ -62,8 +63,13 @@ async function callGeminiViaProxy(requestData: {
     }
     
     // 타임아웃 설정
+    // 이미지 생성 모델은 더 오래 걸리므로 5분, 텍스트 분석은 2분
+    const isImageGeneration = requestData.model.includes('image') || requestData.model.includes('IMAGE_GEN');
+    const defaultTimeout = isImageGeneration ? 300000 : 120000; // 이미지 생성: 5분, 텍스트: 2분
+    const timeout = timeoutMs || defaultTimeout;
+    
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2분 타임아웃 (이미지 생성은 시간이 걸릴 수 있음)
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
     let response: Response;
     try {
@@ -93,7 +99,12 @@ async function callGeminiViaProxy(requestData: {
     } catch (fetchError) {
       clearTimeout(timeoutId);
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        throw new Error('GAS 프록시 요청이 타임아웃되었습니다. 네트워크 연결을 확인하거나 GAS URL이 올바른지 확인하세요.');
+        const timeoutMinutes = Math.round(timeout / 60000);
+        throw new Error(
+          `GAS 프록시 요청이 타임아웃되었습니다 (${timeoutMinutes}분). ` +
+          `이미지 생성은 시간이 오래 걸릴 수 있습니다. ` +
+          `네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.`
+        );
       }
       if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
         throw new Error('GAS 웹 앱에 연결할 수 없습니다. 다음을 확인하세요:\n1. GAS URL이 올바른지 확인\n2. GAS 웹 앱이 배포되었는지 확인\n3. 네트워크 연결 확인\n4. 브라우저 콘솔에서 자세한 오류 확인');

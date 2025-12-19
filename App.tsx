@@ -105,6 +105,7 @@ const AppContent: React.FC = () => {
         console.log('[Mode C] 1단계: 이미지 분석 시작');
         
         // 진행 상태 업데이트 콜백과 함께 이미지 수정 실행
+        // 이미지 생성은 시간이 오래 걸릴 수 있으므로 6분 타임아웃 적용
         const editedImageUrl = await Promise.race([
           editSingleImageWithProgress(
             firstFile.base64, 
@@ -115,7 +116,7 @@ const AppContent: React.FC = () => {
             }
           ),
           new Promise<string>((_, reject) => 
-            setTimeout(() => reject(new Error('이미지 수정이 시간 초과되었습니다. 네트워크 연결을 확인하거나 다시 시도해주세요.')), 180000) // 3분 타임아웃
+            setTimeout(() => reject(new Error('이미지 수정이 시간 초과되었습니다 (6분). 이미지 생성은 시간이 오래 걸릴 수 있습니다. 네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.')), 360000) // 6분 타임아웃
           )
         ]);
 
