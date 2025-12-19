@@ -8,7 +8,7 @@ import { StepAnalysis } from './components/StepAnalysis';
 import { StepResult } from './components/StepResult';
 import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
-import { analyzeProductImage, generateSectionImage, editSingleImage } from './services/geminiService';
+import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress } from './services/geminiService';
 import { getTemplates } from './services/templateService';
 import { 
   isAutoBackupEnabled, 
@@ -96,11 +96,28 @@ const AppContent: React.FC = () => {
 
       setStep(Step.GENERATING);
       setIsLoading(true);
-      setLoadingMessage('이미지를 분석하고 수정 중입니다...');
-
+      
       try {
         const firstFile = filesData[0];
-        const editedImageUrl = await editSingleImage(firstFile.base64, firstFile.mimeType);
+        
+        // 1단계: 이미지 분석
+        setLoadingMessage('이미지를 분석하고 텍스트를 감지하는 중...');
+        console.log('[Mode C] 1단계: 이미지 분석 시작');
+        
+        // 진행 상태 업데이트 콜백과 함께 이미지 수정 실행
+        const editedImageUrl = await Promise.race([
+          editSingleImageWithProgress(
+            firstFile.base64, 
+            firstFile.mimeType,
+            (step: string, message: string) => {
+              setLoadingMessage(message);
+              console.log(`[Mode C] ${step}: ${message}`);
+            }
+          ),
+          new Promise<string>((_, reject) => 
+            setTimeout(() => reject(new Error('이미지 수정이 시간 초과되었습니다. 네트워크 연결을 확인하거나 다시 시도해주세요.')), 180000) // 3분 타임아웃
+          )
+        ]);
 
         // ProductAnalysis 형식으로 변환
         const result: ProductAnalysis = {

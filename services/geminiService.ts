@@ -698,11 +698,23 @@ export const analyzeProductImage = async (
 /**
  * Edit a single image: translate or remove foreign language text
  * 단일 이미지의 외국어 텍스트를 한국어로 번역하거나 삭제
+ * @param progressCallback 진행 상태 업데이트 콜백 (step, message)
  */
-export const editSingleImage = async (
+export const editSingleImageWithProgress = async (
   base64Image: string,
-  mimeType: string
+  mimeType: string,
+  progressCallback?: (step: string, message: string) => void
 ): Promise<string> => {
+  const reportProgress = (step: string, message: string) => {
+    if (progressCallback) {
+      progressCallback(step, message);
+    }
+    console.log(`[editSingleImage] ${step}: ${message}`);
+  };
+
+  try {
+    // 1단계: 이미지 분석 - 텍스트 감지 및 번역 가능 여부 판단
+    reportProgress('1단계', '이미지 분석 중...');
   try {
     // 1단계: 이미지 분석 - 텍스트 감지 및 번역 가능 여부 판단
     const analysisPrompt = `
@@ -728,6 +740,7 @@ Output JSON format:
     `;
 
     // 분석 요청
+    reportProgress('1단계', '텍스트 감지 및 번역 가능 여부 판단 중...');
     const analysisResult = await callGeminiViaProxy({
       model: MODEL_TEXT_VISION,
       contents: {
@@ -764,8 +777,11 @@ Output JSON format:
     const analysisText = analysisResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!analysisText) throw new Error("이미지 분석 실패");
 
+    reportProgress('1단계', '분석 결과 처리 중...');
     const analysis = JSON.parse(analysisText);
     const shouldTranslate = analysis.action === "translate";
+    
+    reportProgress('2단계', shouldTranslate ? '한국어로 번역하여 이미지 생성 중...' : '텍스트 제거하여 이미지 생성 중...');
 
     // 2단계: 이미지 생성 프롬프트 생성
     let imagePrompt = "";
@@ -833,13 +849,16 @@ High quality, professional product photography without text overlay.
 
     if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
       // GAS 프록시 사용
+      reportProgress('2단계', '이미지 생성 중... (시간이 다소 걸릴 수 있습니다)');
       const result = await callGeminiViaProxy({
         model: MODEL_IMAGE_GEN,
         contents: { parts },
       });
 
+      reportProgress('2단계', '생성된 이미지 처리 중...');
       for (const part of result.candidates?.[0]?.content?.parts || []) {
         if (part.inlineData) {
+          reportProgress('완료', '이미지 수정 완료!');
           return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
       }
@@ -863,6 +882,7 @@ High quality, professional product photography without text overlay.
     }
 
     // 직접 API 호출 (Fallback)
+    reportProgress('2단계', '이미지 생성 중... (Fallback 모드)');
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_IMAGE_GEN}:generateContent?key=${apiKey}`,
       {
@@ -883,8 +903,10 @@ High quality, professional product photography without text overlay.
 
     const result = await response.json();
 
+    reportProgress('2단계', '생성된 이미지 처리 중...');
     for (const part of result.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
+        reportProgress('완료', '이미지 수정 완료!');
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
@@ -892,8 +914,22 @@ High quality, professional product photography without text overlay.
     throw new Error("이미지 생성 실패");
   } catch (error) {
     console.error("Image editing failed:", error);
+    if (progressCallback) {
+      progressCallback('오류', `이미지 수정 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    }
     throw error;
   }
+};
+
+/**
+ * Edit a single image: translate or remove foreign language text (기존 함수, 호환성 유지)
+ * 단일 이미지의 외국어 텍스트를 한국어로 번역하거나 삭제
+ */
+export const editSingleImage = async (
+  base64Image: string,
+  mimeType: string
+): Promise<string> => {
+  return editSingleImageWithProgress(base64Image, mimeType);
 };
 
 /**
