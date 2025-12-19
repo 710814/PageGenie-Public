@@ -36,7 +36,8 @@ function callGeminiAPI(requestData) {
         contents: requestData.contents,
         generationConfig: requestData.config || {}
       }),
-      'muteHttpExceptions': true
+      'muteHttpExceptions': true,
+      'timeout': 300000 // 5분 타임아웃 (Gemini API 응답 대기)
     };
 
     var response = UrlFetchApp.fetch(url, options);
@@ -63,15 +64,33 @@ function handleGeminiRequest(e) {
     var requestData = JSON.parse(e.postData.contents);
     var result = callGeminiAPI(requestData);
     
-    return ContentService.createTextOutput(JSON.stringify({
+    var response = ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       data: result
     })).setMimeType(ContentService.MimeType.JSON);
+    
+    // CORS 헤더 추가
+    response.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return response;
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
+    var errorResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+    
+    // CORS 헤더 추가
+    errorResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return errorResponse;
   }
 }
 
@@ -103,9 +122,27 @@ function doPost(e) {
     };
 
   try {
-    // 1. 데이터 파싱
+    // 1. 데이터 파싱 및 검증
+    if (!e.postData || !e.postData.contents) {
+      throw new Error('요청 데이터가 없습니다.');
+    }
+    
     var data = JSON.parse(e.postData.contents);
-    var sheet = SpreadsheetApp.openById(data.sheetId).getActiveSheet();
+    
+    // 필수 필드 검증
+    if (!data.sheetId) {
+      throw new Error('Sheet ID가 제공되지 않았습니다. 애플리케이션 설정에서 Google Sheet ID를 입력하세요.');
+    }
+    
+    // Sheet 접근 시도
+    var sheet;
+    try {
+      var spreadsheet = SpreadsheetApp.openById(data.sheetId);
+      sheet = spreadsheet.getActiveSheet();
+    } catch (sheetError) {
+      throw new Error('Google Sheet에 접근할 수 없습니다. Sheet ID를 확인하고 접근 권한이 있는지 확인하세요: ' + sheetError.toString());
+    }
+    
     var folderUrl = "Not Saved";
     var imageUrlsLog = [];
 
@@ -328,16 +365,37 @@ function doPost(e) {
     
     Logger.log('시트에 데이터 저장 완료: ' + data.productName);
 
-    return ContentService.createTextOutput(JSON.stringify({ 
+    var successResponse = ContentService.createTextOutput(JSON.stringify({ 
       status: "success", 
       result: resultLog 
     })).setMimeType(ContentService.MimeType.JSON);
+    
+    // CORS 헤더 추가
+    successResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return successResponse;
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ 
+    Logger.log('❌ doPost 오류: ' + error.toString());
+    Logger.log('오류 스택: ' + (error.stack || '스택 정보 없음'));
+    
+    var errorResponse = ContentService.createTextOutput(JSON.stringify({ 
       status: "error", 
       message: error.toString() 
     })).setMimeType(ContentService.MimeType.JSON);
+    
+    // CORS 헤더 추가
+    errorResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return errorResponse;
   }
 }
 
@@ -363,6 +421,9 @@ function doGet(e) {
   
   html += '<hr style="margin: 30px 0;">';
   html += '<p style="color: gray;">이 URL을 애플리케이션 설정의 "GAS Web App URL" 필드에 입력하세요.</p>';
+  html += '<hr style="margin: 30px 0;">';
+  html += '<h3>권한 확인</h3>';
+  html += '<p style="color: blue;">권한 테스트를 하려면 Apps Script 편집기에서 <code>testPermissions()</code> 함수를 실행하세요.</p>';
   html += '</body></html>';
   
   return HtmlService.createHtmlOutput(html);
@@ -383,7 +444,7 @@ function doOptions(e) {
 
 /**
  * 권한 승인용 테스트 함수
- * 이 함수를 실행하면 외부 API 호출 및 Google Drive 권한을 승인할 수 있습니다
+ * 이 함수를 실행하면 외부 API 호출, Google Sheets, Google Drive 권한을 승인할 수 있습니다
  */
 function testPermissions() {
   try {
@@ -400,7 +461,25 @@ function testPermissions() {
       Logger.log('⚠️ GEMINI_API_KEY가 설정되지 않았습니다.');
     }
     
-    // 3. Google Drive 권한 테스트
+    // 3. Google Sheets 권한 테스트
+    try {
+      // 스크립트 속성에서 Sheet ID 가져오기 (선택사항)
+      var sheetId = props.getProperty('DEFAULT_SHEET_ID');
+      if (sheetId) {
+        var testSheet = SpreadsheetApp.openById(sheetId);
+        var testSheetName = testSheet.getName();
+        Logger.log('✅ Google Sheets 권한 승인 완료! 시트 접근 가능: ' + testSheetName);
+      } else {
+        Logger.log('⚠️ DEFAULT_SHEET_ID가 설정되지 않았습니다. (선택사항)');
+        Logger.log('⚠️ Google Sheets 권한은 실제 사용 시 자동으로 요청됩니다.');
+      }
+    } catch (sheetError) {
+      Logger.log('❌ Google Sheets 권한 오류: ' + sheetError.toString());
+      Logger.log('⚠️ 이 오류가 발생하면 권한 승인 팝업이 나타나야 합니다.');
+      Logger.log('⚠️ 팝업이 나타나지 않으면, 실제 애플리케이션에서 사용할 때 권한이 요청될 수 있습니다.');
+    }
+    
+    // 4. Google Drive 권한 테스트
     try {
       var testFolder = DriveApp.createFolder('권한_테스트_' + new Date().getTime());
       var folderUrl = testFolder.getUrl();
@@ -410,6 +489,7 @@ function testPermissions() {
       Logger.log('✅ 테스트 폴더 삭제 완료');
     } catch (driveError) {
       Logger.log('❌ Google Drive 권한 오류: ' + driveError.toString());
+      Logger.log('⚠️ 이 오류가 발생하면 권한 승인 팝업이 나타나야 합니다.');
       throw driveError;
     }
     
@@ -417,6 +497,40 @@ function testPermissions() {
     return 'Success';
   } catch (error) {
     Logger.log('❌ 오류 발생: ' + error.toString());
+    throw error;
+  }
+}
+
+/**
+ * Google Sheets 권한만 테스트하는 함수
+ * 이 함수를 실행하면 Google Sheets 권한 승인 팝업이 나타날 수 있습니다
+ */
+function testSheetsPermission() {
+  try {
+    Logger.log('Google Sheets 권한 테스트 시작...');
+    
+    var props = PropertiesService.getScriptProperties();
+    var sheetId = props.getProperty('DEFAULT_SHEET_ID');
+    
+    if (!sheetId) {
+      Logger.log('⚠️ DEFAULT_SHEET_ID가 설정되지 않았습니다.');
+      Logger.log('⚠️ 스크립트 속성에 DEFAULT_SHEET_ID를 추가하거나, 실제 사용 시 sheetId를 전달하세요.');
+      return 'Warning - Sheet ID가 설정되지 않았습니다. 실제 사용 시 권한이 요청됩니다.';
+    }
+    
+    // 시트 접근 시도 (권한이 없으면 여기서 오류 발생)
+    var testSheet = SpreadsheetApp.openById(sheetId);
+    var sheetName = testSheet.getName();
+    
+    Logger.log('✅ Google Sheets 권한 승인 완료!');
+    Logger.log('✅ 시트 접근 성공: ' + sheetName);
+    
+    return 'Success - Google Sheets 권한이 정상적으로 승인되었습니다!';
+  } catch (error) {
+    Logger.log('❌ Google Sheets 권한 오류: ' + error.toString());
+    Logger.log('⚠️ 이 오류가 발생하면 권한 승인 팝업이 나타나야 합니다.');
+    Logger.log('⚠️ 팝업이 나타나지 않으면, 실제 애플리케이션에서 사용할 때 권한이 요청될 수 있습니다.');
+    Logger.log('⚠️ 또한 해당 Google Sheet에 대한 접근 권한이 있는지 확인하세요.');
     throw error;
   }
 }
@@ -461,6 +575,10 @@ function testDrivePermission() {
  */
 function handleBackupSettings(e) {
   try {
+    if (!e.postData || !e.postData.contents) {
+      throw new Error('요청 데이터가 없습니다.');
+    }
+    
     var data = JSON.parse(e.postData.contents);
     var settings = data.settings;
     
@@ -494,19 +612,38 @@ function handleBackupSettings(e) {
     
     Logger.log('✅ 설정 백업 완료: ' + file.getUrl());
     
-    return ContentService.createTextOutput(JSON.stringify({
+    var successResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       message: '설정이 Google Drive에 백업되었습니다.',
       fileId: file.getId(),
       backupDate: new Date().toISOString()
     })).setMimeType(ContentService.MimeType.JSON);
     
+    // CORS 헤더 추가
+    successResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return successResponse;
+    
   } catch (error) {
     Logger.log('❌ 설정 백업 실패: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({
+    
+    var errorResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+    
+    // CORS 헤더 추가
+    errorResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return errorResponse;
   }
 }
 
@@ -544,18 +681,37 @@ function handleRestoreSettings(e) {
     
     Logger.log('✅ 설정 복원 성공: ' + file.getUrl());
     
-    return ContentService.createTextOutput(JSON.stringify({
+    var successResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       settings: settings,
       message: '설정이 복원되었습니다.',
       backupDate: settings.backupDate || null
     })).setMimeType(ContentService.MimeType.JSON);
     
+    // CORS 헤더 추가
+    successResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return successResponse;
+    
   } catch (error) {
     Logger.log('❌ 설정 복원 실패: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({
+    
+    var errorResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+    
+    // CORS 헤더 추가
+    errorResponse.setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    
+    return errorResponse;
   }
 }
