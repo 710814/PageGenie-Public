@@ -793,9 +793,8 @@ Output JSON format:
           required: ["action", "detectedText", "reason"]
         },
         temperature: 0.3,
-      },
-      180000 // 이미지 분석: 3분 타임아웃
-    );
+      }
+    }, 180000); // 이미지 분석: 3분 타임아웃
 
     const analysisText = analysisResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!analysisText) throw new Error("이미지 분석 실패");
@@ -877,9 +876,7 @@ High quality, professional product photography without text overlay.
       const result = await callGeminiViaProxy({
         model: MODEL_IMAGE_GEN,
         contents: { parts },
-      },
-      300000 // 이미지 생성: 5분 타임아웃
-      );
+      }, 300000); // 이미지 생성: 5분 타임아웃
 
       reportProgress('2단계', '생성된 이미지 처리 중...');
       for (const part of result.candidates?.[0]?.content?.parts || []) {
