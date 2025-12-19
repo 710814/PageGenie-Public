@@ -762,22 +762,44 @@ export const editSingleImageWithProgress = async (
     reportProgress('1단계', '이미지 분석 중...');
     
     const analysisPrompt = `
-You are an expert image analyzer specializing in text detection and translation.
+You are an expert image analyzer and translator specializing in Korean localization.
 
-Analyze the provided image and:
-1. Detect all visible text in the image (any language: English, Chinese, Japanese, etc.)
-2. Assess text clarity and readability:
-   - Can you clearly read 80%+ of the text? → TRANSLATABLE
+## CRITICAL MISSION:
+Your goal is to accurately translate foreign language text in product images to natural, persuasive Korean while maintaining 100% visual consistency with the original image.
+
+## Analysis Tasks:
+1. **Detect ALL visible text** in the image (any language: English, Chinese, Japanese, etc.)
+   - Include text in product labels, descriptions, features, prices, etc.
+   - Note the exact position, size, style, and color of each text element
+
+2. **Assess text clarity and translatability:**
+   - Can you clearly read 80%+ of the text? → TRANSLATABLE (preferred)
    - Is the text blurry, low resolution, or partially obscured? → REMOVE_TEXT
    - Is the text stylized graphics that are hard to translate? → REMOVE_TEXT
-3. If translatable, provide Korean translations for all detected text
-4. Determine the action: "translate" or "remove"
 
-Output JSON format:
+3. **If translatable, provide ACCURATE Korean translations:**
+   - Use natural, persuasive Korean (의역 - free translation for marketing effectiveness)
+   - Maintain the original meaning and tone
+   - Consider Korean market preferences and expressions
+   - For product names: use natural Korean or transliteration as appropriate
+   - For marketing copy: make it persuasive and natural in Korean
+
+4. **Document text details:**
+   - Original text
+   - Korean translation (의역)
+   - Exact position description (top-left, center, bottom-right, etc.)
+   - Text style hints (bold, italic, size, color if visible)
+
+## Output JSON format:
 {
   "action": "translate" | "remove",
   "detectedText": [
-    {"original": "original text", "korean": "한국어 번역", "position": "description of text position"}
+    {
+      "original": "original text",
+      "korean": "자연스럽고 설득력 있는 한국어 번역 (의역)",
+      "position": "exact position description (e.g., 'top-center, above product', 'bottom-right corner')",
+      "style": "text style hints if visible (e.g., 'bold white text', 'small gray text')"
+    }
   ],
   "reason": "why translate or remove"
 }
@@ -815,7 +837,8 @@ Output JSON format:
                 properties: {
                   original: { type: "string" },
                   korean: { type: "string" },
-                  position: { type: "string" }
+                  position: { type: "string" },
+                  style: { type: "string" }
                 }
               }
             },
@@ -853,28 +876,44 @@ Output JSON format:
     if (shouldTranslate && analysis.detectedText && analysis.detectedText.length > 0) {
       // 번역 모드: 한국어 텍스트로 교체
       const translations = analysis.detectedText
-        .map((item: any) => `"${item.original}" → "${item.korean}"`)
-        .join(", ");
+        .map((item: any) => {
+          const position = item.position || 'original position';
+          const style = item.style ? ` (${item.style})` : '';
+          return `"${item.original}" → "${item.korean}" at ${position}${style}`;
+        })
+        .join("\n   ");
       
       imagePrompt = `
-CRITICAL INSTRUCTIONS FOR IMAGE EDITING:
-1. Keep the EXACT same product and visual elements from the reference image
-   - Product's shape, color, design, texture must be IDENTICAL
-   - Background, layout, composition must remain the same
-   - Do NOT modify the product itself
+## CRITICAL INSTRUCTIONS - MUST FOLLOW EXACTLY:
 
-2. REPLACE all foreign language text with Korean translations:
+### 1. MAINTAIN 100% VISUAL CONSISTENCY WITH ORIGINAL IMAGE
+   - The product's shape, color, design, texture, and ALL visual details must be IDENTICAL to the reference
+   - Background, layout, composition, lighting, shadows, reflections must remain EXACTLY the same
+   - Camera angle, perspective, and scene composition must be IDENTICAL
+   - Do NOT modify, change, or replace ANY visual element except text
+   - The image should look like the original with ONLY text changed
+
+### 2. REPLACE TEXT WITH KOREAN TRANSLATIONS
+   Replace the following foreign language text with Korean translations:
    ${translations}
-   - Maintain the same text position, size, and style
-   - Use natural, professional Korean typography
-   - Keep the same visual hierarchy
+   
+   **Text Replacement Rules:**
+   - Maintain the EXACT same text position as the original
+   - Keep the same text size, font weight, and style
+   - Preserve the same text color and effects (shadows, outlines, etc.)
+   - Use natural, professional Korean typography that fits the design
+   - Keep the same visual hierarchy and text alignment
+   - If text was bold/italic in original, keep it bold/italic in Korean
+   - Text should look like it was originally designed in Korean
 
-3. Maintain the original visual style and composition
-   - Same lighting, angle, and scene composition
-   - Professional, high-quality photography
+### 3. FINAL CHECK
+   - Compare side-by-side: Original vs. Edited
+   - The ONLY difference should be the language of the text
+   - Everything else (product, background, layout, colors, lighting) must be IDENTICAL
+   - The edited image should be indistinguishable from the original except for text language
 
 Generate the edited image with Korean text replacing the original text.
-High quality, professional product photography.
+High quality, professional product photography. Pixel-perfect consistency with original.
       `.trim();
     } else {
       // 제거 모드: 텍스트 제거
