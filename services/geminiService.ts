@@ -726,8 +726,7 @@ export const editSingleImageWithProgress = async (
   try {
     // 1단계: 이미지 분석 - 텍스트 감지 및 번역 가능 여부 판단
     reportProgress('1단계', '이미지 분석 중...');
-  try {
-    // 1단계: 이미지 분석 - 텍스트 감지 및 번역 가능 여부 판단
+    
     const analysisPrompt = `
 You are an expert image analyzer specializing in text detection and translation.
 
