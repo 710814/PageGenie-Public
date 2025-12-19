@@ -67,8 +67,20 @@ async function callGeminiViaProxy(requestData: {
     // 이미지 분석(텍스트 감지)도 큰 이미지나 복잡한 이미지의 경우 시간이 걸릴 수 있으므로 3분
     // 일반 텍스트 분석은 2분
     const isImageGeneration = requestData.model.includes('image') || requestData.model === MODEL_IMAGE_GEN;
-    const isImageAnalysis = requestData.model === MODEL_TEXT_VISION && 
-                            requestData.contents?.parts?.some((p: any) => p.inlineData);
+    
+    // 이미지 분석 감지: parts 배열에서 inlineData가 있는지 확인
+    let hasImageData = false;
+    try {
+      if (requestData.contents?.parts) {
+        hasImageData = requestData.contents.parts.some((p: any) => {
+          return p && (p.inlineData || (typeof p === 'object' && 'inlineData' in p));
+        });
+      }
+    } catch (e) {
+      console.warn('[callGeminiViaProxy] 이미지 데이터 감지 중 오류:', e);
+    }
+    
+    const isImageAnalysis = requestData.model === MODEL_TEXT_VISION && hasImageData;
     
     let defaultTimeout = 120000; // 기본 2분
     if (isImageGeneration) {
@@ -78,6 +90,17 @@ async function callGeminiViaProxy(requestData: {
     }
     
     const timeout = timeoutMs || defaultTimeout;
+    
+    console.log('[callGeminiViaProxy] 타임아웃 설정:', {
+      model: requestData.model,
+      isImageGeneration,
+      isImageAnalysis,
+      hasImageData,
+      timeoutMs,
+      defaultTimeout,
+      finalTimeout: timeout,
+      timeoutMinutes: Math.round(timeout / 60000)
+    });
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -762,8 +785,16 @@ Output JSON format:
 
     // 분석 요청
     reportProgress('1단계', '텍스트 감지 및 번역 가능 여부 판단 중...');
+    console.log('[editSingleImage] 1단계: 이미지 분석 시작', {
+      model: MODEL_TEXT_VISION,
+      hasImage: !!base64Image,
+      imageSize: base64Image?.length || 0
+    });
+    
     // 이미지 분석은 시간이 걸릴 수 있으므로 명시적으로 3분 타임아웃 적용
-    const analysisResult = await callGeminiViaProxy({
+    let analysisResult;
+    try {
+      analysisResult = await callGeminiViaProxy({
       model: MODEL_TEXT_VISION,
       contents: {
         parts: [
@@ -795,6 +826,17 @@ Output JSON format:
         temperature: 0.3,
       }
     }, 180000); // 이미지 분석: 3분 타임아웃
+      
+      console.log('[editSingleImage] 1단계: 이미지 분석 완료', {
+        hasResult: !!analysisResult,
+        hasCandidates: !!analysisResult?.candidates,
+        candidatesCount: analysisResult?.candidates?.length || 0
+      });
+    } catch (error) {
+      console.error('[editSingleImage] 1단계: 이미지 분석 실패', error);
+      reportProgress('오류', `이미지 분석 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      throw error;
+    }
 
     const analysisText = analysisResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!analysisText) throw new Error("이미지 분석 실패");
