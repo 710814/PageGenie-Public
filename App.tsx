@@ -8,7 +8,7 @@ import { StepAnalysis } from './components/StepAnalysis';
 import { StepResult } from './components/StepResult';
 import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
-import { analyzeProductImage, generateSectionImage } from './services/geminiService';
+import { analyzeProductImage, generateSectionImage, editSingleImage } from './services/geminiService';
 import { getTemplates } from './services/templateService';
 import { 
   isAutoBackupEnabled, 
@@ -86,6 +86,55 @@ const AppContent: React.FC = () => {
 
   const handleFilesSelect = useCallback(async (filesData: UploadedFile[], templateId?: string) => {
     setUploadedFiles(filesData);
+
+    // 모드 C: 이미지 수정 - 바로 이미지 수정 시작
+    if (mode === AppMode.IMAGE_EDIT) {
+      if (filesData.length === 0) {
+        toast.error('이미지를 업로드해주세요.');
+        return;
+      }
+
+      setStep(Step.GENERATING);
+      setIsLoading(true);
+      setLoadingMessage('이미지를 분석하고 수정 중입니다...');
+
+      try {
+        const firstFile = filesData[0];
+        const editedImageUrl = await editSingleImage(firstFile.base64, firstFile.mimeType);
+
+        // ProductAnalysis 형식으로 변환
+        const result: ProductAnalysis = {
+          productName: '이미지 수정 결과',
+          mainFeatures: [],
+          marketingCopy: '이미지의 외국어 텍스트를 한국어로 번역하거나 삭제한 결과입니다.',
+          sections: [
+            {
+              id: 'edited-image',
+              title: '수정된 이미지',
+              content: '외국어 텍스트가 한국어로 번역되었거나 제거된 이미지입니다.',
+              imagePrompt: '',
+              imageUrl: editedImageUrl,
+              isOriginalImage: false
+            }
+          ],
+          detectedCategory: undefined
+        };
+
+        setAnalysisResult(result);
+        setStep(Step.RESULT);
+        toast.success('이미지 수정이 완료되었습니다!');
+      } catch (error) {
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : "이미지 수정 중 오류가 발생했습니다.";
+        toast.error(errorMessage + " 다시 시도해주세요.");
+        setStep(Step.UPLOAD_DATA);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 모드 A, B: 기존 플로우
     setStep(Step.ANALYSIS_REVIEW);
     setIsLoading(true);
 
@@ -244,7 +293,10 @@ const AppContent: React.FC = () => {
 
   // 메모이제이션된 모드 표시 텍스트
   const modeDisplayText = useMemo(() => {
-    return mode === AppMode.CREATION ? '모드 A: 신규 생성' : '모드 B: 현지화';
+    if (mode === AppMode.CREATION) return '모드 A: 신규 생성';
+    if (mode === AppMode.LOCALIZATION) return '모드 B: 현지화';
+    if (mode === AppMode.IMAGE_EDIT) return '모드 C: 이미지 수정';
+    return '모드 선택';
   }, [mode]);
 
   return (

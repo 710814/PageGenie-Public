@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { AppMode } from '../types';
-import { Sparkles, Globe, ArrowRight } from 'lucide-react';
+import { Sparkles, Globe, ArrowRight, Image as ImageIcon } from 'lucide-react';
 
 interface Props {
   onSelectMode: (mode: AppMode) => void;
@@ -14,6 +14,11 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
   const handleLocalizationClick = useCallback(() => {
     onSelectMode(AppMode.LOCALIZATION);
   }, [onSelectMode]);
+
+  const handleImageEditClick = useCallback(() => {
+    onSelectMode(AppMode.IMAGE_EDIT);
+  }, [onSelectMode]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12" style={{ maxWidth: '896px', margin: '0 auto', padding: '48px 16px' }}>
       <div className="text-center mb-12" style={{ textAlign: 'center', marginBottom: '48px' }}>
@@ -26,7 +31,7 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid md:grid-cols-3 gap-8">
         {/* Mode A: Creation */}
         <button
           onClick={handleCreationClick}
@@ -69,6 +74,29 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
             기존 레이아웃 흐름을 유지하면서 자연스러운 한국어로 내용을 재구성합니다.
           </p>
           <div className="mt-auto flex items-center text-indigo-600 font-semibold group-hover:translate-x-2 transition-transform">
+            시작하기 <ArrowRight className="ml-2 w-4 h-4" />
+          </div>
+        </button>
+
+        {/* Mode C: Image Edit */}
+        <button
+          onClick={handleImageEditClick}
+          className="group relative flex flex-col items-start p-8 bg-white border-2 border-transparent hover:border-green-500 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 text-left"
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <ImageIcon size={120} className="text-green-600" />
+          </div>
+          <div className="p-3 bg-green-100 rounded-lg mb-6">
+            <ImageIcon className="w-8 h-8 text-green-600" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            이미지 수정 (Mode C)
+          </h3>
+          <p className="text-gray-600 mb-6">
+            단일 이미지를 업로드하세요. <br/>
+            이미지의 외국어 텍스트를 한국어로 번역하거나 삭제하여 수정된 이미지를 생성합니다.
+          </p>
+          <div className="mt-auto flex items-center text-green-600 font-semibold group-hover:translate-x-2 transition-transform">
             시작하기 <ArrowRight className="ml-2 w-4 h-4" />
           </div>
         </button>

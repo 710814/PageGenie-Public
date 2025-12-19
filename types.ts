@@ -1,6 +1,7 @@
 export enum AppMode {
   CREATION = 'CREATION', // Mode A: New Creation from Image
   LOCALIZATION = 'LOCALIZATION', // Mode B: Localization/Reconstruction
+  IMAGE_EDIT = 'IMAGE_EDIT', // Mode C: Single Image Edit (Translate/Remove Text)
 }
 
 export enum Step {

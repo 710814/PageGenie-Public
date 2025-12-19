@@ -185,7 +185,14 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      processFiles(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      // 모드 C는 단일 이미지만 허용
+      if (mode === AppMode.IMAGE_EDIT && files.length > 1) {
+        toast.warning('이미지 수정 모드는 단일 이미지만 업로드할 수 있습니다. 첫 번째 이미지만 사용됩니다.');
+        processFiles([files[0]]);
+      } else {
+        processFiles(files);
+      }
     }
   };
 
@@ -267,7 +274,14 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
     e.preventDefault();
     setIsDragging(false);
     if (activeMethod === 'upload' && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(Array.from(e.dataTransfer.files));
+      const files = Array.from(e.dataTransfer.files);
+      // 모드 C는 단일 이미지만 허용
+      if (mode === AppMode.IMAGE_EDIT && files.length > 1) {
+        toast.warning('이미지 수정 모드는 단일 이미지만 업로드할 수 있습니다. 첫 번째 이미지만 사용됩니다.');
+        processFiles([files[0]]);
+      } else {
+        processFiles(files);
+      }
     }
   };
 
@@ -294,12 +308,18 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="text-center mb-10">
         <h2 className="text-3xl font-bold text-gray-900 mb-3">
-          {mode === AppMode.CREATION ? '상품 이미지 업로드' : '상세페이지 이미지 업로드'}
+          {mode === AppMode.CREATION 
+            ? '상품 이미지 업로드' 
+            : mode === AppMode.LOCALIZATION 
+            ? '상세페이지 이미지 업로드'
+            : '이미지 수정'}
         </h2>
         <p className="text-gray-500">
           {mode === AppMode.CREATION 
             ? '상품의 다양한 각도(정면, 측면, 상세 등) 사진을 여러 장 올려주세요.' 
-            : '번역할 상세페이지 스크린샷들을 순서대로 올려주세요.'}
+            : mode === AppMode.LOCALIZATION
+            ? '번역할 상세페이지 스크린샷들을 순서대로 올려주세요.'
+            : '외국어 텍스트가 포함된 단일 이미지를 업로드하세요. 텍스트를 한국어로 번역하거나 삭제하여 수정된 이미지를 생성합니다.'}
         </p>
       </div>
 
@@ -334,7 +354,7 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
              <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                  <h3 className="font-bold text-gray-700 flex items-center">
                      <Layers className="w-5 h-5 mr-2 text-blue-600" />
-                     이미지 확인 ({previewFiles.length}장)
+                     이미지 확인 ({previewFiles.length}{mode === AppMode.IMAGE_EDIT ? '장' : '장'})
                  </h3>
                  <button 
                     onClick={handleResetPreview}
@@ -366,7 +386,8 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
                             </div>
                         </div>
                      ))}
-                     {/* Add More Button Style */}
+                     {/* Add More Button Style (모드 C에서는 숨김) */}
+                     {mode !== AppMode.IMAGE_EDIT && (
                      <div 
                         onClick={() => fileInputRef.current?.click()}
                         className="border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors aspect-square"
@@ -374,6 +395,7 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
                         <Upload className="w-6 h-6 text-gray-400 mb-1" />
                         <span className="text-xs text-gray-500">추가하기</span>
                      </div>
+                     )}
                  </div>
                  
                  <div className="flex gap-4 w-full max-w-md">
@@ -397,7 +419,7 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
                 ref={fileInputRef}
                 className="hidden"
                 accept="image/*"
-                multiple
+                multiple={mode !== AppMode.IMAGE_EDIT}
                 onChange={handleFileChange}
              />
          </div>
@@ -452,14 +474,18 @@ export const StepUpload: React.FC<Props> = ({ mode, onFileSelect }) => {
                     ref={fileInputRef}
                     className="hidden"
                     accept="image/*"
-                    multiple
+                    multiple={mode !== AppMode.IMAGE_EDIT}
                     onChange={handleFileChange}
                     />
                     <div className="p-4 bg-gray-100 rounded-full mb-4">
                     <Upload className="w-8 h-8 text-gray-600" />
                     </div>
                     <p className="text-gray-700 font-medium mb-1">클릭하여 업로드하거나 이미지를 드래그하세요</p>
-                    <p className="text-xs text-gray-400">여러 장 선택 가능 (Max 10MB/file)</p>
+                    <p className="text-xs text-gray-400">
+                      {mode === AppMode.IMAGE_EDIT 
+                        ? '단일 이미지만 선택 가능 (Max 10MB)' 
+                        : '여러 장 선택 가능 (Max 10MB/file)'}
+                    </p>
                 </div>
                 )}
 

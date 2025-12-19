@@ -696,6 +696,207 @@ export const analyzeProductImage = async (
 };
 
 /**
+ * Edit a single image: translate or remove foreign language text
+ * 단일 이미지의 외국어 텍스트를 한국어로 번역하거나 삭제
+ */
+export const editSingleImage = async (
+  base64Image: string,
+  mimeType: string
+): Promise<string> => {
+  try {
+    // 1단계: 이미지 분석 - 텍스트 감지 및 번역 가능 여부 판단
+    const analysisPrompt = `
+You are an expert image analyzer specializing in text detection and translation.
+
+Analyze the provided image and:
+1. Detect all visible text in the image (any language: English, Chinese, Japanese, etc.)
+2. Assess text clarity and readability:
+   - Can you clearly read 80%+ of the text? → TRANSLATABLE
+   - Is the text blurry, low resolution, or partially obscured? → REMOVE_TEXT
+   - Is the text stylized graphics that are hard to translate? → REMOVE_TEXT
+3. If translatable, provide Korean translations for all detected text
+4. Determine the action: "translate" or "remove"
+
+Output JSON format:
+{
+  "action": "translate" | "remove",
+  "detectedText": [
+    {"original": "original text", "korean": "한국어 번역", "position": "description of text position"}
+  ],
+  "reason": "why translate or remove"
+}
+    `;
+
+    // 분석 요청
+    const analysisResult = await callGeminiViaProxy({
+      model: MODEL_TEXT_VISION,
+      contents: {
+        parts: [
+          { inlineData: { mimeType, data: base64Image } } as GeminiInlineDataPart,
+          { text: analysisPrompt } as GeminiTextPart
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["translate", "remove"] },
+            detectedText: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  original: { type: "string" },
+                  korean: { type: "string" },
+                  position: { type: "string" }
+                }
+              }
+            },
+            reason: { type: "string" }
+          },
+          required: ["action", "detectedText", "reason"]
+        },
+        temperature: 0.3,
+      }
+    });
+
+    const analysisText = analysisResult.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!analysisText) throw new Error("이미지 분석 실패");
+
+    const analysis = JSON.parse(analysisText);
+    const shouldTranslate = analysis.action === "translate";
+
+    // 2단계: 이미지 생성 프롬프트 생성
+    let imagePrompt = "";
+    
+    if (shouldTranslate && analysis.detectedText && analysis.detectedText.length > 0) {
+      // 번역 모드: 한국어 텍스트로 교체
+      const translations = analysis.detectedText
+        .map((item: any) => `"${item.original}" → "${item.korean}"`)
+        .join(", ");
+      
+      imagePrompt = `
+CRITICAL INSTRUCTIONS FOR IMAGE EDITING:
+1. Keep the EXACT same product and visual elements from the reference image
+   - Product's shape, color, design, texture must be IDENTICAL
+   - Background, layout, composition must remain the same
+   - Do NOT modify the product itself
+
+2. REPLACE all foreign language text with Korean translations:
+   ${translations}
+   - Maintain the same text position, size, and style
+   - Use natural, professional Korean typography
+   - Keep the same visual hierarchy
+
+3. Maintain the original visual style and composition
+   - Same lighting, angle, and scene composition
+   - Professional, high-quality photography
+
+Generate the edited image with Korean text replacing the original text.
+High quality, professional product photography.
+      `.trim();
+    } else {
+      // 제거 모드: 텍스트 제거
+      imagePrompt = `
+CRITICAL INSTRUCTIONS FOR IMAGE EDITING:
+1. Keep the EXACT same product and visual elements from the reference image
+   - Product's shape, color, design, texture must be IDENTICAL
+   - Background, layout, composition must remain the same
+   - Do NOT modify the product itself
+
+2. REMOVE ALL TEXT from the image
+   - Remove any text overlays, labels, or text elements
+   - Keep only the visual elements (product, background, graphics)
+   - Create a clean, text-free version
+   - Fill any text areas naturally with background or product elements
+
+3. Maintain the original visual style and composition
+   - Same lighting, angle, and scene composition
+   - Professional, high-quality photography
+
+Generate the edited image without any text.
+High quality, professional product photography without text overlay.
+      `.trim();
+    }
+
+    // 3단계: 이미지 생성
+    const parts: GeminiPart[] = [
+      { inlineData: { data: base64Image, mimeType } } as GeminiInlineDataPart,
+      { text: imagePrompt } as GeminiTextPart
+    ];
+
+    const gasUrl = getGasUrl(true);
+    const normalizedGasUrl = gasUrl ? normalizeUrlForComparison(gasUrl) : '';
+    const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
+    const isDefaultUrl = normalizedGasUrl === normalizedDefaultUrl;
+
+    if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
+      // GAS 프록시 사용
+      const result = await callGeminiViaProxy({
+        model: MODEL_IMAGE_GEN,
+        contents: { parts },
+      });
+
+      for (const part of result.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+
+      throw new Error("이미지 생성 실패");
+    }
+
+    // Fallback: 환경 변수에서 API 키 확인
+    const apiKey = (window as any).__GEMINI_API_KEY__ || 
+                   (import.meta.env?.VITE_GEMINI_API_KEY as string);
+
+    if (!apiKey) {
+      throw new Error(
+        'Gemini API 키가 설정되지 않았습니다.\n\n' +
+        '방법 1: GAS 프록시 사용 (권장)\n' +
+        '  - Google Apps Script에 GEMINI_API_KEY를 스크립트 속성으로 설정\n' +
+        '  - GAS Web App URL을 설정에 입력\n\n' +
+        '방법 2: 환경 변수 사용\n' +
+        '  - .env 파일에 VITE_GEMINI_API_KEY=your_key 추가'
+      );
+    }
+
+    // 직접 API 호출 (Fallback)
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_IMAGE_GEN}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: { parts }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`Gemini API 오류: ${response.status} - ${errorData}`);
+    }
+
+    const result = await response.json();
+
+    for (const part of result.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+
+    throw new Error("이미지 생성 실패");
+  } catch (error) {
+    console.error("Image editing failed:", error);
+    throw error;
+  }
+};
+
+/**
  * Generate a new image for a section using Gemini
  * 원본 이미지의 제품을 그대로 유지하면서 새로운 장면/구도로 생성
  */
