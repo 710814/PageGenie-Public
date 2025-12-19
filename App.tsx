@@ -6,6 +6,7 @@ import { StepModeSelection } from './components/StepModeSelection';
 import { StepUpload } from './components/StepUpload';
 import { StepAnalysis } from './components/StepAnalysis';
 import { StepResult } from './components/StepResult';
+import { StepImageEditResult } from './components/StepImageEditResult';
 import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
 import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress } from './services/geminiService';
@@ -120,7 +121,11 @@ const AppContent: React.FC = () => {
           )
         ]);
 
-        // ProductAnalysis 형식으로 변환
+        // 모드 C는 단일 이미지 수정 결과만 저장
+        // 원본 이미지 URL 저장 (다운로드용)
+        const originalImageUrl = firstFile.previewUrl || `data:${firstFile.mimeType};base64,${firstFile.base64}`;
+        
+        // ProductAnalysis 형식으로 변환 (호환성 유지)
         const result: ProductAnalysis = {
           productName: '이미지 수정 결과',
           mainFeatures: [],
@@ -138,6 +143,8 @@ const AppContent: React.FC = () => {
           detectedCategory: undefined
         };
 
+        // 원본 이미지 URL을 uploadedFiles에 저장 (결과 화면에서 사용)
+        setUploadedFiles([{ ...firstFile, previewUrl: originalImageUrl }]);
         setAnalysisResult(result);
         setStep(Step.RESULT);
         toast.success('이미지 수정이 완료되었습니다!');
@@ -402,14 +409,22 @@ const AppContent: React.FC = () => {
               />
             )}
             {step === Step.RESULT && analysisResult && (
-              <StepResult 
-                data={analysisResult} 
-                onRestart={restart} 
-                mode={mode} 
-                uploadedFiles={uploadedFiles} 
-                onUpdate={setAnalysisResult} 
-                onOpenSettings={handleOpenSettings}
-              />
+              mode === AppMode.IMAGE_EDIT ? (
+                <StepImageEditResult
+                  originalImageUrl={uploadedFiles[0]?.previewUrl || uploadedFiles[0]?.imageUrl || ''}
+                  editedImageUrl={analysisResult.sections[0]?.imageUrl || ''}
+                  onRestart={restart}
+                />
+              ) : (
+                <StepResult 
+                  data={analysisResult} 
+                  onRestart={restart} 
+                  mode={mode} 
+                  uploadedFiles={uploadedFiles} 
+                  onUpdate={setAnalysisResult} 
+                  onOpenSettings={handleOpenSettings}
+                />
+              )
             )}
             {/* 디버깅: step이 예상과 다른 경우 (GENERATING 제외) */}
             {step !== Step.SELECT_MODE && step !== Step.UPLOAD_DATA && step !== Step.ANALYSIS_REVIEW && step !== Step.RESULT && step !== Step.GENERATING && (
