@@ -513,6 +513,22 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      const textarea = document.getElementById(`slot-prompt-${section.id}-${slotIdx}`);
+                                      if (textarea) {
+                                        textarea.focus();
+                                        // 부드럽게 스크롤
+                                        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      }
+                                    }}
+                                    className="bg-white text-gray-800 px-2 py-1 rounded text-[10px] font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                    title="프롬프트 수정"
+                                  >
+                                    <Edit3 className="w-3 h-3 mr-0.5" />
+                                    수정
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       handleGeneratePreview(section.id, undefined, slotIdx);
                                     }}
                                     disabled={generatingPreviewId === section.id}
@@ -546,6 +562,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                             )}
 
                             <textarea
+                              id={`slot-prompt-${section.id}-${slotIdx}`}
                               rows={2}
                               value={slot.prompt}
                               onChange={(e) => {

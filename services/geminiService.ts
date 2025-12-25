@@ -1569,9 +1569,14 @@ High quality, professional product photography without any text overlay. Pixel-p
 CRITICAL INSTRUCTION: You MUST keep the EXACT same product from the reference image.
 - The product's shape, color, design, texture, and all visual details must be IDENTICAL to the reference
 - Do NOT change, modify, or replace the product in any way
-- You may ONLY change: background, lighting, camera angle, props, or scene composition
+- You may change: background, lighting, camera angle, props, scene composition${modelDescription ? ', and HUMAN MODEL appearance' : ''}
 - The product must be clearly recognizable as the SAME item from the reference
-${modelDescription ? `\n## MODEL REQUIREMENTS (if human model is needed):\n${modelDescription}` : ''}
+
+${modelDescription ? `## CRITICAL MODEL REQUIREMENTS (MUST FOLLOW):
+- REPLACE any model in the reference image with: ${modelDescription}
+- The product must be worn/held by this NEW model naturally
+- KEEP the product identical, but CHANGE the model as requested
+` : ''}
 
 Generate a professional product photo with these specifications:
 ${prompt}
