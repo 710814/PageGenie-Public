@@ -76,12 +76,12 @@ export const openGoogleSheet = () => {
 export const formatDataForSheet = (data: ProductAnalysis, mode: AppMode): SheetRowData => {
   // 1. Summarize Sections
   const sectionsSummary = data.sections.map((s, i) => {
-    return `[Section ${i+1}: ${s.title}]\n${s.content}`;
+    return `[Section ${i + 1}: ${s.title}]\n${s.content}`;
   }).join('\n----------------\n');
 
   // 2. Collect Prompts
   const prompts = data.sections.map((s, i) => {
-    return `[S${i+1}] ${s.imagePrompt || 'No Prompt'}`;
+    return `[S${i + 1}] ${s.imagePrompt || 'No Prompt'}`;
   }).join('\n');
 
   return {
@@ -103,7 +103,7 @@ export const formatDataForSheet = (data: ProductAnalysis, mode: AppMode): SheetR
  */
 export const generateCSV = (data: ProductAnalysis, mode: AppMode): string => {
   const row = formatDataForSheet(data, mode);
-  
+
   // Clean JSON for CSV (Remove huge image strings to prevent CSV breakage)
   const cleanDataForCsv = {
     ...data,
@@ -114,11 +114,11 @@ export const generateCSV = (data: ProductAnalysis, mode: AppMode): string => {
   };
 
   const headers = [
-    '타임스탬프', '모드', '상품명', '카테고리', 
-    '주요특징', '마케팅문구', '섹션수', 
+    '타임스탬프', '모드', '상품명', '카테고리',
+    '주요특징', '마케팅문구', '섹션수',
     '섹션상세내용', '이미지프롬프트', '전체데이터_JSON(이미지제외)'
   ];
-  
+
   const escapeCsv = (str: string | number) => {
     if (str === null || str === undefined) return '';
     const stringValue = String(str);
@@ -207,37 +207,63 @@ const generateHTML = (data: ProductAnalysis): string => {
  */
 export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): Promise<boolean> => {
   const scriptUrl = getGasUrl();
-  
+
   if (!scriptUrl) {
     throw new Error("URL_NOT_SET");
   }
 
   // 1. 기본 텍스트 데이터 준비
   const rowData = formatDataForSheet(data, mode);
-  
+
   // 2. 드라이브 폴더명 생성 (예: [2023-10-25] 상품명)
   const dateStr = new Date().toISOString().split('T')[0];
-  const safeProductName = data.productName.replace(/[\/\\]/g, '_').substring(0, 30); 
+  const safeProductName = data.productName.replace(/[\/\\]/g, '_').substring(0, 30);
   const folderName = `[${dateStr}] ${safeProductName}`;
 
   // 3. 이미지 데이터 별도 추출 (전송 용량 최적화 및 명시적 구조화)
-  const imagesToSave = data.sections.map((section, index) => {
-    if (section.imageUrl && section.imageUrl.startsWith('data:image')) {
-      return {
-        index: index,
-        id: section.id, // 섹션 ID도 전송하여 HTML에서 매칭 가능하도록
-        title: section.title,
-        base64: section.imageUrl.split(',')[1] // 헤더(data:image...) 제거 후 순수 데이터만 전송
-      };
+  // ★ 다중 슬롯(imageSlots) 이미지도 처리
+  const imagesToSave: Array<{
+    index: number;
+    id: string;
+    title: string;
+    base64: string;
+    slotIndex?: number;  // 슬롯 인덱스 (다중 이미지 구분용)
+  }> = [];
+
+  data.sections.forEach((section, sectionIndex) => {
+    // 다중 이미지 슬롯 처리 (grid-2, grid-3)
+    if (section.imageSlots && section.imageSlots.length > 1) {
+      section.imageSlots.forEach((slot, slotIdx) => {
+        if (slot.imageUrl && slot.imageUrl.startsWith('data:image')) {
+          imagesToSave.push({
+            index: sectionIndex,
+            id: `${section.id}-slot-${slotIdx + 1}`,
+            title: `${section.title}_img${slotIdx + 1}`,
+            base64: slot.imageUrl.split(',')[1],
+            slotIndex: slotIdx
+          });
+        }
+      });
     }
-    return null;
-  }).filter(item => item !== null);
-  
+    // 단일 이미지 (기존 방식)
+    else if (section.imageUrl && section.imageUrl.startsWith('data:image')) {
+      imagesToSave.push({
+        index: sectionIndex,
+        id: section.id,
+        title: section.title,
+        base64: section.imageUrl.split(',')[1]
+      });
+    }
+  });
+
   // 4. 섹션 데이터도 전송 (HTML에서 이미지 경로 매칭을 위해)
+  // ★ 슬롯 정보도 포함
   const sectionsData = data.sections.map((section, index) => ({
     id: section.id,
     index: index,
-    title: section.title
+    title: section.title,
+    layoutType: section.layoutType,
+    slotCount: section.imageSlots?.length || 1
   }));
 
   // 4. HTML 파일 생성
@@ -246,7 +272,7 @@ export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): P
 
   // Payload: Full (With Images and HTML)
   const payloadFull = {
-    ...rowData, 
+    ...rowData,
     sheetId: getSheetId(),
     folderName: folderName,
     saveImagesToDrive: true,
@@ -270,9 +296,9 @@ export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): P
   const postData = async (payload: any) => {
     await fetch(scriptUrl, {
       method: 'POST',
-      mode: 'no-cors', 
+      mode: 'no-cors',
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8', 
+        'Content-Type': 'text/plain;charset=utf-8',
       },
       body: JSON.stringify(payload)
     });
@@ -286,7 +312,7 @@ export const saveToGoogleSheet = async (data: ProductAnalysis, mode: AppMode): P
     return true;
   } catch (error) {
     console.warn('🟡 [Google Sheet Service] Full upload failed (likely due to payload size). Retrying text-only...', error);
-    
+
     try {
       // Attempt 2: Text Only
       await postData(payloadTextOnly);

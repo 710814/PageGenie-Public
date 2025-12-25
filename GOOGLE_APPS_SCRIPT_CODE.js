@@ -28,14 +28,14 @@ function callGeminiAPI(requestData) {
   try {
     // 스크립트 속성에서 API 키 가져오기
     var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-    
+
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY가 스크립트 속성에 설정되지 않았습니다. 파일 > 프로젝트 설정 > 스크립트 속성에서 설정하세요.');
     }
 
     var model = requestData.model || 'gemini-2.5-flash';
     var url = GEMINI_API_BASE + '/models/' + model + ':generateContent?key=' + apiKey;
-    
+
     var options = {
       'method': 'post',
       'contentType': 'application/json',
@@ -70,7 +70,7 @@ function handleGeminiRequest(e) {
   try {
     var requestData = JSON.parse(e.postData.contents);
     var result = callGeminiAPI(requestData);
-    
+
     // GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
     return ContentService.createTextOutput(JSON.stringify({
       status: 'success',
@@ -87,46 +87,46 @@ function handleGeminiRequest(e) {
 function doPost(e) {
   // ★중요★: GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
   // setHeaders()는 GAS에서 지원되지 않으므로 사용하지 않음
-  
+
   // 경로에 따라 라우팅
   var path = e.parameter.path || '';
   var action = e.parameter.action || '';
-  
+
   if (path === 'gemini' || action === 'gemini') {
     return handleGeminiRequest(e);
   }
-  
+
   // 설정 백업/복원 라우팅
   if (action === 'backup-settings') {
     return handleBackupSettings(e);
   }
-  
+
   if (action === 'restore-settings') {
     return handleRestoreSettings(e);
   }
-  
-    // 기존 시트 저장 로직
-    var resultLog = {
-      folderCreated: false,
-      imagesSaved: 0,
-      htmlSaved: false,
-      htmlUrl: null,
-      errors: []
-    };
+
+  // 기존 시트 저장 로직
+  var resultLog = {
+    folderCreated: false,
+    imagesSaved: 0,
+    htmlSaved: false,
+    htmlUrl: null,
+    errors: []
+  };
 
   try {
     // 1. 데이터 파싱 및 검증
     if (!e.postData || !e.postData.contents) {
       throw new Error('요청 데이터가 없습니다.');
     }
-    
+
     var data = JSON.parse(e.postData.contents);
-    
+
     // 필수 필드 검증
     if (!data.sheetId) {
       throw new Error('Sheet ID가 제공되지 않았습니다. 애플리케이션 설정에서 Google Sheet ID를 입력하세요.');
     }
-    
+
     // Sheet 접근 시도
     var sheet;
     try {
@@ -135,7 +135,7 @@ function doPost(e) {
     } catch (sheetError) {
       throw new Error('Google Sheet에 접근할 수 없습니다. Sheet ID를 확인하고 접근 권한이 있는지 확인하세요: ' + sheetError.toString());
     }
-    
+
     var folderUrl = "Not Saved";
     var imageUrlsLog = [];
 
@@ -152,7 +152,7 @@ function doPost(e) {
           folder = DriveApp.createFolder(data.folderName);
           Logger.log('새 폴더 생성: ' + data.folderName);
         }
-        
+
         folderUrl = folder.getUrl();
         resultLog.folderCreated = true;
 
@@ -163,29 +163,31 @@ function doPost(e) {
         };
 
         // 이미지 배열 처리 (Frontend에서 'images' 배열로 보냄)
+        // ★ 다중 슬롯 이미지 지원 (slotIndex 포함)
         if (data.images && data.images.length > 0) {
-          data.images.forEach(function(imgItem) {
+          data.images.forEach(function (imgItem) {
             try {
               if (imgItem.base64) {
-                // 파일명 생성 (섹션 번호와 제목 포함)
+                // 파일명 생성 (섹션 번호, 슬롯 번호, 제목 포함)
                 var safeTitle = (imgItem.title || 'Section').replace(/[\/\\:*?"<>|]/g, '_').substring(0, 30);
-                var fileName = "Section_" + (imgItem.index + 1) + "_" + safeTitle + ".png";
-                
+                var slotSuffix = (imgItem.slotIndex !== undefined) ? '_slot' + (imgItem.slotIndex + 1) : '';
+                var fileName = "Section_" + (imgItem.index + 1) + slotSuffix + "_" + safeTitle + ".png";
+
                 // Base64 디코딩 및 Blob 생성
                 var decodedBlob = Utilities.newBlob(
-                  Utilities.base64Decode(imgItem.base64), 
-                  "image/png", 
+                  Utilities.base64Decode(imgItem.base64),
+                  "image/png",
                   fileName
                 );
-                
+
                 // 파일 생성 및 공유 설정
                 var file = folder.createFile(decodedBlob);
                 file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-                
+
                 // 이미지 URL을 직접 사용 가능한 형태로 변환 (lh3 형식 - 더 안정적)
                 var fileId = file.getId();
                 var imageUrl = 'https://lh3.googleusercontent.com/d/' + fileId;
-                
+
                 // 이미지 URL 매핑 저장 (이중 키 구조)
                 imageUrlMap.byIndex[imgItem.index] = imageUrl;
                 if (imgItem.id) {
@@ -194,11 +196,11 @@ function doPost(e) {
                 } else {
                   Logger.log('이미지 URL 매핑 저장: index=' + imgItem.index + ' (id 없음) -> ' + imageUrl);
                 }
-                
+
                 // 이미지 URL 로그 형식: "섹션1: [링크]"
                 imageUrlsLog.push("섹션" + (imgItem.index + 1) + ": " + imageUrl);
                 resultLog.imagesSaved++;
-                
+
                 Logger.log('이미지 저장 완료: ' + fileName + ' -> ' + imageUrl);
               }
             } catch (imgErr) {
@@ -219,23 +221,23 @@ function doPost(e) {
             // Base64 디코딩
             var htmlDecoded = Utilities.base64Decode(data.htmlContent);
             var htmlText = Utilities.newBlob(htmlDecoded, 'text/html').getDataAsString();
-            
+
             // HTML에서 이미지 경로를 실제 드라이브 URL로 교체
             // section.id를 우선적으로 사용하여 정확한 매칭 보장
             var replacementCount = 0;
             if (data.sections && data.sections.length > 0) {
-              data.sections.forEach(function(section, idx) {
+              data.sections.forEach(function (section, idx) {
                 // section.id를 우선적으로 사용하여 이미지 URL 찾기
                 var imageUrl = imageUrlMap.byId[section.id] || imageUrlMap.byIndex[idx];
-                
+
                 if (imageUrl) {
                   // 정규식 패턴 단순화: section.id 기반으로 우선 매칭
                   var pattern = new RegExp('images/section_' + section.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\.png', 'gi');
-                  
+
                   // 교체 전 확인
                   var beforeReplace = htmlText;
                   htmlText = htmlText.replace(pattern, imageUrl);
-                  
+
                   // 교체가 이루어졌는지 확인
                   if (beforeReplace !== htmlText) {
                     replacementCount++;
@@ -256,20 +258,20 @@ function doPost(e) {
                 }
               });
             }
-            
+
             Logger.log('HTML 이미지 경로 교체 완료: 총 ' + replacementCount + '개 교체됨');
-            
+
             // 교체된 HTML을 Blob으로 변환
             var htmlBlob = Utilities.newBlob(htmlText, "text/html", data.htmlFileName);
-            
+
             var htmlFile = folder.createFile(htmlBlob);
             htmlFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-            
+
             var htmlUrl = htmlFile.getUrl();
             imageUrlsLog.push("HTML 파일: " + htmlUrl);
             resultLog.htmlSaved = true;
             resultLog.htmlUrl = htmlUrl;
-            
+
             Logger.log('HTML 파일 저장 완료 (이미지 URL 교체됨): ' + data.htmlFileName + ' -> ' + htmlUrl);
           } catch (htmlErr) {
             var htmlErrorMsg = "HTML 파일 저장 실패: " + htmlErr.toString();
@@ -287,7 +289,7 @@ function doPost(e) {
       }
     } else {
       Logger.log('이미지 저장 옵션이 비활성화되었거나 폴더명이 없습니다.');
-      
+
       // 폴더가 없어도 HTML만 저장할 수 있도록 (폴더 생성)
       if (data.htmlContent && data.htmlFileName && data.folderName) {
         try {
@@ -298,16 +300,16 @@ function doPost(e) {
           } else {
             folder = DriveApp.createFolder(data.folderName);
           }
-          
+
           var htmlDecoded = Utilities.newBlob(
             Utilities.base64Decode(data.htmlContent),
             "text/html",
             data.htmlFileName
           );
-          
+
           var htmlFile = folder.createFile(htmlDecoded);
           htmlFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          
+
           folderUrl = folder.getUrl();
           imageUrlsLog.push("HTML 파일: " + htmlFile.getUrl());
           Logger.log('HTML 파일 저장 완료 (폴더만 생성): ' + htmlFile.getUrl());
@@ -321,11 +323,11 @@ function doPost(e) {
     // 헤더 확인 및 생성
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
-        "타임스탬프", "모드", "상품명", "카테고리", 
-        "주요특징", "마케팅카피", "섹션수", 
+        "타임스탬프", "모드", "상품명", "카테고리",
+        "주요특징", "마케팅카피", "섹션수",
         "섹션요약", "프롬프트", "드라이브_폴더_링크", "이미지_개별_링크", "HTML_파일_링크"
       ]);
-      
+
       // 헤더 행 스타일링 (선택사항)
       var headerRange = sheet.getRange(1, 1, 1, 12);
       headerRange.setFontWeight('bold');
@@ -333,10 +335,10 @@ function doPost(e) {
     }
 
     // 이미지 링크 포맷팅 (각 섹션별로 줄바꿈)
-    var imageLinksText = imageUrlsLog.length > 0 
-      ? imageUrlsLog.join("\n") 
+    var imageLinksText = imageUrlsLog.length > 0
+      ? imageUrlsLog.join("\n")
       : "저장된 이미지 없음";
-    
+
     // HTML 파일 링크
     var htmlLink = resultLog.htmlUrl || "저장 안됨";
 
@@ -355,22 +357,22 @@ function doPost(e) {
       imageLinksText,
       htmlLink
     ]);
-    
+
     Logger.log('시트에 데이터 저장 완료: ' + data.productName);
 
     // GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
-    return ContentService.createTextOutput(JSON.stringify({ 
-      status: "success", 
-      result: resultLog 
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      result: resultLog
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     Logger.log('❌ doPost 오류: ' + error.toString());
     Logger.log('오류 스택: ' + (error.stack || '스택 정보 없음'));
-    
-    return ContentService.createTextOutput(JSON.stringify({ 
-      status: "error", 
-      message: error.toString() 
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -385,7 +387,7 @@ function doGet(e) {
   html += '<p style="color: green; font-size: 18px;">웹 앱이 정상적으로 배포되었습니다!</p>';
   html += '<hr style="margin: 30px 0;">';
   html += '<h3>설정 확인</h3>';
-  
+
   // API 키 설정 확인
   var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   if (apiKey) {
@@ -394,7 +396,7 @@ function doGet(e) {
     html += '<p style="color: red;">❌ GEMINI_API_KEY가 설정되지 않았습니다.</p>';
     html += '<p>파일 > 프로젝트 설정 > 스크립트 속성에서 GEMINI_API_KEY를 추가하세요.</p>';
   }
-  
+
   html += '<hr style="margin: 30px 0;">';
   html += '<p style="color: gray;">이 URL을 애플리케이션 설정의 "GAS Web App URL" 필드에 입력하세요.</p>';
   html += '<hr style="margin: 30px 0;">';
@@ -409,7 +411,7 @@ function doGet(e) {
   html += '</ul>';
   html += '<p style="color: gray; font-size: 12px; margin-top: 20px;">💡 Google Sheets 권한이 필요하면 <code>setupSheetPermission()</code> 함수를 실행하세요. (매개변수 입력 불필요)</p>';
   html += '</body></html>';
-  
+
   return HtmlService.createHtmlOutput(html);
 }
 
@@ -426,7 +428,7 @@ function testPermissions() {
     // 1. 외부 API 호출 권한 테스트
     var response = UrlFetchApp.fetch('https://www.google.com');
     Logger.log('✅ 외부 API 호출 권한 승인 완료! 응답 코드: ' + response.getResponseCode());
-    
+
     // 2. 스크립트 속성 접근 권한 테스트
     var props = PropertiesService.getScriptProperties();
     var apiKey = props.getProperty('GEMINI_API_KEY');
@@ -435,7 +437,7 @@ function testPermissions() {
     } else {
       Logger.log('⚠️ GEMINI_API_KEY가 설정되지 않았습니다.');
     }
-    
+
     // 3. Google Sheets 권한 테스트
     try {
       // 스크립트 속성에서 Sheet ID 가져오기 (선택사항)
@@ -458,7 +460,7 @@ function testPermissions() {
       Logger.log('⚠️ 팝업이 나타나지 않으면, forceSheetsPermission("YOUR_SHEET_ID") 함수를 실행하세요.');
       Logger.log('⚠️ 또는 실제 애플리케이션에서 사용할 때 권한이 요청될 수 있습니다.');
     }
-    
+
     // 4. Google Drive 권한 테스트
     try {
       var testFolder = DriveApp.createFolder('권한_테스트_' + new Date().getTime());
@@ -472,7 +474,7 @@ function testPermissions() {
       Logger.log('⚠️ 이 오류가 발생하면 권한 승인 팝업이 나타나야 합니다.');
       throw driveError;
     }
-    
+
     Logger.log('✅ 모든 권한이 정상적으로 승인되었습니다!');
     return 'Success';
   } catch (error) {
@@ -489,33 +491,33 @@ function testPermissions() {
 function testSheetsPermission(sheetId) {
   try {
     Logger.log('Google Sheets 권한 테스트 시작...');
-    
+
     var props = PropertiesService.getScriptProperties();
-    
+
     // 파라미터로 Sheet ID가 전달되지 않으면 스크립트 속성에서 가져오기
     if (!sheetId) {
       sheetId = props.getProperty('DEFAULT_SHEET_ID');
     }
-    
+
     if (!sheetId) {
       Logger.log('⚠️ Sheet ID가 제공되지 않았습니다.');
       Logger.log('⚠️ 사용법: testSheetsPermission("YOUR_SHEET_ID")');
       Logger.log('⚠️ 또는 스크립트 속성에 DEFAULT_SHEET_ID를 추가하세요.');
       return 'Warning - Sheet ID가 필요합니다. testSheetsPermission("YOUR_SHEET_ID") 형식으로 호출하세요.';
     }
-    
+
     Logger.log('📋 테스트할 Sheet ID: ' + sheetId);
-    
+
     // 시트 접근 시도 (권한이 없으면 여기서 오류 발생 및 권한 승인 팝업 표시)
     try {
       var testSheet = SpreadsheetApp.openById(sheetId);
       var sheetName = testSheet.getName();
       var sheetUrl = testSheet.getUrl();
-      
+
       Logger.log('✅ Google Sheets 권한 승인 완료!');
       Logger.log('✅ 시트 접근 성공: ' + sheetName);
       Logger.log('✅ 시트 URL: ' + sheetUrl);
-      
+
       return 'Success - Google Sheets 권한이 정상적으로 승인되었습니다! 시트: ' + sheetName;
     } catch (sheetError) {
       Logger.log('❌ Google Sheets 접근 오류: ' + sheetError.toString());
@@ -539,39 +541,39 @@ function testSheetsPermission(sheetId) {
  */
 function forceSheetsPermission(sheetId) {
   var props = PropertiesService.getScriptProperties();
-  
+
   // Sheet ID가 제공되지 않으면 스크립트 속성에서 가져오기
   if (!sheetId || sheetId.trim() === '') {
     sheetId = props.getProperty('DEFAULT_SHEET_ID');
   }
-  
+
   if (!sheetId || sheetId.trim() === '') {
     throw new Error('Sheet ID가 필요합니다. forceSheetsPermission("YOUR_SHEET_ID") 형식으로 호출하거나, 스크립트 속성에 DEFAULT_SHEET_ID를 설정하세요.');
   }
-  
+
   Logger.log('🔐 Google Sheets 권한 강제 요청 시작...');
   Logger.log('📋 Sheet ID: ' + sheetId);
-  
+
   try {
     // 1. SpreadsheetApp.openById() 호출 - 권한이 없으면 여기서 팝업 표시
     var spreadsheet = SpreadsheetApp.openById(sheetId);
     var sheetName = spreadsheet.getName();
     var sheetUrl = spreadsheet.getUrl();
-    
+
     Logger.log('✅ Google Sheets 권한 승인 완료!');
     Logger.log('✅ 시트 이름: ' + sheetName);
     Logger.log('✅ 시트 URL: ' + sheetUrl);
-    
+
     // 2. 추가 권한 확인을 위해 시트 읽기/쓰기 테스트
     var activeSheet = spreadsheet.getActiveSheet();
     var lastRow = activeSheet.getLastRow();
     Logger.log('✅ 시트 읽기 성공 (마지막 행: ' + lastRow + ')');
-    
+
     // 3. 쓰기 권한 테스트 (선택사항 - 주석 처리 가능)
     // var testRange = activeSheet.getRange(1, 1);
     // testRange.setValue('권한 테스트');
     // Logger.log('✅ 시트 쓰기 성공');
-    
+
     return {
       success: true,
       message: 'Google Sheets 권한이 정상적으로 승인되었습니다!',
@@ -586,7 +588,7 @@ function forceSheetsPermission(sheetId) {
     Logger.log('   2. 해당 Sheet에 대한 접근 권한이 있는지 확인');
     Logger.log('   3. Sheet가 공유되어 있는지 확인');
     Logger.log('   4. Sheet가 삭제되지 않았는지 확인');
-    
+
     throw new Error('Google Sheets 권한 요청 실패: ' + error.toString());
   }
 }
@@ -599,12 +601,12 @@ function setDefaultSheetId(sheetId) {
   if (!sheetId || sheetId.trim() === '') {
     throw new Error('Sheet ID가 필요합니다. setDefaultSheetId("YOUR_SHEET_ID") 형식으로 호출하세요.');
   }
-  
+
   var props = PropertiesService.getScriptProperties();
   props.setProperty('DEFAULT_SHEET_ID', sheetId.trim());
-  
+
   Logger.log('✅ DEFAULT_SHEET_ID가 스크립트 속성에 저장되었습니다: ' + sheetId);
-  
+
   // 저장 후 즉시 권한 요청 시도
   try {
     var result = forceSheetsPermission(sheetId);
@@ -634,24 +636,24 @@ function setDefaultSheetId(sheetId) {
 function setupSheetPermission() {
   // 여기에 Sheet ID를 입력하세요
   var sheetId = '1AmD-6NBjgfRdwYRZlArkbhA3q-RpMxnx4u5FavQk9o0';
-  
+
   Logger.log('🚀 Sheet ID 설정 및 권한 요청 시작...');
   Logger.log('📋 Sheet ID: ' + sheetId);
-  
+
   try {
     // 1. Sheet ID를 스크립트 속성에 저장
     var props = PropertiesService.getScriptProperties();
     props.setProperty('DEFAULT_SHEET_ID', sheetId);
     Logger.log('✅ Sheet ID가 스크립트 속성에 저장되었습니다.');
-    
+
     // 2. 권한 요청
     var result = forceSheetsPermission(sheetId);
-    
+
     Logger.log('✅✅✅ 모든 설정이 완료되었습니다! ✅✅✅');
     Logger.log('✅ Sheet ID: ' + sheetId);
     Logger.log('✅ 시트 이름: ' + result.sheetName);
     Logger.log('✅ 시트 URL: ' + result.sheetUrl);
-    
+
     return {
       success: true,
       message: 'Sheet ID 설정 및 권한 승인이 완료되었습니다!',
@@ -675,19 +677,19 @@ function setupSheetPermission() {
 function testDrivePermission() {
   try {
     Logger.log('Google Drive 권한 테스트 시작...');
-    
+
     // 폴더 생성 시도 (권한이 없으면 여기서 오류 발생)
     var testFolderName = 'Drive_권한_테스트_' + new Date().getTime();
     var testFolder = DriveApp.createFolder(testFolderName);
     var folderUrl = testFolder.getUrl();
-    
+
     Logger.log('✅ Google Drive 권한 승인 완료!');
     Logger.log('✅ 테스트 폴더 생성 성공: ' + folderUrl);
-    
+
     // 테스트 폴더 삭제
     DriveApp.removeFolder(testFolder);
     Logger.log('✅ 테스트 폴더 삭제 완료');
-    
+
     return 'Success - Google Drive 권한이 정상적으로 승인되었습니다!';
   } catch (error) {
     Logger.log('❌ Google Drive 권한 오류: ' + error.toString());
@@ -709,36 +711,36 @@ function testDrivePermission() {
 function handleBackupSettings(e) {
   // ★중요★: GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
   // setHeaders()는 GAS ContentService에서 지원되지 않으므로 사용하지 않음
-  
+
   try {
     Logger.log('📦 [Backup] 백업 요청 수신');
-    
+
     if (!e.postData || !e.postData.contents) {
       Logger.log('❌ [Backup] 요청 데이터가 없습니다.');
       throw new Error('요청 데이터가 없습니다.');
     }
-    
+
     Logger.log('📦 [Backup] 데이터 파싱 시작...');
     var data = JSON.parse(e.postData.contents);
     var settings = data.settings;
-    
+
     if (!settings) {
       Logger.log('❌ [Backup] 백업할 설정 데이터가 없습니다.');
       throw new Error('백업할 설정 데이터가 없습니다.');
     }
-    
+
     Logger.log('📦 [Backup] 설정 데이터 확인:', {
       hasGasUrl: !!settings.gasUrl,
       hasSheetId: !!settings.sheetId,
       templatesCount: settings.templates ? settings.templates.length : 0
     });
-    
+
     // 숨김 폴더 찾기 또는 생성
     Logger.log('📁 [Backup] Drive 폴더 확인/생성 시작...');
     var folderName = '.pagegenie_backup';
     var folders = DriveApp.getFoldersByName(folderName);
     var folder;
-    
+
     if (folders.hasNext()) {
       folder = folders.next();
       Logger.log('✅ [Backup] 기존 백업 폴더 사용: ' + folderName + ' (URL: ' + folder.getUrl() + ')');
@@ -751,7 +753,7 @@ function handleBackupSettings(e) {
         throw new Error('Google Drive 폴더 생성 실패: ' + driveError.toString() + '. Drive 접근 권한을 확인하세요.');
       }
     }
-    
+
     // 기존 백업 파일 삭제 (최신 하나만 유지)
     Logger.log('🗑️ [Backup] 기존 백업 파일 삭제 중...');
     var existingFiles = folder.getFilesByName('settings.json');
@@ -761,12 +763,12 @@ function handleBackupSettings(e) {
       deletedCount++;
     }
     Logger.log('✅ [Backup] 기존 파일 삭제 완료: ' + deletedCount + '개');
-    
+
     // 새 백업 파일 생성
     Logger.log('💾 [Backup] 새 백업 파일 생성 중...');
     var settingsJson = JSON.stringify(settings, null, 2);
     Logger.log('📊 [Backup] 백업 데이터 크기: ' + settingsJson.length + ' bytes');
-    
+
     try {
       var blob = Utilities.newBlob(settingsJson, 'application/json', 'settings.json');
       var file = folder.createFile(blob);
@@ -775,20 +777,20 @@ function handleBackupSettings(e) {
       Logger.log('❌ [Backup] 파일 생성 실패: ' + fileError.toString());
       throw new Error('백업 파일 생성 실패: ' + fileError.toString());
     }
-    
+
     var successResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       message: '설정이 Google Drive에 백업되었습니다.',
       fileId: file.getId(),
       backupDate: new Date().toISOString()
     })).setMimeType(ContentService.MimeType.JSON);
-    
+
     return successResponse;
-    
+
   } catch (error) {
     Logger.log('❌ [Backup] 설정 백업 실패: ' + error.toString());
     Logger.log('❌ [Backup] 에러 스택: ' + (error.stack || '스택 정보 없음'));
-    
+
     return ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString(),
@@ -803,11 +805,11 @@ function handleBackupSettings(e) {
  */
 function handleRestoreSettings(e) {
   // ★중요★: GAS 웹 앱을 "모든 사용자"로 배포하면 CORS가 자동 처리됨
-  
+
   try {
     var folderName = '.pagegenie_backup';
     var folders = DriveApp.getFoldersByName(folderName);
-    
+
     if (!folders.hasNext()) {
       Logger.log('백업 폴더가 없습니다.');
       return ContentService.createTextOutput(JSON.stringify({
@@ -815,10 +817,10 @@ function handleRestoreSettings(e) {
         message: '백업 파일이 없습니다. 먼저 백업을 생성해주세요.'
       })).setMimeType(ContentService.MimeType.JSON);
     }
-    
+
     var folder = folders.next();
     var files = folder.getFilesByName('settings.json');
-    
+
     if (!files.hasNext()) {
       Logger.log('백업 파일이 없습니다.');
       return ContentService.createTextOutput(JSON.stringify({
@@ -826,25 +828,25 @@ function handleRestoreSettings(e) {
         message: '백업 파일이 없습니다. 먼저 백업을 생성해주세요.'
       })).setMimeType(ContentService.MimeType.JSON);
     }
-    
+
     var file = files.next();
     var content = file.getBlob().getDataAsString();
     var settings = JSON.parse(content);
-    
+
     Logger.log('✅ 설정 복원 성공: ' + file.getUrl());
-    
+
     var successResponse = ContentService.createTextOutput(JSON.stringify({
       status: 'success',
       settings: settings,
       message: '설정이 복원되었습니다.',
       backupDate: settings.backupDate || null
     })).setMimeType(ContentService.MimeType.JSON);
-    
+
     return successResponse;
-    
+
   } catch (error) {
     Logger.log('❌ 설정 복원 실패: ' + error.toString());
-    
+
     return ContentService.createTextOutput(JSON.stringify({
       status: 'error',
       message: error.toString()

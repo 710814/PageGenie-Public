@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { AppMode, Step, UploadedFile, ProductAnalysis } from './types';
+import { AppMode, Step, UploadedFile, ProductAnalysis, ProductInputData } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider, useToastContext } from './contexts/ToastContext';
 import { StepModeSelection } from './components/StepModeSelection';
@@ -11,11 +11,11 @@ import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
 import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress } from './services/geminiService';
 import { getTemplates } from './services/templateService';
-import { 
-  isAutoBackupEnabled, 
-  isSettingsEmpty, 
-  restoreSettingsFromDrive, 
-  applyRestoredSettings 
+import {
+  isAutoBackupEnabled,
+  isSettingsEmpty,
+  restoreSettingsFromDrive,
+  applyRestoredSettings
 } from './services/settingsBackupService';
 import { Loader2, Settings } from 'lucide-react';
 
@@ -26,13 +26,13 @@ const AppContent: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<ProductAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
-  
+
   // Settings Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
+
   // 자동 복원 상태
   const [isAutoRestoring, setIsAutoRestoring] = useState(false);
-  
+
   // 이미지 생성 진행 상태
   const [generationProgress, setGenerationProgress] = useState<GenerationProgress>({
     current: 0,
@@ -42,7 +42,7 @@ const AppContent: React.FC = () => {
     completedSectionIds: [],
     startTime: null
   });
-  
+
   // Toast 알림 시스템
   const toast = useToastContext();
 
@@ -53,17 +53,17 @@ const AppContent: React.FC = () => {
       if (isAutoBackupEnabled() && isSettingsEmpty()) {
         console.log('[App] 자동 복원 시도...');
         setIsAutoRestoring(true);
-        
+
         try {
           const result = await restoreSettingsFromDrive();
-          
+
           if (result.success && result.settings) {
             applyRestoredSettings(result.settings);
-            
-            const backupDateStr = result.settings.backupDate 
+
+            const backupDateStr = result.settings.backupDate
               ? new Date(result.settings.backupDate).toLocaleString('ko-KR')
               : '';
-            
+
             toast.success(`설정이 자동으로 복원되었습니다!${backupDateStr ? ` (${backupDateStr})` : ''}`);
             console.log('[App] 자동 복원 성공');
           } else if (result.status !== 'not_found') {
@@ -76,7 +76,7 @@ const AppContent: React.FC = () => {
         }
       }
     };
-    
+
     tryAutoRestore();
   }, [toast]);
 
@@ -85,38 +85,46 @@ const AppContent: React.FC = () => {
     setStep(Step.UPLOAD_DATA);
   }, []);
 
-  const handleFilesSelect = useCallback(async (filesData: UploadedFile[], templateId?: string) => {
-    setUploadedFiles(filesData);
+  // 상품 정보 상태 (새로운 Phase 7 데이터)
+  const [productInputData, setProductInputData] = useState<ProductInputData | null>(null);
+
+  const handleProductSubmit = useCallback(async (data: ProductInputData) => {
+    setProductInputData(data);
+
+    // 모든 이미지 합치기 (메인 + 컬러옵션)
+    const allImages = [...data.mainImages];
+    data.colorOptions.forEach(opt => allImages.push(...opt.images));
+    setUploadedFiles(allImages);
 
     // 모드 C: 이미지 수정 - 바로 이미지 수정 시작
     if (mode === AppMode.IMAGE_EDIT) {
-      if (filesData.length === 0) {
+      if (allImages.length === 0) {
         toast.error('이미지를 업로드해주세요.');
         return;
       }
 
       setStep(Step.GENERATING);
       setIsLoading(true);
-      
+
       try {
-        const firstFile = filesData[0];
-        
+        const firstFile = allImages[0];
+
         // 1단계: 이미지 분석
         setLoadingMessage('이미지를 분석하고 텍스트를 감지하는 중...');
         console.log('[Mode C] 1단계: 이미지 분석 시작');
-        
+
         // 진행 상태 업데이트 콜백과 함께 이미지 수정 실행
         // 이미지 생성은 시간이 오래 걸릴 수 있으므로 6분 타임아웃 적용
         const editedImageUrl = await Promise.race([
           editSingleImageWithProgress(
-            firstFile.base64, 
+            firstFile.base64,
             firstFile.mimeType,
             (step: string, message: string) => {
               setLoadingMessage(message);
               console.log(`[Mode C] ${step}: ${message}`);
             }
           ),
-          new Promise<string>((_, reject) => 
+          new Promise<string>((_, reject) =>
             setTimeout(() => reject(new Error('이미지 수정이 시간 초과되었습니다 (6분). 이미지 생성은 시간이 오래 걸릴 수 있습니다. 네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.')), 360000) // 6분 타임아웃
           )
         ]);
@@ -124,7 +132,7 @@ const AppContent: React.FC = () => {
         // 모드 C는 단일 이미지 수정 결과만 저장
         // 원본 이미지 URL 저장 (다운로드용)
         const originalImageUrl = firstFile.previewUrl || `data:${firstFile.mimeType};base64,${firstFile.base64}`;
-        
+
         // ProductAnalysis 형식으로 변환 (호환성 유지)
         const result: ProductAnalysis = {
           productName: '이미지 수정 결과',
@@ -164,28 +172,34 @@ const AppContent: React.FC = () => {
     setIsLoading(true);
 
     const templates = getTemplates();
-    const selectedTemplate = templateId ? templates.find(t => t.id === templateId) : null;
-    
-    let message = mode === AppMode.CREATION 
-      ? `상품 이미지 ${filesData.length}장을 분석하고 컨셉을 도출하고 있습니다...` 
-      : `상세페이지 이미지 ${filesData.length}장을 분석하여 현지화 작업을 설계 중입니다...`;
-    
+    const selectedTemplate = data.selectedTemplateId ? templates.find(t => t.id === data.selectedTemplateId) : null;
+
+    let message = mode === AppMode.CREATION
+      ? `상품 이미지 ${allImages.length}장을 분석하고 컨셉을 도출하고 있습니다...`
+      : `상세페이지 이미지 ${allImages.length}장을 분석하여 현지화 작업을 설계 중입니다...`;
+
     if (selectedTemplate) {
       message = `'${selectedTemplate.name}' 템플릿 구조에 맞춰 상세페이지를 기획하고 있습니다...`;
+    }
+
+    // 상품 정보가 있으면 메시지에 포함
+    if (data.productName) {
+      message = `'${data.productName}' 상품을 분석 중입니다...`;
     }
 
     setLoadingMessage(message);
 
     try {
       // Pass arrays of base64 and mimeTypes
-      const base64List = filesData.map(f => f.base64);
-      const mimeTypeList = filesData.map(f => f.mimeType);
+      const base64List = allImages.map(f => f.base64);
+      const mimeTypeList = allImages.map(f => f.mimeType);
 
       const result = await analyzeProductImage(
-        base64List, 
-        mimeTypeList, 
+        base64List,
+        mimeTypeList,
         mode,
-        selectedTemplate
+        selectedTemplate,
+        data  // 상품 정보 전달
       );
       setAnalysisResult(result);
     } catch (error) {
@@ -200,15 +214,15 @@ const AppContent: React.FC = () => {
 
   const handleGenerate = useCallback(async () => {
     if (!analysisResult) return;
-    
+
     setStep(Step.GENERATING);
     setIsLoading(true);
-    
+
     // 생성할 섹션 계산 (고정 이미지, 미리보기 제외)
     const sectionsToGenerate = analysisResult.sections.filter(
       s => !s.isOriginalImage && !s.isPreview && s.imagePrompt && !s.imageUrl
     );
-    
+
     // 진행 상태 초기화
     setGenerationProgress({
       current: 0,
@@ -226,60 +240,115 @@ const AppContent: React.FC = () => {
 
       const newSections = [];
       let completedCount = 0;
-      
+
       for (const section of finalResult.sections) {
-         // 고정 이미지가 있는 섹션은 AI 생성 건너뛰기
-         if (section.isOriginalImage && section.imageUrl) {
-           console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
-           newSections.push(section);
-           // 완료 목록에 추가
-           setGenerationProgress(prev => ({
-             ...prev,
-             completedSectionIds: [...prev.completedSectionIds, section.id]
-           }));
-         } 
-         // 미리보기로 이미 생성된 이미지가 있는 섹션도 건너뛰기
-         else if (section.isPreview && section.imageUrl) {
-           console.log(`[Generate] 섹션 "${section.title}": 미리보기 이미지 사용 (재생성 건너뜀)`);
-           newSections.push({ ...section, isPreview: false }); // 최종 확정으로 변경
-           // 완료 목록에 추가
-           setGenerationProgress(prev => ({
-             ...prev,
-             completedSectionIds: [...prev.completedSectionIds, section.id]
-           }));
-         }
-         else if (section.imagePrompt) {
-           // 현재 생성 중인 섹션 표시
-           setGenerationProgress(prev => ({
-             ...prev,
-             currentSectionId: section.id,
-             currentSectionTitle: section.title
-           }));
-           
-           console.log(`[Generate] 섹션 "${section.title}": AI 이미지 생성 중...`);
-           const imageUrl = await generateSectionImage(
-             section.imagePrompt,
-             primaryFile?.base64, // Use the first image as reference style
-             primaryFile?.mimeType,
-             mode
-           );
-           newSections.push({ ...section, imageUrl });
-           completedCount++;
-           
-           // 진행률 업데이트
-           setGenerationProgress(prev => ({
-             ...prev,
-             current: completedCount,
-             completedSectionIds: [...prev.completedSectionIds, section.id],
-             currentSectionId: '',
-             currentSectionTitle: ''
-           }));
-         } else {
-           newSections.push(section);
-         }
+        // 고정 이미지가 있는 섹션은 AI 생성 건너뛰기
+        if (section.isOriginalImage && section.imageUrl) {
+          console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
+          newSections.push(section);
+          // 완료 목록에 추가
+          setGenerationProgress(prev => ({
+            ...prev,
+            completedSectionIds: [...prev.completedSectionIds, section.id]
+          }));
+        }
+        // 미리보기로 이미 생성된 이미지가 있는 섹션도 건너뛰기
+        else if (section.isPreview && section.imageUrl) {
+          console.log(`[Generate] 섹션 "${section.title}": 미리보기 이미지 사용 (재생성 건너뜀)`);
+          newSections.push({ ...section, isPreview: false }); // 최종 확정으로 변경
+          // 완료 목록에 추가
+          setGenerationProgress(prev => ({
+            ...prev,
+            completedSectionIds: [...prev.completedSectionIds, section.id]
+          }));
+        }
+        // ★ 다중 이미지 슬롯 처리 (grid-2, grid-3 레이아웃)
+        else if (section.imageSlots && section.imageSlots.length > 0) {
+          console.log(`[Generate] 섹션 "${section.title}": ${section.imageSlots.length}개 이미지 슬롯 생성 시작`);
+
+          setGenerationProgress(prev => ({
+            ...prev,
+            currentSectionId: section.id,
+            currentSectionTitle: `${section.title} (${section.imageSlots?.length}개 이미지)`
+          }));
+
+          const updatedSlots = [];
+          for (let i = 0; i < section.imageSlots.length; i++) {
+            const slot = section.imageSlots[i];
+
+            // 이미 이미지가 있으면 건너뛰기
+            if (slot.imageUrl) {
+              updatedSlots.push(slot);
+              continue;
+            }
+
+            console.log(`[Generate] 섹션 "${section.title}" - 슬롯 ${i + 1}/${section.imageSlots.length}: "${slot.prompt?.slice(0, 50)}..."`);
+
+            try {
+              const imageUrl = await generateSectionImage(
+                slot.prompt || section.imagePrompt || '',
+                primaryFile?.base64,
+                primaryFile?.mimeType,
+                mode
+              );
+              updatedSlots.push({ ...slot, imageUrl });
+            } catch (slotError) {
+              console.error(`[Generate] 슬롯 ${i + 1} 생성 실패:`, slotError);
+              updatedSlots.push(slot); // 실패해도 원본 슬롯 유지
+            }
+          }
+
+          // 첫 번째 슬롯의 이미지를 section.imageUrl에도 저장 (호환성)
+          const firstSlotImage = updatedSlots.find(s => s.imageUrl)?.imageUrl;
+
+          newSections.push({
+            ...section,
+            imageSlots: updatedSlots,
+            imageUrl: firstSlotImage
+          });
+
+          completedCount++;
+          setGenerationProgress(prev => ({
+            ...prev,
+            current: completedCount,
+            completedSectionIds: [...prev.completedSectionIds, section.id],
+            currentSectionId: '',
+            currentSectionTitle: ''
+          }));
+        }
+        // 단일 이미지 프롬프트 처리 (기존 방식)
+        else if (section.imagePrompt) {
+          // 현재 생성 중인 섹션 표시
+          setGenerationProgress(prev => ({
+            ...prev,
+            currentSectionId: section.id,
+            currentSectionTitle: section.title
+          }));
+
+          console.log(`[Generate] 섹션 "${section.title}": AI 이미지 생성 중...`);
+          const imageUrl = await generateSectionImage(
+            section.imagePrompt,
+            primaryFile?.base64, // Use the first image as reference style
+            primaryFile?.mimeType,
+            mode
+          );
+          newSections.push({ ...section, imageUrl });
+          completedCount++;
+
+          // 진행률 업데이트
+          setGenerationProgress(prev => ({
+            ...prev,
+            current: completedCount,
+            completedSectionIds: [...prev.completedSectionIds, section.id],
+            currentSectionId: '',
+            currentSectionTitle: ''
+          }));
+        } else {
+          newSections.push(section);
+        }
       }
       finalResult.sections = newSections;
-      
+
       setAnalysisResult(finalResult);
       setStep(Step.RESULT);
       toast.success("상세페이지 생성이 완료되었습니다!");
@@ -335,7 +404,7 @@ const AppContent: React.FC = () => {
             </div>
             <span className="text-xl font-bold text-gray-900 tracking-tight">PageGenie</span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             {step > Step.SELECT_MODE && (
               <div className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
@@ -357,12 +426,12 @@ const AppContent: React.FC = () => {
       <main className="flex-1" style={{ minHeight: 'calc(100vh - 80px)' }}>
         {/* Step.GENERATING일 때 진행 상태 표시 */}
         {step === Step.GENERATING && analysisResult && (
-          <GeneratingProgress 
+          <GeneratingProgress
             sections={analysisResult.sections}
             progress={generationProgress}
           />
         )}
-        
+
         {/* 모드 C: 이미지 수정 중 로딩 화면 */}
         {step === Step.GENERATING && mode === AppMode.IMAGE_EDIT && !analysisResult && (
           <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -387,7 +456,7 @@ const AppContent: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {isLoading && step !== Step.GENERATING ? (
           <div className="flex flex-col items-center justify-center h-[60vh]">
             <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
@@ -397,11 +466,11 @@ const AppContent: React.FC = () => {
         ) : (
           <>
             {step === Step.SELECT_MODE && <StepModeSelection onSelectMode={handleModeSelect} />}
-            {step === Step.UPLOAD_DATA && <StepUpload mode={mode} onFileSelect={handleFilesSelect} />}
+            {step === Step.UPLOAD_DATA && <StepUpload mode={mode} onProductSubmit={handleProductSubmit} />}
             {step === Step.ANALYSIS_REVIEW && analysisResult && (
-              <StepAnalysis 
-                analysis={analysisResult} 
-                onUpdate={setAnalysisResult} 
+              <StepAnalysis
+                analysis={analysisResult}
+                onUpdate={setAnalysisResult}
                 onConfirm={handleGenerate}
                 isLoading={isLoading}
                 uploadedFiles={uploadedFiles}
@@ -416,12 +485,12 @@ const AppContent: React.FC = () => {
                   onRestart={restart}
                 />
               ) : (
-                <StepResult 
-                  data={analysisResult} 
-                  onRestart={restart} 
-                  mode={mode} 
-                  uploadedFiles={uploadedFiles} 
-                  onUpdate={setAnalysisResult} 
+                <StepResult
+                  data={analysisResult}
+                  onRestart={restart}
+                  mode={mode}
+                  uploadedFiles={uploadedFiles}
+                  onUpdate={setAnalysisResult}
                   onOpenSettings={handleOpenSettings}
                 />
               )
@@ -440,9 +509,9 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* Settings Modal */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={handleCloseSettings} 
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={handleCloseSettings}
       />
     </div>
   );

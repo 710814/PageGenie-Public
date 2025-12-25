@@ -1,4 +1,4 @@
-import { AppMode, ProductAnalysis, SectionData, Template } from "../types";
+import { AppMode, ProductAnalysis, SectionData, Template, ProductInputData } from "../types";
 import { getGasUrl, DEFAULT_GAS_URL } from "./googleSheetService";
 import { getCategoryPromptGuidelines } from "./categoryPresets";
 import type {
@@ -15,6 +15,45 @@ import type {
 
 const MODEL_TEXT_VISION = 'gemini-2.5-flash';
 const MODEL_IMAGE_GEN = 'gemini-2.5-flash-image';
+
+/**
+ * 이미지 슬롯 타입별 기본 프롬프트 템플릿
+ * [PRODUCT] 플레이스홀더는 실제 이미지 생성 시 원본 상품 이미지 참조로 대체됨
+ */
+export const IMAGE_SLOT_DEFAULT_PROMPTS: Record<string, string> = {
+  hero: 'Full body product shot of [PRODUCT], clean white background, professional studio lighting, hero image style, centered composition',
+  product: 'Professional product photography of [PRODUCT], clean background, high quality studio lighting, e-commerce style',
+  detail: 'Extreme close-up macro shot of [PRODUCT] showing texture, stitching, and material details, high resolution, shallow depth of field',
+  material: 'Close-up of [PRODUCT] fabric/material texture, showing weave pattern and quality, soft directional lighting, texture focus',
+  color_styling: 'Full body shot of [PRODUCT] showcasing color and styling, lifestyle setting, coordinated styling, fashion editorial style',
+  fit: 'Full body shot of model wearing/using [PRODUCT], natural pose, minimalist indoor setting, lifestyle photography, showing fit and movement',
+  spec: '[PRODUCT] with measurement overlay or size reference, infographic style, clean background, size chart visualization',
+  notice: 'Clean informational image related to [PRODUCT], notice/care instruction style, iconographic elements, clear and readable',
+  custom: 'Professional product photography of [PRODUCT], suitable for e-commerce product detail page'
+};
+
+/**
+ * 상품 일관성 유지 프롬프트 래퍼
+ * 원본 상품 이미지를 참조하면서 다양한 컴포지션을 생성하도록 지시
+ */
+export const PRODUCT_CONSISTENCY_PROMPT = `
+## CRITICAL: MAINTAIN EXACT PRODUCT VISUAL CONSISTENCY
+
+### MANDATORY REQUIREMENTS:
+1. The product's shape, color, design, texture, and ALL visual details must be IDENTICAL to the reference image
+2. Do NOT modify, alter, or stylize the product itself in any way
+3. The product must be clearly recognizable as the EXACT same item from the reference
+
+### WHAT YOU CAN CHANGE:
+- Background setting and environment
+- Lighting style and direction
+- Camera angle and composition
+- Props and context elements
+- Model/mannequin for wearable items
+
+### FINAL CHECK:
+If someone compared the product in your generated image with the reference, it should be indistinguishable - only the setting changes.
+`;
 
 /**
  * URL 정규화 함수 - 비교를 위해 모든 공백, 언더스코어, 하이픈 제거
@@ -40,7 +79,7 @@ async function callGeminiViaProxy(requestData: {
   config?: GeminiGenerationConfig;
 }, timeoutMs?: number): Promise<GeminiResponse> {
   const gasUrl = getGasUrl(true);
-  
+
   if (!gasUrl) {
     throw new Error('GAS URL이 설정되지 않았습니다. 설정에서 Google Apps Script URL을 입력하세요.');
   }
@@ -48,26 +87,26 @@ async function callGeminiViaProxy(requestData: {
   // GAS 프록시 엔드포인트로 요청
   // GAS는 URL 파라미터로 action을 받음
   const proxyUrl = `${gasUrl}?action=gemini`;
-  
+
   try {
     console.log('GAS 프록시 호출:', proxyUrl);
     console.log('요청 데이터:', { model: requestData.model, hasContents: !!requestData.contents });
-    
+
     // GAS는 CORS preflight를 처리하지 않으므로 simple request로 보냄
     // Content-Type: text/plain으로 변경하면 preflight 없이 요청 가능
     // GAS는 여전히 e.postData.contents로 JSON을 파싱할 수 있음
-    
+
     // URL 유효성 검증
     if (!gasUrl || !gasUrl.includes('script.google.com')) {
       throw new Error('GAS URL이 올바르지 않습니다. Google Apps Script 웹 앱 URL을 확인하세요.');
     }
-    
+
     // 타임아웃 설정
     // 이미지 생성 모델은 더 오래 걸리므로 5분
     // 이미지 분석(텍스트 감지)도 큰 이미지나 복잡한 이미지의 경우 시간이 걸릴 수 있으므로 3분
     // 일반 텍스트 분석은 2분
     const isImageGeneration = requestData.model.includes('image') || requestData.model === MODEL_IMAGE_GEN;
-    
+
     // 이미지 분석 감지: parts 배열에서 inlineData가 있는지 확인
     let hasImageData = false;
     try {
@@ -79,18 +118,18 @@ async function callGeminiViaProxy(requestData: {
     } catch (e) {
       console.warn('[callGeminiViaProxy] 이미지 데이터 감지 중 오류:', e);
     }
-    
+
     const isImageAnalysis = requestData.model === MODEL_TEXT_VISION && hasImageData;
-    
+
     let defaultTimeout = 120000; // 기본 2분
     if (isImageGeneration) {
       defaultTimeout = 300000; // 이미지 생성: 5분
     } else if (isImageAnalysis) {
       defaultTimeout = 180000; // 이미지 분석(텍스트 감지): 3분
     }
-    
+
     const timeout = timeoutMs || defaultTimeout;
-    
+
     console.log('[callGeminiViaProxy] 타임아웃 설정:', {
       model: requestData.model,
       isImageGeneration,
@@ -101,10 +140,10 @@ async function callGeminiViaProxy(requestData: {
       finalTimeout: timeout,
       timeoutMinutes: Math.round(timeout / 60000)
     });
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
-    
+
     let response: Response;
     try {
       response = await fetch(proxyUrl, {
@@ -120,7 +159,7 @@ async function callGeminiViaProxy(requestData: {
         redirect: 'follow', // GAS 리다이렉트 따라가기
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
 
       console.log('GAS 프록시 응답 상태:', response.status, response.statusText);
@@ -148,21 +187,21 @@ async function callGeminiViaProxy(requestData: {
 
     const result = await response.json();
     console.log('GAS 프록시 응답:', result);
-    
+
     if (result.status === 'error') {
       throw new Error(result.message || 'GAS 프록시에서 오류가 발생했습니다.');
     }
-    
+
     if (!result.data) {
       throw new Error('GAS 프록시 응답에 데이터가 없습니다.');
     }
-    
+
     return result.data as GeminiResponse;
   } catch (error) {
     console.error('GAS 프록시 호출 실패:', error);
     throw error;
   }
-} 
+}
 
 /**
  * Helper to convert Blob/File to Base64 string without data prefix
@@ -182,57 +221,172 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
 };
 
 /**
+ * 이미지 슬롯 타입에 따른 기본 프롬프트 가져오기
+ * @param slotType 이미지 슬롯 타입
+ * @returns 기본 프롬프트 문자열
+ */
+export const getDefaultPromptForSlotType = (slotType: string): string => {
+  return IMAGE_SLOT_DEFAULT_PROMPTS[slotType] || IMAGE_SLOT_DEFAULT_PROMPTS.custom;
+};
+
+/**
+ * 상품 일관성을 유지하는 최종 이미지 생성 프롬프트 빌드
+ * 원본 상품 이미지를 참조 이미지로 사용하면서, 섹션/슬롯 타입에 맞는 컴포지션 생성
+ * 
+ * @param userPrompt 사용자가 입력한 프롬프트 또는 기본 프롬프트
+ * @param productName 상품명 (선택)
+ * @returns 일관성 보장 프롬프트
+ */
+export const buildProductConsistentPrompt = (
+  userPrompt: string,
+  productName?: string
+): string => {
+  // [PRODUCT] 플레이스홀더를 상품명으로 대체 (있으면)
+  let finalPrompt = userPrompt;
+  if (productName) {
+    finalPrompt = userPrompt.replace(/\[PRODUCT\]/gi, productName);
+  } else {
+    // 상품명이 없으면 "the product"로 대체
+    finalPrompt = userPrompt.replace(/\[PRODUCT\]/gi, 'the product');
+  }
+
+  // 일관성 유지 지시어 추가
+  return `${PRODUCT_CONSISTENCY_PROMPT}
+
+${finalPrompt}
+
+High quality, 4K resolution, professional e-commerce photography.`;
+};
+
+/**
  * Schema for the product analysis output (JSON Schema format for Gemini API)
  */
+/**
+ * 레이아웃 타입에 따른 필요 이미지 슬롯 수 계산
+ */
+const getImageSlotCountForLayout = (layoutType: string): number => {
+  switch (layoutType) {
+    case 'grid-2': return 2;
+    case 'grid-3': return 3;
+    case 'split-left':
+    case 'split-right':
+    case 'full-width':
+    case 'image-only':
+      return 1;
+    case 'text-only':
+      return 0;
+    default:
+      return 1;
+  }
+};
+
+/**
+ * 레이아웃 타입에 따른 이미지 슬롯 자동 생성
+ */
+const generateImageSlotsForLayout = (
+  sectionId: string,
+  layoutType: string,
+  basePrompt: string,
+  existingSlots?: import('../types').ImageSlot[]
+): import('../types').ImageSlot[] => {
+  const requiredCount = getImageSlotCountForLayout(layoutType);
+
+  if (requiredCount === 0) return [];
+
+  // 기존 슬롯이 있으면 그대로 사용 (개수 맞으면)
+  if (existingSlots && existingSlots.length === requiredCount) {
+    return existingSlots;
+  }
+
+  // 새로 생성
+  const slots: import('../types').ImageSlot[] = [];
+  for (let i = 0; i < requiredCount; i++) {
+    const slotNum = i + 1;
+    slots.push({
+      id: `${sectionId}-slot-${slotNum}`,
+      slotType: i === 0 ? 'product' : 'detail',
+      prompt: requiredCount > 1
+        ? `[이미지 ${slotNum}/${requiredCount}] ${basePrompt}`
+        : basePrompt
+    });
+  }
+
+  return slots;
+};
+
 /**
  * 템플릿 구조를 기반으로 AI 결과를 매핑
  * - 템플릿의 섹션 구조(ID, 개수, 순서, 레이아웃)를 100% 유지
  * - AI가 생성한 콘텐츠(제목, 설명)만 적용
  * - 고정 이미지, 고정 문구, 레이아웃은 절대 변경 불가
+ * - ★ layoutType에 따라 imageSlots 자동 생성
  */
 const applyTemplateStructure = (
   aiResult: ProductAnalysis,
   template: Template
 ): ProductAnalysis => {
+  console.log('[applyTemplateStructure] 템플릿 적용 시작:', template.name);
+  console.log('[applyTemplateStructure] 템플릿 섹션 수:', template.sections.length);
+  console.log('[applyTemplateStructure] AI 결과 섹션 수:', aiResult.sections.length);
+
   // 템플릿 섹션을 기준으로 구조 완전 유지
   const mappedSections: SectionData[] = template.sections.map((templateSection, index) => {
     // AI 결과에서 동일 ID의 섹션 찾기 (우선), 없으면 인덱스 기반 매칭
-    const aiSection = aiResult.sections.find(s => s.id === templateSection.id) 
-                     || aiResult.sections[index]
-                     || null;
-    
+    const aiSection = aiResult.sections.find(s => s.id === templateSection.id)
+      || aiResult.sections[index]
+      || null;
+
+    console.log(`[applyTemplateStructure] 섹션 ${index + 1}: ${templateSection.id} -> AI 매칭: ${aiSection?.id || 'none'}`);
+
+    const effectiveLayoutType = templateSection.layoutType || 'full-width';
+    const baseImagePrompt = templateSection.useFixedImage
+      ? templateSection.imagePrompt
+      : (aiSection?.imagePrompt || templateSection.imagePrompt);
+
+    // ★ layoutType에 따라 imageSlots 자동 생성
+    const autoGeneratedSlots = generateImageSlotsForLayout(
+      templateSection.id,
+      effectiveLayoutType,
+      baseImagePrompt || '',
+      templateSection.imageSlots
+    );
+
+    console.log(`[applyTemplateStructure] 섹션 ${index + 1}: layout=${effectiveLayoutType}, slots=${autoGeneratedSlots.length}`);
+
     // 기본 섹션 구조 (템플릿에서 100% 유지)
     const baseSection: SectionData = {
-      // 템플릿 구조 완전 유지 (절대 변경 불가)
+      // ★ 템플릿 구조 완전 유지 (절대 변경 불가)
       id: templateSection.id,
-      layoutType: templateSection.layoutType,
+      sectionType: templateSection.sectionType,
+      layoutType: effectiveLayoutType,
+      imageSlots: autoGeneratedSlots,  // ★ 자동 생성된 이미지 슬롯
       fixedText: templateSection.fixedText,
       fixedImageBase64: templateSection.fixedImageBase64,
       fixedImageMimeType: templateSection.fixedImageMimeType,
       useFixedImage: templateSection.useFixedImage,
-      
+
       // AI가 생성한 콘텐츠 적용 (없으면 템플릿 기본값 사용)
       title: aiSection?.title || templateSection.title,
       content: buildContentWithFixedText(
         aiSection?.content || templateSection.content,
         templateSection.fixedText
       ),
-      
-      // 이미지 프롬프트: 고정 이미지면 템플릿 것 유지, 아니면 AI 것 사용
-      imagePrompt: templateSection.useFixedImage 
-        ? templateSection.imagePrompt 
-        : (aiSection?.imagePrompt || templateSection.imagePrompt),
+
+      // 기존 호환성: 단일 imagePrompt (첫 번째 슬롯 기준)
+      imagePrompt: baseImagePrompt,
     };
-    
+
     // 고정 이미지가 활성화되어 있으면 즉시 이미지 URL 설정
     if (templateSection.useFixedImage && templateSection.fixedImageBase64) {
       baseSection.imageUrl = `data:${templateSection.fixedImageMimeType};base64,${templateSection.fixedImageBase64}`;
       baseSection.isOriginalImage = true; // AI 생성 건너뛰기 플래그
     }
-    
+
     return baseSection;
   });
-  
+
+  console.log('[applyTemplateStructure] 최종 매핑된 섹션 수:', mappedSections.length);
+
   return {
     ...aiResult,
     sections: mappedSections,
@@ -246,12 +400,12 @@ const applyTemplateStructure = (
  */
 const buildContentWithFixedText = (content: string, fixedText?: string): string => {
   if (!fixedText) return content;
-  
+
   // 이미 고정 문구가 포함되어 있는지 확인
   if (content.includes(fixedText)) {
     return content;
   }
-  
+
   // 고정 문구를 콘텐츠 앞에 강조하여 추가
   return `✓ ${fixedText}\n\n${content}`;
 };
@@ -285,40 +439,142 @@ const productAnalysisSchema = {
 };
 
 /**
+ * Schema for template extraction (NEW - template-specific structure)
+ */
+const templateExtractionSchema = {
+  type: "object",
+  properties: {
+    templateName: { type: "string", description: "템플릿 이름 (상품 카테고리 기반)" },
+    templateCategory: {
+      type: "string",
+      enum: ["fashion", "beauty", "food", "electronics", "furniture", "living", "kids", "pet", "other"],
+      description: "상품 카테고리"
+    },
+    sections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "섹션 고유 ID (예: sec-1)" },
+          sectionType: {
+            type: "string",
+            enum: ["title", "hero", "description", "colors", "material_detail", "styling", "fit", "spec", "notice", "custom"],
+            description: "섹션 역할/목적"
+          },
+          title: { type: "string", description: "섹션 제목 예시 (한국어)" },
+          content: { type: "string", description: "본문 플레이스홀더 텍스트 (한국어)" },
+          layoutType: {
+            type: "string",
+            enum: ["full-width", "split-left", "split-right", "grid-2", "grid-3", "text-only", "image-only"],
+            description: "레이아웃 배치"
+          },
+          imageSlots: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "이미지 슬롯 ID (예: img-1)" },
+                slotType: {
+                  type: "string",
+                  enum: ["hero", "product", "detail", "material", "color_styling", "fit", "spec", "notice", "custom"],
+                  description: "이미지 유형"
+                },
+                prompt: { type: "string", description: "범용 이미지 생성 프롬프트 ([PRODUCT] 플레이스홀더 사용)" }
+              },
+              required: ["id", "slotType", "prompt"]
+            },
+            description: "이미지 슬롯 배열 (섹션 내 이미지들)"
+          }
+        },
+        required: ["id", "sectionType", "title", "layoutType", "imageSlots"]
+      }
+    }
+  },
+  required: ["templateName", "templateCategory", "sections"]
+};
+
+/**
+ * Enhanced prompt for template extraction
+ */
+const templateExtractionPrompt = `
+You are an expert e-commerce product page designer analyzing a product detail page image.
+Your task is to extract a REUSABLE TEMPLATE STRUCTURE that can be applied to similar products.
+
+## CRITICAL INSTRUCTIONS:
+
+### 1. Analyze each distinct SECTION of the page:
+
+**섹션 타입 (sectionType)** - Identify the purpose:
+- title: 상품명/타이틀 영역
+- hero: 메인 비주얼 영역 (대표 이미지)
+- description: 상품 설명/소개
+- colors: 색상 옵션/변형
+- material_detail: 소재/원단 상세
+- styling: 코디/스타일링 제안
+- fit: 핏/착용감/사이즈 안내
+- spec: 상세 스펙/사양표
+- notice: 안내사항/주의사항
+- custom: 기타
+
+**레이아웃 (layoutType)** - How content is arranged:
+- full-width: 이미지가 전체 너비로 표시
+- split-left: 좌측 이미지 + 우측 텍스트
+- split-right: 좌측 텍스트 + 우측 이미지
+- grid-2: 2열 이미지 그리드
+- grid-3: 3열 이미지 그리드
+- text-only: 텍스트만 (이미지 없음)
+- image-only: 이미지만 (텍스트 없음)
+
+### 2. For EACH image in the section, create an imageSlot:
+
+**이미지 슬롯 타입 (slotType)**:
+- hero: 대표/메인 이미지
+- product: 상품 전체 이미지
+- detail: 디테일 클로즈업
+- material: 소재/텍스처 클로즈업
+- color_styling: 색상 변형/스타일링
+- fit: 착용/핏 이미지
+- spec: 스펙 도표/다이어그램
+- notice: 안내 이미지
+- custom: 기타
+
+**프롬프트 작성 규칙 (IMPORTANT)**:
+- Write product-agnostic prompts using [PRODUCT] as placeholder
+- Include visual style, composition, lighting, background
+- Example: "Full body shot of a model wearing [PRODUCT] in a minimalist room setting with warm natural lighting"
+- Example: "Close-up texture shot of [PRODUCT] material with soft studio lighting"
+- Write in English for better AI image generation
+
+### 3. Output Requirements:
+- Return valid JSON matching the schema
+- title and content fields in Korean
+- imageSlot prompt in English with [PRODUCT] placeholder
+- Include 4-8 sections for a complete template
+- Each section should have at least 1 imageSlot (except text-only sections)
+
+## TEMPLATE PURPOSE:
+This template will be used to generate new product pages. The structure, layout types, and image prompts will be reused - only the actual product content will change. Focus on extracting PATTERNS, not specific content.
+`;
+
+/**
  * Extract template structure from a reference image
+ * Enhanced version with sectionType, layoutType, and imageSlots
  */
 export const extractTemplateFromImage = async (
   base64Image: string,
   mimeType: string
 ): Promise<Template> => {
-  const prompt = `
-    Analyze this product detail page image to create a reusable template.
-    1. Identify the structural flow (Layout).
-    2. Break it down into logical sections (e.g., Intro, Problems, Solution, Certifications, Reviews, FAQ).
-    3. For each section, provide a generic 'title' (e.g., "Main Feature 1", "User Reviews") and a 'content' description describing what kind of text usually goes here.
-    4. Crucially, provide an 'imagePrompt' that describes the visual style and composition of that section. You can use Korean or English (e.g., "3가지 색상 변형을 보여주는 그리드 레이아웃" or "A grid layout showing 3 color variations", "텍스처 클로즈업" or "Close up of texture").
-    
-    Output strictly in JSON format.
-  `;
-
   try {
     // GAS 프록시를 통한 호출 시도
     const gasUrl = getGasUrl(true);
-    
-    // localStorage에 실제로 저장된 값 확인 (디버깅)
-    const rawSavedUrl = localStorage.getItem('gemini_commerce_gas_url');
-    console.log('[Template Extract] localStorage 원본 값:', rawSavedUrl);
-    console.log('[Template Extract] getGasUrl() 결과:', gasUrl);
-    console.log('[Template Extract] DEFAULT_GAS_URL:', DEFAULT_GAS_URL);
-    
+
     // URL 정규화 비교
     const normalizedGasUrl = gasUrl ? normalizeUrlForComparison(gasUrl) : '';
     const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
     const isDefaultUrl = normalizedGasUrl === normalizedDefaultUrl;
-    console.log('[Template Extract] 정규화된 사용자 URL:', normalizedGasUrl);
-    console.log('[Template Extract] 정규화된 기본 URL:', normalizedDefaultUrl);
-    console.log('[Template Extract] 기본 URL과 비교 (정규화 후):', isDefaultUrl);
-    
+
+    console.log('[Template Extract] Using enhanced template extraction schema');
+
     // GAS URL이 설정되어 있고 기본 데모 URL이 아니면 프록시 사용
     if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
       // GAS 프록시 사용
@@ -327,34 +583,29 @@ export const extractTemplateFromImage = async (
         contents: {
           parts: [
             { inlineData: { mimeType, data: base64Image } } as GeminiInlineDataPart,
-            { text: prompt } as GeminiTextPart
+            { text: templateExtractionPrompt } as GeminiTextPart
           ]
         },
         config: {
           responseMimeType: "application/json",
-          responseSchema: productAnalysisSchema,
-          temperature: 0.2,
+          responseSchema: templateExtractionSchema,
+          temperature: 0.3,
         }
       });
-      
+
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error("No response from Gemini");
-      
-      const analysis = JSON.parse(text) as ProductAnalysis;
-      
-      return {
-        id: `tpl-${Date.now()}`,
-        name: analysis.productName || "새 템플릿",
-        description: analysis.marketingCopy || "이미지에서 추출된 템플릿",
-        sections: analysis.sections,
-        createdAt: Date.now()
-      };
+
+      const templateData = JSON.parse(text);
+
+      // Convert to Template format with new structure
+      return convertToTemplate(templateData);
     }
-    
+
     // GAS 프록시가 없으면 환경 변수에서 API 키 확인 (Fallback)
-    const apiKey = (window as any).__GEMINI_API_KEY__ || 
-                   (import.meta.env?.VITE_GEMINI_API_KEY as string);
-    
+    const apiKey = (window as any).__GEMINI_API_KEY__ ||
+      (import.meta.env?.VITE_GEMINI_API_KEY as string);
+
     if (!apiKey) {
       throw new Error(
         'Gemini API 키가 설정되지 않았습니다.\n\n' +
@@ -378,13 +629,13 @@ export const extractTemplateFromImage = async (
           contents: {
             parts: [
               { inlineData: { mimeType, data: base64Image } },
-              { text: prompt }
+              { text: templateExtractionPrompt }
             ]
           },
           generationConfig: {
             responseMimeType: "application/json",
-            responseSchema: productAnalysisSchema,
-            temperature: 0.2,
+            responseSchema: templateExtractionSchema,
+            temperature: 0.3,
           }
         })
       }
@@ -397,22 +648,45 @@ export const extractTemplateFromImage = async (
 
     const result = await response.json();
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     if (!text) throw new Error("No response from Gemini");
-    
-    const analysis = JSON.parse(text) as ProductAnalysis;
-    
-    return {
-      id: `tpl-${Date.now()}`,
-      name: analysis.productName || "새 템플릿",
-      description: analysis.marketingCopy || "이미지에서 추출된 템플릿",
-      sections: analysis.sections,
-      createdAt: Date.now()
-    };
+
+    const templateData = JSON.parse(text);
+
+    return convertToTemplate(templateData);
   } catch (error) {
     console.error("Template extraction failed:", error);
     throw error;
   }
+};
+
+/**
+ * Convert AI response to Template format
+ */
+const convertToTemplate = (templateData: any): Template => {
+  const sections: SectionData[] = templateData.sections.map((sec: any) => ({
+    id: sec.id || `sec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    title: sec.title || '',
+    content: sec.content || '',
+    sectionType: sec.sectionType,
+    layoutType: sec.layoutType,
+    imageSlots: sec.imageSlots?.map((slot: any) => ({
+      id: slot.id || `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      slotType: slot.slotType || 'hero',
+      prompt: slot.prompt || '',
+    })) || [],
+    // 하위 호환성: 첫 번째 이미지 슬롯의 프롬프트를 imagePrompt로 설정
+    imagePrompt: sec.imageSlots?.[0]?.prompt || '',
+  }));
+
+  return {
+    id: `tpl-${Date.now()}`,
+    name: templateData.templateName || "새 템플릿",
+    description: `${templateData.templateCategory || 'other'} 카테고리 템플릿`,
+    category: templateData.templateCategory,
+    sections,
+    createdAt: Date.now()
+  };
 };
 
 /**
@@ -423,11 +697,17 @@ export const analyzeProductImage = async (
   base64Images: string[],
   mimeTypes: string[],
   mode: AppMode,
-  template?: Template | null
+  template?: Template | null,
+  productData?: ProductInputData  // 상품 정보 (새로운 Phase 7)
 ): Promise<ProductAnalysis> => {
-  
+  // 디버그 로그: 템플릿 전달 확인
+  console.log('[analyzeProductImage] 호출됨');
+  console.log('[analyzeProductImage] 이미지 수:', base64Images.length);
+  console.log('[analyzeProductImage] 템플릿:', template ? `${template.name} (${template.sections.length}개 섹션)` : '없음');
+  console.log('[analyzeProductImage] 상품 정보:', productData?.productName || '없음');
+
   let prompt = "";
-  
+
   if (template) {
     // TEMPLATE MODE - 템플릿 구조 100% 유지
     const templateStructure = JSON.stringify(template.sections.map(s => ({
@@ -443,6 +723,16 @@ export const analyzeProductImage = async (
     const sectionCount = template.sections.length;
     const sectionIds = template.sections.map(s => s.id).join(', ');
 
+    // ★ 사용자 입력 상품 정보 추가
+    const productInfoSection = productData ? `
+      ## PROVIDED PRODUCT INFORMATION (MUST USE):
+      ${productData.productName ? `- Product Name: "${productData.productName}" - Use this EXACT name in productName field` : ''}
+      ${productData.price ? `- Price: ${productData.price.toLocaleString()}원` : ''}
+      ${productData.discountRate ? `- Discount Rate: ${productData.discountRate}%` : ''}
+      ${productData.productFeatures ? `- Key Features (from seller):\n${productData.productFeatures}` : ''}
+      ${productData.colorOptions?.length > 0 ? `- Available Colors: ${productData.colorOptions.map(c => c.colorName).join(', ')}` : ''}
+    ` : '';
+
     prompt = `
       You are an expert e-commerce merchandiser. You MUST follow a STRICT template structure.
       
@@ -451,6 +741,9 @@ export const analyzeProductImage = async (
       2. You MUST use these EXACT section IDs in order: [${sectionIds}]
       3. You MUST NOT add, remove, or reorder any sections.
       4. You MUST preserve the template's storyline flow exactly as given.
+      ${productData?.productName ? `5. You MUST use "${productData.productName}" as the productName - do NOT make up a different name.` : ''}
+      
+      ${productInfoSection}
       
       ## Input:
       - Product Image(s): Photos of the product to sell
@@ -459,15 +752,20 @@ export const analyzeProductImage = async (
       
       ## Your Tasks:
       1. Analyze ALL input images to understand the product thoroughly.
-      2. For EACH section in the template (in exact order):
+      2. ${productData?.productName ? `Use the provided product name "${productData.productName}" directly.` : 'Create a catchy product name in Korean.'}
+      3. For EACH section in the template (in exact order):
          - Use the EXACT 'id' provided - do not change it
          - Write a compelling 'title' in Korean that fits the section's purpose
          - Write detailed 'content' in Korean based on the 'content_guideline'
+         ${productData?.productFeatures ? '- Incorporate the provided key features into relevant sections' : ''}
+         ${productData?.colorOptions?.length ? '- Mention available colors in color-related sections' : ''}
          - Create an 'imagePrompt' (Korean or English) that combines the 'visual_style' with the actual product
       
       ## Special Instructions:
       - If 'fixed_text' exists: You MUST include it prominently in the 'content'
       - If 'has_fixed_image' is true: Keep the 'imagePrompt' similar to the 'visual_style'
+      ${productData?.price ? `- Include price "${productData.price.toLocaleString()}원" in relevant marketing content` : ''}
+      ${productData?.discountRate ? `- Mention ${productData.discountRate}% discount prominently` : ''}
       
       ## CRITICAL - imagePrompt Guidelines:
       When creating 'imagePrompt', you MUST:
@@ -479,11 +777,12 @@ export const analyzeProductImage = async (
       
       ## Output Format:
       Return JSON with 'sections' array containing EXACTLY ${sectionCount} sections with matching IDs.
+      ${productData?.productName ? `The 'productName' field MUST be exactly: "${productData.productName}"` : ''}
     `;
   } else if (mode === AppMode.CREATION) {
     // 카테고리별 가이드라인 생성
     const categoryGuidelines = getCategoryPromptGuidelines();
-    
+
     prompt = `
       You are an expert e-commerce merchandiser specializing in the Korean market.
       
@@ -614,25 +913,25 @@ export const analyzeProductImage = async (
 
     // GAS 프록시를 통한 호출 시도
     const gasUrl = getGasUrl(true); // 기본값 포함하여 가져오기
-    
+
     // localStorage에 실제로 저장된 값 확인 (디버깅)
     const rawSavedUrl = localStorage.getItem('gemini_commerce_gas_url');
     console.log('[Gemini Service] localStorage 원본 값:', rawSavedUrl);
     console.log('[Gemini Service] getGasUrl() 결과:', gasUrl);
     console.log('[Gemini Service] DEFAULT_GAS_URL:', DEFAULT_GAS_URL);
-    
+
     // URL 정규화 비교
     const normalizedGasUrl = gasUrl ? normalizeUrlForComparison(gasUrl) : '';
     const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
     const isDefaultUrl = normalizedGasUrl === normalizedDefaultUrl;
-    
+
     console.log('[Gemini Service] 원본 사용자 URL:', gasUrl);
     console.log('[Gemini Service] 원본 기본 URL:', DEFAULT_GAS_URL);
     console.log('[Gemini Service] 정규화된 사용자 URL:', normalizedGasUrl);
     console.log('[Gemini Service] 정규화된 기본 URL:', normalizedDefaultUrl);
     console.log('[Gemini Service] 기본 URL과 동일한지:', isDefaultUrl);
     console.log('[Gemini Service] URL 길이 비교 - 사용자:', normalizedGasUrl.length, '기본:', normalizedDefaultUrl.length);
-    
+
     // URL이 실제로 다른지 문자 단위로 비교
     if (normalizedGasUrl && normalizedDefaultUrl) {
       const diffIndex = Array.from(normalizedGasUrl).findIndex((char, i) => char !== normalizedDefaultUrl[i]);
@@ -641,7 +940,7 @@ export const analyzeProductImage = async (
         console.log('[Gemini Service] 사용자 URL의 문자:', normalizedGasUrl[diffIndex], '기본 URL의 문자:', normalizedDefaultUrl[diffIndex]);
       }
     }
-    
+
     // GAS URL이 설정되어 있고 기본 데모 URL이 아니면 프록시 사용
     if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
       // GAS 프록시 사용
@@ -659,49 +958,49 @@ export const analyzeProductImage = async (
           temperature: 0.4,
         }
       });
-      
+
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error("No response from Gemini");
-      
+
       const analysis = JSON.parse(text) as ProductAnalysis;
-      
+
       // 템플릿 모드: 템플릿 구조를 기반으로 강제 매핑 (100% 구조 유지)
       if (template) {
         return applyTemplateStructure(analysis, template);
       }
-      
+
       return analysis;
     }
-    
+
     // GAS 프록시를 사용할 수 없는 경우
     console.warn('[Gemini Service] GAS 프록시를 사용할 수 없습니다. Fallback으로 환경 변수 확인');
     console.warn('[Gemini Service] 현재 GAS URL:', gasUrl);
     console.warn('[Gemini Service] 기본 URL과 동일한지:', isDefaultUrl);
-    
+
     // GAS 프록시가 없으면 환경 변수에서 API 키 확인 (Fallback)
-    const apiKey = (window as any).__GEMINI_API_KEY__ || 
-                   (import.meta.env?.VITE_GEMINI_API_KEY as string);
-    
+    const apiKey = (window as any).__GEMINI_API_KEY__ ||
+      (import.meta.env?.VITE_GEMINI_API_KEY as string);
+
     if (!apiKey) {
       const errorMessage = isDefaultUrl
         ? 'GAS 프록시가 설정되지 않았습니다.\n\n' +
-          '✅ Google Apps Script에 GEMINI_API_KEY를 스크립트 속성으로 설정하셨다면,\n' +
-          '   애플리케이션 설정에서 GAS Web App URL을 입력해주세요.\n\n' +
-          '   [설정 방법]\n' +
-          '   1. 우측 상단 ⚙️ 아이콘 클릭\n' +
-          '   2. "구글 시트 연동" 탭 선택\n' +
-          '   3. "Google Apps Script (GAS) Web App URL" 필드에\n' +
-          '      배포한 웹 앱 URL 입력\n' +
-          '   4. "설정 저장하기" 클릭\n\n' +
-          '   또는 환경 변수 사용:\n' +
-          '   - .env 파일에 VITE_GEMINI_API_KEY=your_key 추가'
+        '✅ Google Apps Script에 GEMINI_API_KEY를 스크립트 속성으로 설정하셨다면,\n' +
+        '   애플리케이션 설정에서 GAS Web App URL을 입력해주세요.\n\n' +
+        '   [설정 방법]\n' +
+        '   1. 우측 상단 ⚙️ 아이콘 클릭\n' +
+        '   2. "구글 시트 연동" 탭 선택\n' +
+        '   3. "Google Apps Script (GAS) Web App URL" 필드에\n' +
+        '      배포한 웹 앱 URL 입력\n' +
+        '   4. "설정 저장하기" 클릭\n\n' +
+        '   또는 환경 변수 사용:\n' +
+        '   - .env 파일에 VITE_GEMINI_API_KEY=your_key 추가'
         : 'Gemini API 키가 설정되지 않았습니다.\n\n' +
-          '방법 1: GAS 프록시 사용 (권장)\n' +
-          '  - Google Apps Script에 GEMINI_API_KEY를 스크립트 속성으로 설정\n' +
-          '  - GAS Web App URL을 설정에 입력\n\n' +
-          '방법 2: 환경 변수 사용\n' +
-          '  - .env 파일에 VITE_GEMINI_API_KEY=your_key 추가';
-      
+        '방법 1: GAS 프록시 사용 (권장)\n' +
+        '  - Google Apps Script에 GEMINI_API_KEY를 스크립트 속성으로 설정\n' +
+        '  - GAS Web App URL을 설정에 입력\n\n' +
+        '방법 2: 환경 변수 사용\n' +
+        '  - .env 파일에 VITE_GEMINI_API_KEY=your_key 추가';
+
       throw new Error(errorMessage);
     }
 
@@ -736,16 +1035,16 @@ export const analyzeProductImage = async (
 
     const result = await response.json();
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     if (!text) throw new Error("No response from Gemini");
 
     const analysis = JSON.parse(text) as ProductAnalysis;
-    
+
     // 템플릿 모드: 템플릿 구조를 기반으로 강제 매핑 (100% 구조 유지)
     if (template) {
       return applyTemplateStructure(analysis, template);
     }
-    
+
     return analysis;
   } catch (error) {
     console.error("Analysis failed:", error);
@@ -773,7 +1072,7 @@ export const editSingleImageWithProgress = async (
   try {
     // 1단계: 이미지 분석 - 텍스트 감지 및 번역 가능 여부 판단
     reportProgress('1단계', '이미지 분석 중...');
-    
+
     const analysisPrompt = `
 You are an expert image analyzer and translator specializing in Korean localization.
 
@@ -825,44 +1124,44 @@ Your goal is to accurately translate foreign language text in product images to 
       hasImage: !!base64Image,
       imageSize: base64Image?.length || 0
     });
-    
+
     // 이미지 분석은 시간이 걸릴 수 있으므로 명시적으로 3분 타임아웃 적용
     let analysisResult;
     try {
       analysisResult = await callGeminiViaProxy({
-      model: MODEL_TEXT_VISION,
-      contents: {
-        parts: [
-          { inlineData: { mimeType, data: base64Image } } as GeminiInlineDataPart,
-          { text: analysisPrompt } as GeminiTextPart
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            action: { type: "string", enum: ["translate", "remove"] },
-            detectedText: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  original: { type: "string" },
-                  korean: { type: "string" },
-                  position: { type: "string" },
-                  style: { type: "string" }
-                }
-              }
-            },
-            reason: { type: "string" }
-          },
-          required: ["action", "detectedText", "reason"]
+        model: MODEL_TEXT_VISION,
+        contents: {
+          parts: [
+            { inlineData: { mimeType, data: base64Image } } as GeminiInlineDataPart,
+            { text: analysisPrompt } as GeminiTextPart
+          ]
         },
-        temperature: 0.3,
-      }
-    }, 180000); // 이미지 분석: 3분 타임아웃
-      
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "object",
+            properties: {
+              action: { type: "string", enum: ["translate", "remove"] },
+              detectedText: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    original: { type: "string" },
+                    korean: { type: "string" },
+                    position: { type: "string" },
+                    style: { type: "string" }
+                  }
+                }
+              },
+              reason: { type: "string" }
+            },
+            required: ["action", "detectedText", "reason"]
+          },
+          temperature: 0.3,
+        }
+      }, 180000); // 이미지 분석: 3분 타임아웃
+
       console.log('[editSingleImage] 1단계: 이미지 분석 완료', {
         hasResult: !!analysisResult,
         hasCandidates: !!analysisResult?.candidates,
@@ -880,12 +1179,12 @@ Your goal is to accurately translate foreign language text in product images to 
     reportProgress('1단계', '분석 결과 처리 중...');
     const analysis = JSON.parse(analysisText);
     const shouldTranslate = analysis.action === "translate";
-    
+
     reportProgress('2단계', shouldTranslate ? '한국어로 번역하여 이미지 생성 중...' : '텍스트 제거하여 이미지 생성 중...');
 
     // 2단계: 이미지 생성 프롬프트 생성
     let imagePrompt = "";
-    
+
     if (shouldTranslate && analysis.detectedText && analysis.detectedText.length > 0) {
       // 번역 모드: 한국어 텍스트로 교체
       const translations = analysis.detectedText
@@ -895,7 +1194,7 @@ Your goal is to accurately translate foreign language text in product images to 
           return `"${item.original}" → "${item.korean}" at ${position}${style}`;
         })
         .join("\n   ");
-      
+
       imagePrompt = `
 ## CRITICAL INSTRUCTIONS - MUST FOLLOW EXACTLY:
 
@@ -984,8 +1283,8 @@ High quality, professional product photography without text overlay.
     }
 
     // Fallback: 환경 변수에서 API 키 확인
-    const apiKey = (window as any).__GEMINI_API_KEY__ || 
-                   (import.meta.env?.VITE_GEMINI_API_KEY as string);
+    const apiKey = (window as any).__GEMINI_API_KEY__ ||
+      (import.meta.env?.VITE_GEMINI_API_KEY as string);
 
     if (!apiKey) {
       throw new Error(
@@ -1061,21 +1360,21 @@ export const generateSectionImage = async (
 ): Promise<string> => {
   try {
     let fullPrompt = "";
-    
+
     if (referenceImageBase64 && referenceMimeType) {
       // 원본 이미지가 있는 경우 - 제품 동일성 유지 강조
       if (mode === AppMode.LOCALIZATION) {
         // 프롬프트에서 텍스트 처리 지시 확인
-        const shouldRemoveText = prompt.toLowerCase().includes('no text') || 
-                                 prompt.toLowerCase().includes('remove text') ||
-                                 prompt.toLowerCase().includes('without text') ||
-                                 prompt.toLowerCase().includes('clean image') ||
-                                 prompt.toLowerCase().includes('text-free');
-        
-        const hasKoreanText = prompt.includes('한국어') || 
-                             prompt.includes('Korean text') ||
-                             prompt.match(/['"](.*?)['"]/); // 따옴표로 둘러싸인 텍스트
-        
+        const shouldRemoveText = prompt.toLowerCase().includes('no text') ||
+          prompt.toLowerCase().includes('remove text') ||
+          prompt.toLowerCase().includes('without text') ||
+          prompt.toLowerCase().includes('clean image') ||
+          prompt.toLowerCase().includes('text-free');
+
+        const hasKoreanText = prompt.includes('한국어') ||
+          prompt.includes('Korean text') ||
+          prompt.match(/['"](.*?)['"]/); // 따옴표로 둘러싸인 텍스트
+
         if (shouldRemoveText) {
           // 텍스트 제거 모드
           fullPrompt = `
@@ -1181,29 +1480,29 @@ High quality, 4K resolution, professional e-commerce photography.
     }
 
     const parts: GeminiPart[] = [{ text: fullPrompt } as GeminiTextPart];
-    
+
     if (referenceImageBase64 && referenceMimeType) {
-       parts.unshift({
-         inlineData: {
-           data: referenceImageBase64,
-           mimeType: referenceMimeType
-         }
-       } as GeminiInlineDataPart);
+      parts.unshift({
+        inlineData: {
+          data: referenceImageBase64,
+          mimeType: referenceMimeType
+        }
+      } as GeminiInlineDataPart);
     }
 
     // GAS 프록시를 통한 호출 시도
     const gasUrl = getGasUrl(true);
-    
+
     // URL 정규화 비교
     const normalizedGasUrl = gasUrl ? normalizeUrlForComparison(gasUrl) : '';
     const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
     const isDefaultUrl = normalizedGasUrl === normalizedDefaultUrl;
-    
+
     console.log('[Image Generate] 원본 GAS URL:', gasUrl);
     console.log('[Image Generate] 정규화된 사용자 URL:', normalizedGasUrl);
     console.log('[Image Generate] 정규화된 기본 URL:', normalizedDefaultUrl);
     console.log('[Image Generate] 기본 URL과 비교 (정규화 후):', isDefaultUrl);
-    
+
     // GAS URL이 설정되어 있고 기본 데모 URL이 아니면 프록시 사용
     if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
       // GAS 프록시 사용
@@ -1211,20 +1510,20 @@ High quality, 4K resolution, professional e-commerce photography.
         model: MODEL_IMAGE_GEN,
         contents: { parts },
       });
-      
+
       for (const part of result.candidates?.[0]?.content?.parts || []) {
         if (part.inlineData) {
           return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
       }
-      
+
       throw new Error("No image generated");
     }
-    
+
     // GAS 프록시가 없으면 환경 변수에서 API 키 확인 (Fallback)
-    const apiKey = (window as any).__GEMINI_API_KEY__ || 
-                   (import.meta.env?.VITE_GEMINI_API_KEY as string);
-    
+    const apiKey = (window as any).__GEMINI_API_KEY__ ||
+      (import.meta.env?.VITE_GEMINI_API_KEY as string);
+
     if (!apiKey) {
       throw new Error(
         'Gemini API 키가 설정되지 않았습니다.\n\n' +
@@ -1256,13 +1555,13 @@ High quality, 4K resolution, professional e-commerce photography.
     }
 
     const result = await response.json();
-    
+
     for (const part of result.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
-    
+
     throw new Error("No image generated");
   } catch (error) {
     console.error("Image generation failed:", error);

@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
-import { ProductAnalysis, SectionData, UploadedFile, AppMode } from '../types';
+import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot } from '../types';
 import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3 } from 'lucide-react';
 import { generateSectionImage } from '../services/geminiService';
 import { useToastContext } from '../contexts/ToastContext';
@@ -17,16 +17,16 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
   // 섹션 리스트 컨테이너 참조 (스크롤 이동용)
   const sectionsContainerRef = useRef<HTMLDivElement>(null);
   const toast = useToastContext();
-  
+
   // 이미지 미리보기 생성 상태
   const [generatingPreviewId, setGeneratingPreviewId] = useState<string | null>(null);
-  
+
   // 프롬프트 수정 모달 상태
   const [editPromptModal, setEditPromptModal] = useState<{
     sectionId: string;
     prompt: string;
   } | null>(null);
-  
+
   // 이미지 확대 모달 상태
   const [imageViewModal, setImageViewModal] = useState<{
     imageUrl: string;
@@ -34,37 +34,104 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     sectionId: string;
   } | null>(null);
 
-  // 이미지 미리보기 생성 함수
-  const handleGeneratePreview = useCallback(async (sectionId: string, customPrompt?: string) => {
+  // 이미지 미리보기 생성 함수 (단일 섹션 또는 개별 슬롯)
+  const handleGeneratePreview = useCallback(async (sectionId: string, customPrompt?: string, slotIndex?: number) => {
     const section = analysis.sections.find(s => s.id === sectionId);
-    const prompt = customPrompt || section?.imagePrompt;
-    
-    if (!prompt) {
-      toast.error('이미지 프롬프트가 없습니다.');
-      return;
-    }
-    
+    if (!section) return;
+
+    const hasMultipleSlots = section.imageSlots && section.imageSlots.length > 1;
+
     setGeneratingPreviewId(sectionId);
-    
+
     try {
       const primaryFile = uploadedFiles.length > 0 ? uploadedFiles[0] : null;
-      
-      const imageUrl = await generateSectionImage(
-        prompt,
-        primaryFile?.base64,
-        primaryFile?.mimeType,
-        mode
-      );
-      
-      // 해당 섹션에 이미지 추가
-      const updatedSections = analysis.sections.map(s =>
-        s.id === sectionId 
-          ? { ...s, imageUrl, imagePrompt: prompt, isPreview: true }
-          : s
-      );
-      
-      onUpdate({ ...analysis, sections: updatedSections });
-      toast.success('이미지 미리보기가 생성되었습니다.');
+
+      // ★ 다중 슬롯인 경우: 각 슬롯별로 이미지 생성
+      if (hasMultipleSlots && slotIndex === undefined) {
+        // 전체 슬롯 생성
+        const updatedSlots = [];
+        for (let i = 0; i < section.imageSlots!.length; i++) {
+          const slot = section.imageSlots![i];
+
+          // 이미 이미지가 있으면 건너뛰기
+          if (slot.imageUrl) {
+            updatedSlots.push(slot);
+            continue;
+          }
+
+          toast.info(`이미지 ${i + 1}/${section.imageSlots!.length} 생성 중...`);
+
+          try {
+            const imageUrl = await generateSectionImage(
+              slot.prompt || section.imagePrompt || '',
+              primaryFile?.base64,
+              primaryFile?.mimeType,
+              mode
+            );
+            updatedSlots.push({ ...slot, imageUrl });
+          } catch (slotError) {
+            console.error(`슬롯 ${i + 1} 생성 실패:`, slotError);
+            updatedSlots.push(slot);
+          }
+        }
+
+        const firstSlotImage = updatedSlots.find(s => s.imageUrl)?.imageUrl;
+        const updatedSections = analysis.sections.map(s =>
+          s.id === sectionId
+            ? { ...s, imageSlots: updatedSlots, imageUrl: firstSlotImage, isPreview: true }
+            : s
+        );
+        onUpdate({ ...analysis, sections: updatedSections });
+        toast.success(`${updatedSlots.filter(s => s.imageUrl).length}개 이미지 미리보기가 생성되었습니다.`);
+      }
+      // 개별 슬롯 생성 (slotIndex 지정된 경우)
+      else if (hasMultipleSlots && slotIndex !== undefined) {
+        const slot = section.imageSlots![slotIndex];
+        const prompt = customPrompt || slot.prompt || section.imagePrompt || '';
+
+        const imageUrl = await generateSectionImage(
+          prompt,
+          primaryFile?.base64,
+          primaryFile?.mimeType,
+          mode
+        );
+
+        const updatedSlots = section.imageSlots!.map((s, idx) =>
+          idx === slotIndex ? { ...s, imageUrl, prompt } : s
+        );
+        const firstSlotImage = updatedSlots.find(s => s.imageUrl)?.imageUrl;
+
+        const updatedSections = analysis.sections.map(s =>
+          s.id === sectionId
+            ? { ...s, imageSlots: updatedSlots, imageUrl: firstSlotImage, isPreview: true }
+            : s
+        );
+        onUpdate({ ...analysis, sections: updatedSections });
+        toast.success(`이미지 ${slotIndex + 1} 미리보기가 생성되었습니다.`);
+      }
+      // 단일 이미지 섹션 (기존 방식)
+      else {
+        const prompt = customPrompt || section.imagePrompt;
+        if (!prompt) {
+          toast.error('이미지 프롬프트가 없습니다.');
+          return;
+        }
+
+        const imageUrl = await generateSectionImage(
+          prompt,
+          primaryFile?.base64,
+          primaryFile?.mimeType,
+          mode
+        );
+
+        const updatedSections = analysis.sections.map(s =>
+          s.id === sectionId
+            ? { ...s, imageUrl, imagePrompt: prompt, isPreview: true }
+            : s
+        );
+        onUpdate({ ...analysis, sections: updatedSections });
+        toast.success('이미지 미리보기가 생성되었습니다.');
+      }
     } catch (error) {
       console.error('Preview generation failed:', error);
       toast.error('이미지 생성에 실패했습니다. 다시 시도해주세요.');
@@ -85,7 +152,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
   // 프롬프트 수정 후 이미지 생성
   const handleConfirmEditPrompt = useCallback(() => {
     if (!editPromptModal) return;
-    
+
     const { sectionId, prompt } = editPromptModal;
     setEditPromptModal(null);
     handleGeneratePreview(sectionId, prompt);
@@ -94,7 +161,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
   // 이미지 미리보기 제거
   const handleRemovePreview = useCallback((sectionId: string) => {
     const updatedSections = analysis.sections.map(s =>
-      s.id === sectionId 
+      s.id === sectionId
         ? { ...s, imageUrl: undefined, isPreview: false }
         : s
     );
@@ -102,9 +169,9 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
   }, [analysis, onUpdate]);
 
   // 미리보기가 있는 섹션 수
-  const previewCount = useMemo(() => 
+  const previewCount = useMemo(() =>
     analysis.sections.filter(s => s.imageUrl && !s.isOriginalImage).length,
-  [analysis.sections]);
+    [analysis.sections]);
 
   const handleFieldChange = useCallback((field: keyof ProductAnalysis, value: any) => {
     const newData = { ...analysis, [field]: value };
@@ -162,8 +229,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">AI 분석 결과 검토</h2>
-          <p className="text-gray-500">Gemini가 제안한 내용을 수정하고 섹션을 구성하세요.</p>
+          <h2 className="text-2xl font-bold text-gray-900">상세페이지 시안 검토</h2>
+          <p className="text-gray-500">AI가 생성한 콘텐츠를 검토하고 수정하세요. 이미지 미리보기를 생성하여 최종 결과를 확인할 수 있습니다.</p>
         </div>
         <button
           onClick={onConfirm}
@@ -189,7 +256,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 sticky top-6">
             <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">기본 정보</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">상품명</label>
@@ -283,22 +350,22 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                     )}
                     {/* Reorder Buttons */}
                     <div className="flex items-center space-x-1 ml-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button 
-                            onClick={() => moveSection(index, 'up')} 
-                            disabled={index === 0}
-                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
-                            title="위로 이동"
-                        >
-                            <ArrowUp className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => moveSection(index, 'down')} 
-                            disabled={index === analysis.sections.length - 1}
-                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
-                            title="아래로 이동"
-                        >
-                            <ArrowDown className="w-4 h-4" />
-                        </button>
+                      <button
+                        onClick={() => moveSection(index, 'up')}
+                        disabled={index === 0}
+                        className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
+                        title="위로 이동"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => moveSection(index, 'down')}
+                        disabled={index === analysis.sections.length - 1}
+                        className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
+                        title="아래로 이동"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                   <button
@@ -332,7 +399,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         placeholder="섹션 내용을 입력하세요"
                       />
                     </div>
-                    
+
                     {/* 고정 문구 표시 */}
                     {section.fixedText && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -353,7 +420,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           <Lock className="w-3 h-3 mr-1" />
                           고정 이미지 (AI 생성 대신 사용)
                         </label>
-                        <img 
+                        <img
                           src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
                           alt="고정 이미지"
                           className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
@@ -366,27 +433,110 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         />
                       </div>
                     )}
-                    
+
                     <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
                       <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
                         <Sparkles className="w-3 h-3 mr-1" />
                         이미지 생성 프롬프트 (한국어/영어 가능)
+                        {section.imageSlots && section.imageSlots.length > 1 && (
+                          <span className="ml-2 bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full">
+                            {section.imageSlots.length}개 이미지
+                          </span>
+                        )}
                       </label>
                       <p className="text-xs text-gray-500 mb-2">
-                        {section.useFixedImage 
+                        {section.useFixedImage
                           ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
-                          : '한국어 또는 영어로 이미지 스타일을 설명하세요. Gemini가 이 프롬프트를 기반으로 섹션 이미지를 생성합니다.'
+                          : section.imageSlots && section.imageSlots.length > 1
+                            ? `이 섹션은 ${section.layoutType} 레이아웃으로 ${section.imageSlots.length}개의 이미지가 필요합니다.`
+                            : '한국어 또는 영어로 이미지 스타일을 설명하세요.'
                         }
                       </p>
-                      <textarea
-                        rows={section.useFixedImage ? 3 : 4}
-                        value={section.imagePrompt}
-                        onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
-                        disabled={section.useFixedImage}
-                        className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                        placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
-                      />
-                      
+
+                      {/* 다중 이미지 슬롯 표시 */}
+                      {section.imageSlots && section.imageSlots.length > 1 ? (
+                        <div className="space-y-3">
+                          {section.imageSlots.map((slot, slotIdx) => (
+                            <div key={slot.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                              <div className="flex justify-between items-center mb-2">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center">
+                                  <ImageIcon className="w-3 h-3 mr-1" />
+                                  이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
+                                </label>
+                                {/* 개별 슬롯 이미지 생성 버튼 */}
+                                <button
+                                  onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
+                                  disabled={generatingPreviewId === section.id || !slot.prompt}
+                                  className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  {generatingPreviewId === section.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="w-3 h-3" />
+                                  )}
+                                  생성
+                                </button>
+                              </div>
+
+                              {/* 슬롯 이미지 미리보기 */}
+                              {slot.imageUrl && (
+                                <div className="mb-2">
+                                  <img
+                                    src={slot.imageUrl}
+                                    alt={`이미지 ${slotIdx + 1}`}
+                                    className="w-full h-24 object-contain bg-gray-50 rounded border border-gray-200"
+                                  />
+                                </div>
+                              )}
+
+                              <textarea
+                                rows={2}
+                                value={slot.prompt}
+                                onChange={(e) => {
+                                  const newSlots = [...(section.imageSlots || [])];
+                                  newSlots[slotIdx] = { ...newSlots[slotIdx], prompt: e.target.value };
+                                  const newSections = [...analysis.sections];
+                                  newSections[index] = { ...newSections[index], imageSlots: newSlots };
+                                  handleFieldChange('sections', newSections);
+                                }}
+                                disabled={section.useFixedImage}
+                                className={`w-full bg-gray-50 border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                                placeholder={`이미지 ${slotIdx + 1}의 스타일을 설명하세요`}
+                              />
+                            </div>
+                          ))}
+
+                          {/* 전체 슬롯 이미지 생성 버튼 */}
+                          <button
+                            onClick={() => handleGeneratePreview(section.id)}
+                            disabled={generatingPreviewId === section.id}
+                            className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                          >
+                            {generatingPreviewId === section.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                이미지 생성 중...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" />
+                                전체 {section.imageSlots.length}개 이미지 미리보기 생성
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        /* 단일 이미지 프롬프트 (기존 방식) */
+                        <textarea
+                          rows={section.useFixedImage ? 3 : 4}
+                          value={section.imagePrompt}
+                          onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
+                          disabled={section.useFixedImage}
+                          className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                          placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
+                        />
+                      )}
+
                       {/* 이미지 미리보기 버튼 및 결과 */}
                       {!section.useFixedImage && (
                         <div className="mt-3">
@@ -394,7 +544,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                             // 이미지가 생성된 경우
                             <div className="space-y-2">
                               <div className="relative group">
-                                <img 
+                                <img
                                   src={section.imageUrl}
                                   alt="미리보기"
                                   className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
@@ -491,7 +641,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </div>
         </div>
       </div>
-      
+
       {/* 하단 고정 액션 바 */}
       {previewCount > 0 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-2xl border border-gray-200 rounded-full px-6 py-3 flex items-center gap-4 z-30">
@@ -514,7 +664,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </button>
         </div>
       )}
-      
+
       {/* 프롬프트 수정 모달 */}
       {editPromptModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -526,7 +676,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
               </h3>
               <p className="text-indigo-100 text-sm mt-1">프롬프트를 수정하고 새로운 이미지를 생성합니다.</p>
             </div>
-            
+
             <div className="p-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 이미지 생성 프롬프트 (한국어/영어 가능)
@@ -542,7 +692,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                 💡 팁: 구체적인 설명을 추가할수록 원하는 이미지를 얻을 수 있습니다.
               </p>
             </div>
-            
+
             <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
               <button
                 onClick={() => setEditPromptModal(null)}
@@ -562,14 +712,14 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </div>
         </div>
       )}
-      
+
       {/* 이미지 확대 보기 모달 */}
       {imageViewModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setImageViewModal(null)}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -589,16 +739,16 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             {/* 이미지 영역 */}
             <div className="flex-1 overflow-auto p-6 bg-gray-100 flex items-center justify-center">
-              <img 
+              <img
                 src={imageViewModal.imageUrl}
                 alt={imageViewModal.sectionTitle}
                 className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
               />
             </div>
-            
+
             {/* 액션 버튼 */}
             <div className="bg-white border-t px-6 py-4 flex justify-between items-center">
               <p className="text-sm text-gray-500">
