@@ -138,6 +138,17 @@ export interface ColorOption {
 }
 
 /**
+ * AI 이미지 생성 시 모델(인물) 설정
+ * - 모든 필드 선택사항
+ */
+export interface ModelSettings {
+  ethnicity?: 'asian' | 'western' | 'any';  // 동양인/서양인/무관
+  ageRange?: 'teens' | '20s' | '30s' | '40s' | '50s+' | 'any';  // 연령대
+  gender?: 'female' | 'male' | 'any';  // 성별
+  hairStyle?: string;  // 헤어 스타일 (예: "단발", "긴 생머리", "웨이브")
+}
+
+/**
  * 첫 단계에서 수집하는 상품 기본 정보
  * - 모든 필드 선택사항 (기존 이미지만 업로드도 가능)
  */
@@ -149,4 +160,5 @@ export interface ProductInputData {
   colorOptions: ColorOption[]; // 컬러별 이미지 (선택)
   mainImages: UploadedFile[];  // 컬러 구분 없는 메인 이미지
   selectedTemplateId?: string; // 선택된 템플릿 ID
+  modelSettings?: ModelSettings; // 모델(인물) 설정 (선택)
 }

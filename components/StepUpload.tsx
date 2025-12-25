@@ -2,9 +2,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import {
   Upload, Link as LinkIcon, Image as ImageIcon, LayoutTemplate,
   Loader2, AlertCircle, ArrowRight, X, Layers, Plus, Palette, Tag,
-  DollarSign, Percent, Trash2
+  DollarSign, Percent, Trash2, User
 } from 'lucide-react';
-import { AppMode, UploadedFile, Template, ColorOption, ProductInputData } from '../types';
+import { AppMode, UploadedFile, Template, ColorOption, ProductInputData, ModelSettings } from '../types';
 import { getTemplates } from '../services/templateService';
 import { optimizeImages, needsOptimization, optimizeImage } from '../utils/imageOptimizer';
 import { useToastContext } from '../contexts/ToastContext';
@@ -55,6 +55,12 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
   const [colorOptions, setColorOptions] = useState<ColorOption[]>([]);
   const [newColorName, setNewColorName] = useState('');
   const [activeColorId, setActiveColorId] = useState<string | null>(null);
+
+  // Model Settings State (선택 사항)
+  const [modelEthnicity, setModelEthnicity] = useState<ModelSettings['ethnicity']>('any');
+  const [modelAgeRange, setModelAgeRange] = useState<ModelSettings['ageRange']>('any');
+  const [modelGender, setModelGender] = useState<ModelSettings['gender']>('any');
+  const [modelHairStyle, setModelHairStyle] = useState('');
 
   useEffect(() => {
     setTemplates(getTemplates());
@@ -296,7 +302,16 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
       productFeatures: productFeatures.trim() || undefined,
       colorOptions,
       mainImages,
-      selectedTemplateId: selectedTemplateId || undefined
+      selectedTemplateId: selectedTemplateId || undefined,
+      // 모델 설정 (하나라도 설정되어 있으면 포함)
+      modelSettings: (modelEthnicity !== 'any' || modelAgeRange !== 'any' || modelGender !== 'any' || modelHairStyle.trim())
+        ? {
+          ethnicity: modelEthnicity !== 'any' ? modelEthnicity : undefined,
+          ageRange: modelAgeRange !== 'any' ? modelAgeRange : undefined,
+          gender: modelGender !== 'any' ? modelGender : undefined,
+          hairStyle: modelHairStyle.trim() || undefined
+        }
+        : undefined
     };
 
     onProductSubmit(data);
@@ -637,6 +652,82 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
                     컬러 옵션을 추가하면 상세페이지에<br />색상별 이미지가 표시됩니다.
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Model Settings (Mode A only) - 컬러 옵션 아래 배치 */}
+          {mode === AppMode.CREATION && (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                  <User className="w-5 h-5 text-teal-600" />
+                  모델 설정 <span className="text-xs text-gray-400 font-normal">(이미지 생성 시 적용, 선택)</span>
+                </h3>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* 인종 */}
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1">인종</label>
+                    <select
+                      value={modelEthnicity}
+                      onChange={(e) => setModelEthnicity(e.target.value as ModelSettings['ethnicity'])}
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="any">무관</option>
+                      <option value="asian">동양인</option>
+                      <option value="western">서양인</option>
+                    </select>
+                  </div>
+                  {/* 연령대 */}
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1">연령대</label>
+                    <select
+                      value={modelAgeRange}
+                      onChange={(e) => setModelAgeRange(e.target.value as ModelSettings['ageRange'])}
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="any">무관</option>
+                      <option value="teens">10대</option>
+                      <option value="20s">20대</option>
+                      <option value="30s">30대</option>
+                      <option value="40s">40대</option>
+                      <option value="50s+">50대+</option>
+                    </select>
+                  </div>
+                  {/* 성별 */}
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1">성별</label>
+                    <select
+                      value={modelGender}
+                      onChange={(e) => setModelGender(e.target.value as ModelSettings['gender'])}
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="any">무관</option>
+                      <option value="female">여성</option>
+                      <option value="male">남성</option>
+                    </select>
+                  </div>
+                  {/* 헤어 스타일 */}
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1">헤어 스타일</label>
+                    <select
+                      value={modelHairStyle}
+                      onChange={(e) => setModelHairStyle(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="">무관</option>
+                      <option value="short straight hair">짧은 생머리</option>
+                      <option value="long straight hair">긴 생머리</option>
+                      <option value="bob cut">단발</option>
+                      <option value="wavy hair">웨이브</option>
+                      <option value="ponytail">포니테일</option>
+                      <option value="bun hairstyle">업스타일</option>
+                      <option value="short hair">숏컷(남성)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           )}

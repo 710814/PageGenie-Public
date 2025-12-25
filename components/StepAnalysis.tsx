@@ -481,12 +481,67 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                             </div>
 
                             {slot.imageUrl && (
-                              <div className="mb-2">
+                              <div className="mb-2 relative group/slot">
                                 <img
                                   src={slot.imageUrl}
                                   alt={`이미지 ${slotIdx + 1}`}
-                                  className="w-full h-24 object-contain bg-gray-50 rounded border border-gray-200"
+                                  className="w-full h-32 object-contain bg-gray-50 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
+                                  onClick={() => setImageViewModal({
+                                    imageUrl: slot.imageUrl!,
+                                    sectionTitle: `${section.title} - 이미지 ${slotIdx + 1}`,
+                                    sectionId: `${section.id}-slot-${slotIdx}`
+                                  })}
+                                  title="클릭하여 크게 보기"
                                 />
+                                {/* Hover 액션 버튼들 */}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/slot:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover/slot:pointer-events-auto">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setImageViewModal({
+                                        imageUrl: slot.imageUrl!,
+                                        sectionTitle: `${section.title} - 이미지 ${slotIdx + 1}`,
+                                        sectionId: `${section.id}-slot-${slotIdx}`
+                                      });
+                                    }}
+                                    className="bg-white text-gray-800 px-2 py-1 rounded text-[10px] font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                    title="이미지 크게 보기"
+                                  >
+                                    <Eye className="w-3 h-3 mr-0.5" />
+                                    크게보기
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleGeneratePreview(section.id, undefined, slotIdx);
+                                    }}
+                                    disabled={generatingPreviewId === section.id}
+                                    className="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                    title="동일 프롬프트로 재생성"
+                                  >
+                                    <RefreshCw className={`w-3 h-3 mr-0.5 ${generatingPreviewId === section.id ? 'animate-spin' : ''}`} />
+                                    재생성
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // 슬롯 이미지 제거
+                                      const newSlots = [...(section.imageSlots || [])];
+                                      newSlots[slotIdx] = { ...newSlots[slotIdx], imageUrl: undefined };
+                                      const newSections = [...analysis.sections];
+                                      newSections[index] = { ...newSections[index], imageSlots: newSlots };
+                                      handleFieldChange('sections', newSections);
+                                    }}
+                                    className="bg-red-500 text-white p-1 rounded hover:bg-red-600 transition-colors"
+                                    title="미리보기 제거"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <p className="text-xs text-green-600 flex items-center mt-1">
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  미리보기 생성 완료 - 마우스를 올려 수정/재생성
+                                </p>
                               </div>
                             )}
 

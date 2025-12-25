@@ -290,7 +290,8 @@ const AppContent: React.FC = () => {
                 slot.prompt || section.imagePrompt || '',
                 primaryFile?.base64,
                 primaryFile?.mimeType,
-                mode
+                mode,
+                productInputData?.modelSettings
               );
               updatedSlots.push({ ...slot, imageUrl });
             } catch (slotError) {
@@ -331,7 +332,8 @@ const AppContent: React.FC = () => {
             section.imagePrompt,
             primaryFile?.base64, // Use the first image as reference style
             primaryFile?.mimeType,
-            mode
+            mode,
+            productInputData?.modelSettings
           );
           newSections.push({ ...section, imageUrl });
           completedCount++;

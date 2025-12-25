@@ -358,6 +358,53 @@ const replaceColorPlaceholders = (
 };
 
 /**
+ * 모델 설정을 이미지 생성 프롬프트용 텍스트로 변환
+ * - 빈 설정이면 빈 문자열 반환
+ */
+const buildModelDescription = (
+  modelSettings?: import('../types').ModelSettings
+): string => {
+  if (!modelSettings) return '';
+
+  const parts: string[] = [];
+
+  // 인종/외모
+  if (modelSettings.ethnicity === 'asian') {
+    parts.push('Asian model');
+  } else if (modelSettings.ethnicity === 'western') {
+    parts.push('Western/Caucasian model');
+  }
+
+  // 성별
+  if (modelSettings.gender === 'female') {
+    parts.push('female');
+  } else if (modelSettings.gender === 'male') {
+    parts.push('male');
+  }
+
+  // 연령대
+  if (modelSettings.ageRange && modelSettings.ageRange !== 'any') {
+    const ageMap: Record<string, string> = {
+      'teens': 'teenager',
+      '20s': 'in their 20s',
+      '30s': 'in their 30s',
+      '40s': 'in their 40s',
+      '50s+': 'in their 50s or older'
+    };
+    parts.push(ageMap[modelSettings.ageRange] || '');
+  }
+
+  // 헤어 스타일
+  if (modelSettings.hairStyle) {
+    parts.push(`with ${modelSettings.hairStyle}`);
+  }
+
+  if (parts.length === 0) return '';
+
+  return parts.join(', ');
+};
+
+/**
  * 템플릿 구조를 기반으로 AI 결과를 매핑
  * - 템플릿의 섹션 구조(ID, 개수, 순서, 레이아웃)를 100% 유지
  * - AI가 생성한 콘텐츠(제목, 설명)만 적용
@@ -1410,7 +1457,8 @@ export const generateSectionImage = async (
   prompt: string,
   referenceImageBase64?: string,
   referenceMimeType?: string,
-  mode: AppMode = AppMode.CREATION
+  mode: AppMode = AppMode.CREATION,
+  modelSettings?: import('../types').ModelSettings
 ): Promise<string> => {
   try {
     let fullPrompt = "";
@@ -1514,12 +1562,16 @@ High quality, professional product photography without any text overlay. Pixel-p
           `.trim();
         }
       } else {
+        // 모델 설정을 프롬프트에 추가
+        const modelDescription = buildModelDescription(modelSettings);
+
         fullPrompt = `
 CRITICAL INSTRUCTION: You MUST keep the EXACT same product from the reference image.
 - The product's shape, color, design, texture, and all visual details must be IDENTICAL to the reference
 - Do NOT change, modify, or replace the product in any way
 - You may ONLY change: background, lighting, camera angle, props, or scene composition
 - The product must be clearly recognizable as the SAME item from the reference
+${modelDescription ? `\n## MODEL REQUIREMENTS (if human model is needed):\n${modelDescription}` : ''}
 
 Generate a professional product photo with these specifications:
 ${prompt}
@@ -1529,8 +1581,9 @@ High quality, 4K resolution, professional e-commerce photography.
         `.trim();
       }
     } else {
-      // 원본 이미지가 없는 경우 - 기존 방식
-      fullPrompt = `Professional product photography, high quality, 4k: ${prompt}`;
+      // 원본 이미지가 없는 경우 - 모델 설정 적용
+      const modelDescription = buildModelDescription(modelSettings);
+      fullPrompt = `Professional product photography, high quality, 4k: ${prompt}${modelDescription ? `\n\nModel requirements: ${modelDescription}` : ''}`;
     }
 
     const parts: GeminiPart[] = [{ text: fullPrompt } as GeminiTextPart];
