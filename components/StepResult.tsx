@@ -63,13 +63,32 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
             </ul>
         </section>
 
-        ${data.sections.map(section => `
-        <section class="section">
-            ${section.imageUrl ? `<img src="images/section_${section.id}.png" alt="${section.title}" />` : ''}
-            <h2>${section.title}</h2>
-            <p>${section.content}</p>
-        </section>
-        `).join('')}
+        ${data.sections.map(section => {
+      const isGrid = (section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots && section.imageSlots.length > 0;
+      const gridCols = section.layoutType === 'grid-3' ? 3 : 2;
+
+      if (isGrid) {
+        return `
+            <section class="section">
+                <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
+                    ${section.imageSlots?.map((slot, idx) =>
+          slot.imageUrl ? `<img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="width: 100%; height: auto; aspect-ratio: 1/1; object-fit: cover; margin-bottom: 0;" />` : ''
+        ).join('')}
+                </div>
+                <h2>${section.title}</h2>
+                <p>${section.content}</p>
+            </section>
+            `;
+      }
+
+      return `
+          <section class="section">
+              ${section.imageUrl ? `<img src="images/section_${section.id}.png" alt="${section.title}" />` : ''}
+              <h2>${section.title}</h2>
+              <p>${section.content}</p>
+          </section>
+          `;
+    }).join('')}
 
         <footer class="footer">
             <p>© ${new Date().getFullYear()} ${data.productName}. All rights reserved.</p>
@@ -313,11 +332,24 @@ ${data.marketingCopy}
       const imgFolder = zip.folder("images");
       if (imgFolder) {
         data.sections.forEach((section) => {
+          // 단일 이미지 저장
           if (section.imageUrl) {
             const base64Data = section.imageUrl.split(',')[1];
             if (base64Data) {
               imgFolder.file(`section_${section.id}.png`, base64Data, { base64: true });
             }
+          }
+
+          // 그리드 이미지 저장
+          if ((section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots) {
+            section.imageSlots.forEach((slot, idx) => {
+              if (slot.imageUrl) {
+                const base64Data = slot.imageUrl.split(',')[1];
+                if (base64Data) {
+                  imgFolder.file(`section_${section.id}_slot_${idx}.png`, base64Data, { base64: true });
+                }
+              }
+            });
           }
         });
       }
@@ -586,16 +618,30 @@ ${data.marketingCopy}
                         {isGridLayout && hasMultipleSlots ? (
                           <div className={`grid gap-4 mb-8 ${gridCols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                             {section.imageSlots?.map((slot, slotIdx) => (
-                              <div key={slot.id} className="relative group">
+                              <div key={slotIdx} className="relative group aspect-square">
                                 {slot.imageUrl ? (
-                                  <img
-                                    src={slot.imageUrl}
-                                    alt={`${section.title} - ${slotIdx + 1}`}
-                                    className="w-full h-auto rounded-lg shadow-md object-cover aspect-square"
-                                  />
+                                  <>
+                                    <img
+                                      src={slot.imageUrl}
+                                      alt={`${section.title} - ${slotIdx + 1}`}
+                                      className="w-full h-full object-cover rounded-lg shadow-sm"
+                                    />
+                                    {/* Grid Slot Overlay Actions */}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity rounded-lg">
+                                      <a
+                                        href={slot.imageUrl}
+                                        download={`section_${section.id}_slot_${slotIdx}.png`}
+                                        className="p-1.5 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
+                                        title="다운로드"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </a>
+                                    </div>
+                                  </>
                                 ) : (
-                                  <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                                    이미지 {slotIdx + 1}
+                                  <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
+                                    이미지 없음
                                   </div>
                                 )}
                               </div>
@@ -646,7 +692,7 @@ ${data.marketingCopy}
                         <p className="text-lg text-gray-600 whitespace-pre-line leading-relaxed">{section.content}</p>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
 
@@ -664,34 +710,67 @@ ${data.marketingCopy}
             생성된 이미지 에셋
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            {data.sections.map((section, idx) => (
-              section.imageUrl && (
-                <div key={section.id} className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border">
-                  <img src={section.imageUrl} alt={section.title} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                    <a
-                      href={section.imageUrl}
-                      download={`section_${idx + 1}.png`}
-                      className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
-                      title="다운로드"
-                    >
-                      <Download className="w-5 h-5" />
-                    </a>
-                    <button
-                      onClick={() => handleOpenRegenModal(section.id, section.imagePrompt)}
-                      className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
-                      title="프롬프트 수정 및 다시 생성"
-                      disabled={!!regeneratingId}
-                    >
-                      <RefreshCw className={`w-5 h-5 ${regeneratingId === section.id ? 'animate-spin' : ''}`} />
-                    </button>
+            {data.sections.map((section, idx) => {
+              const items = [];
+
+              // 단일 이미지
+              if (section.imageUrl) {
+                items.push(
+                  <div key={`${section.id}-single`} className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border">
+                    <img src={section.imageUrl} alt={section.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                      <a
+                        href={section.imageUrl}
+                        download={`section_${idx + 1}.png`}
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
+                        title="다운로드"
+                      >
+                        <Download className="w-5 h-5" />
+                      </a>
+                      <button
+                        onClick={() => handleOpenRegenModal(section.id, section.imagePrompt)}
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
+                        title="프롬프트 수정 및 다시 생성"
+                        disabled={!!regeneratingId}
+                      >
+                        <RefreshCw className={`w-5 h-5 ${regeneratingId === section.id ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs truncate">
+                      {section.title}
+                    </div>
                   </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs truncate">
-                    {section.title}
-                  </div>
-                </div>
-              )
-            ))}
+                );
+              }
+
+              // 그리드 이미지들
+              if ((section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots) {
+                section.imageSlots.forEach((slot, slotIdx) => {
+                  if (slot.imageUrl) {
+                    items.push(
+                      <div key={`${section.id}-slot-${slotIdx}`} className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border">
+                        <img src={slot.imageUrl} alt={`${section.title} - ${slotIdx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                          <a
+                            href={slot.imageUrl}
+                            download={`section_${idx + 1}_slot_${slotIdx + 1}.png`}
+                            className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
+                            title="다운로드"
+                          >
+                            <Download className="w-5 h-5" />
+                          </a>
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs truncate">
+                          {section.title} ({slotIdx + 1})
+                        </div>
+                      </div>
+                    );
+                  }
+                });
+              }
+
+              return items;
+            })}
           </div>
 
           <button
@@ -704,56 +783,58 @@ ${data.marketingCopy}
       </div>
 
       {/* Prompt Edit Modal */}
-      {editModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-5 border-b flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800 flex items-center">
-                <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
-                이미지 프롬프트 수정
-              </h3>
-              <button
-                onClick={() => setEditModal(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5">
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  Gemini에게 요청할 이미지 설명을 수정하거나 추가하세요.<br />
-                  <span className="text-xs text-gray-400">(영어 프롬프트가 더 정확한 결과를 생성합니다)</span>
-                </p>
-                <textarea
-                  value={editModal.prompt}
-                  onChange={(e) => setEditModal({ ...editModal, prompt: e.target.value })}
-                  className="w-full h-40 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm leading-relaxed"
-                  placeholder="이미지에 대한 설명을 입력하세요..."
-                />
-              </div>
-
-              <div className="flex justify-end gap-3">
+      {
+        editModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="p-5 border-b flex justify-between items-center bg-gray-50">
+                <h3 className="font-bold text-gray-800 flex items-center">
+                  <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
+                  이미지 프롬프트 수정
+                </h3>
                 <button
                   onClick={() => setEditModal(null)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  취소
+                  <X className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={handleConfirmRegenerate}
-                  disabled={!editModal.prompt.trim()}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  이미지 생성하기
-                </button>
+              </div>
+
+              <div className="p-5">
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Gemini에게 요청할 이미지 설명을 수정하거나 추가하세요.<br />
+                    <span className="text-xs text-gray-400">(영어 프롬프트가 더 정확한 결과를 생성합니다)</span>
+                  </p>
+                  <textarea
+                    value={editModal.prompt}
+                    onChange={(e) => setEditModal({ ...editModal, prompt: e.target.value })}
+                    className="w-full h-40 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm leading-relaxed"
+                    placeholder="이미지에 대한 설명을 입력하세요..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setEditModal(null)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleConfirmRegenerate}
+                    disabled={!editModal.prompt.trim()}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-md transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    이미지 생성하기
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
