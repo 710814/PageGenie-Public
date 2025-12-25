@@ -65,19 +65,19 @@ const normalizeUrlForComparison = (url: string): string => {
 export const backupSettingsToDrive = async (): Promise<{ success: boolean; message: string }> => {
   try {
     const gasUrl = getGasUrl(true);
-    
+
     if (!gasUrl) {
       return { success: false, message: 'GAS URL이 설정되지 않았습니다.' };
     }
-    
+
     // 기본 데모 URL인지 확인
     const normalizedGasUrl = normalizeUrlForComparison(gasUrl);
     const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
-    
+
     if (normalizedGasUrl === normalizedDefaultUrl) {
       return { success: false, message: '개인 GAS URL을 먼저 설정해주세요.' };
     }
-    
+
     // 백업할 설정 데이터 구성
     const settings: BackupSettings = {
       gasUrl: getGasUrl(false), // 기본값 제외하고 실제 저장된 값만
@@ -85,15 +85,15 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
       templates: getTemplates(),
       backupDate: new Date().toISOString()
     };
-    
-    console.log('[Backup] 설정 백업 시작...', { 
-      templatesCount: settings.templates.length 
+
+    console.log('[Backup] 설정 백업 시작...', {
+      templatesCount: settings.templates.length
     });
-    
+
     // GAS에 백업 요청 (타임아웃 설정)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
-    
+
     try {
       const response = await fetch(`${gasUrl}?action=backup-settings`, {
         method: 'POST',
@@ -104,18 +104,18 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
         redirect: 'follow',
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => '응답을 읽을 수 없습니다');
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       // 응답 텍스트를 먼저 확인
       const responseText = await response.text();
       console.log('[Backup] 응답 텍스트:', responseText.substring(0, 200));
-      
+
       let result;
       try {
         result = JSON.parse(responseText);
@@ -123,7 +123,7 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
         console.error('[Backup] JSON 파싱 실패:', parseError, '응답:', responseText);
         throw new Error('서버 응답을 파싱할 수 없습니다: ' + responseText.substring(0, 100));
       }
-      
+
       if (result.status === 'success') {
         setLastBackupDate(new Date().toISOString());
         console.log('[Backup] 백업 성공:', result);
@@ -138,12 +138,12 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
       }
       throw fetchError;
     }
-    
+
   } catch (error) {
     console.error('[Backup] 백업 실패:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : '백업 중 오류가 발생했습니다.' 
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '백업 중 오류가 발생했습니다.'
     };
   }
 };
@@ -152,32 +152,33 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
  * Google Drive에서 설정 복원
  * @returns 복원된 설정 또는 null
  */
-export const restoreSettingsFromDrive = async (): Promise<{ 
-  success: boolean; 
-  settings: BackupSettings | null; 
-  message: string 
+export const restoreSettingsFromDrive = async (): Promise<{
+  success: boolean;
+  settings: BackupSettings | null;
+  message: string;
+  status?: 'success' | 'not_found' | 'error';
 }> => {
   try {
     const gasUrl = getGasUrl(true);
-    
+
     if (!gasUrl) {
       return { success: false, settings: null, message: 'GAS URL이 설정되지 않았습니다.' };
     }
-    
+
     // 기본 데모 URL인지 확인
     const normalizedGasUrl = normalizeUrlForComparison(gasUrl);
     const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
-    
+
     if (normalizedGasUrl === normalizedDefaultUrl) {
       return { success: false, settings: null, message: '개인 GAS URL이 필요합니다.' };
     }
-    
+
     console.log('[Restore] 설정 복원 시도...');
-    
+
     // GAS에 복원 요청 (타임아웃 설정)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
-    
+
     try {
       const response = await fetch(`${gasUrl}?action=restore-settings`, {
         method: 'POST',
@@ -188,18 +189,18 @@ export const restoreSettingsFromDrive = async (): Promise<{
         redirect: 'follow',
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => '응답을 읽을 수 없습니다');
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       // 응답 텍스트를 먼저 확인
       const responseText = await response.text();
       console.log('[Restore] 응답 텍스트:', responseText.substring(0, 200));
-      
+
       let result;
       try {
         result = JSON.parse(responseText);
@@ -207,22 +208,24 @@ export const restoreSettingsFromDrive = async (): Promise<{
         console.error('[Restore] JSON 파싱 실패:', parseError, '응답:', responseText);
         throw new Error('서버 응답을 파싱할 수 없습니다: ' + responseText.substring(0, 100));
       }
-      
+
       if (result.status === 'success' && result.settings) {
-        console.log('[Restore] 복원 성공:', { 
+        console.log('[Restore] 복원 성공:', {
           templatesCount: result.settings.templates?.length || 0,
-          backupDate: result.settings.backupDate 
+          backupDate: result.settings.backupDate
         });
-        return { 
-          success: true, 
-          settings: result.settings, 
-          message: '설정이 복원되었습니다.' 
+        return {
+          success: true,
+          settings: result.settings,
+          message: '설정이 복원되었습니다.',
+          status: 'success'
         };
       } else if (result.status === 'not_found') {
-        return { 
-          success: false, 
-          settings: null, 
-          message: '백업 파일이 없습니다.' 
+        return {
+          success: false,
+          settings: null,
+          message: '백업 파일이 없습니다.',
+          status: 'not_found'
         };
       } else {
         throw new Error(result.message || '복원 실패');
@@ -236,10 +239,10 @@ export const restoreSettingsFromDrive = async (): Promise<{
     }
   } catch (error) {
     console.error('[Restore] 복원 실패:', error);
-    return { 
-      success: false, 
-      settings: null, 
-      message: error instanceof Error ? error.message : '복원 중 오류가 발생했습니다.' 
+    return {
+      success: false,
+      settings: null,
+      message: error instanceof Error ? error.message : '복원 중 오류가 발생했습니다.'
     };
   }
 };
@@ -253,13 +256,13 @@ export const applyRestoredSettings = (settings: BackupSettings): void => {
     setGasUrl(settings.gasUrl);
     console.log('[Restore] GAS URL 복원됨');
   }
-  
+
   // Sheet ID 복원
   if (settings.sheetId) {
     setSheetId(settings.sheetId);
     console.log('[Restore] Sheet ID 복원됨');
   }
-  
+
   // 템플릿 복원 (기존 템플릿과 병합)
   if (settings.templates && settings.templates.length > 0) {
     settings.templates.forEach(template => {
@@ -275,7 +278,7 @@ export const applyRestoredSettings = (settings: BackupSettings): void => {
 export const isSettingsEmpty = (): boolean => {
   const gasUrl = getGasUrl(false); // 기본값 제외
   const templates = getTemplates();
-  
+
   return !gasUrl && templates.length === 0;
 };
 

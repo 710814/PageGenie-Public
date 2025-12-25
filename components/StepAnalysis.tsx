@@ -229,8 +229,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">상세페이지 시안 검토</h2>
-          <p className="text-gray-500">AI가 생성한 콘텐츠를 검토하고 수정하세요. 이미지 미리보기를 생성하여 최종 결과를 확인할 수 있습니다.</p>
+          <h2 className="text-2xl font-bold text-gray-900">상세페이지 기획안 검토</h2>
+          <p className="text-gray-500">AI가 제안한 기획안을 검토하고 수정하세요. 이미지 미리보기를 생성하여 최종 시안을 확인할 수 있습니다.</p>
         </div>
         <button
           onClick={onConfirm}
@@ -377,46 +377,54 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                   </button>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
+                {/* 다중 이미지 슬롯 섹션 (grid-2, grid-3): 1컬럼 레이아웃 */}
+                {section.imageSlots && section.imageSlots.length > 1 ? (
+                  <div className="space-y-4">
+                    {/* 섹션 제목 */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase">섹션 제목</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">섹션 제목</label>
                       <input
                         type="text"
                         value={section.title}
-                        onChange={(e) => handleSectionChange(index, 'title', e.target.value)}
-                        className="w-full border-b border-gray-300 py-1 focus:border-blue-500 focus:outline-none font-medium text-gray-900"
-                        placeholder="제목을 입력하세요"
+                        onChange={(e) => {
+                          const newSections = [...analysis.sections];
+                          newSections[index] = { ...newSections[index], title: e.target.value };
+                          handleFieldChange('sections', newSections);
+                        }}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
+
+                    {/* 섹션 설명 */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase">상세 설명</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">상세 설명</label>
                       <textarea
-                        rows={5}
+                        rows={4}
                         value={section.content}
-                        onChange={(e) => handleSectionChange(index, 'content', e.target.value)}
-                        className="w-full border border-gray-200 rounded p-2 text-sm text-gray-700 focus:ring-1 focus:ring-blue-500 focus:outline-none mt-1"
-                        placeholder="섹션 내용을 입력하세요"
+                        onChange={(e) => {
+                          const newSections = [...analysis.sections];
+                          newSections[index] = { ...newSections[index], content: e.target.value };
+                          handleFieldChange('sections', newSections);
+                        }}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
 
                     {/* 고정 문구 표시 */}
                     {section.fixedText && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <label className="text-xs font-semibold text-amber-700 uppercase flex items-center mb-1">
+                        <label className="text-xs font-semibold text-amber-700 uppercase mb-1 block flex items-center">
                           <Lock className="w-3 h-3 mr-1" />
-                          고정 문구
+                          고정 문구 (자동 포함)
                         </label>
-                        <p className="text-sm text-amber-800">{section.fixedText}</p>
+                        <p className="text-sm text-amber-900 whitespace-pre-wrap">{section.fixedText}</p>
                       </div>
                     )}
-                  </div>
 
-                  <div className="space-y-3">
-                    {/* 고정 이미지 미리보기 */}
+                    {/* 고정 이미지 표시 */}
                     {section.useFixedImage && section.fixedImageBase64 && (
                       <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                        <label className="text-xs font-semibold text-emerald-700 uppercase flex items-center mb-2">
+                        <label className="text-xs font-semibold text-emerald-700 uppercase mb-2 block flex items-center">
                           <Lock className="w-3 h-3 mr-1" />
                           고정 이미지 (AI 생성 대신 사용)
                         </label>
@@ -434,189 +442,236 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                       </div>
                     )}
 
+                    {/* 이미지 슬롯들 */}
                     <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
                       <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
                         <Sparkles className="w-3 h-3 mr-1" />
                         이미지 생성 프롬프트 (한국어/영어 가능)
-                        {section.imageSlots && section.imageSlots.length > 1 && (
-                          <span className="ml-2 bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full">
-                            {section.imageSlots.length}개 이미지
-                          </span>
-                        )}
+                        <span className="ml-2 bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full">
+                          {section.imageSlots.length}개 이미지
+                        </span>
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p className="text-xs text-gray-500 mb-3">
                         {section.useFixedImage
                           ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
-                          : section.imageSlots && section.imageSlots.length > 1
-                            ? `이 섹션은 ${section.layoutType} 레이아웃으로 ${section.imageSlots.length}개의 이미지가 필요합니다.`
-                            : '한국어 또는 영어로 이미지 스타일을 설명하세요.'
+                          : `이 섹션은 ${section.layoutType} 레이아웃으로 ${section.imageSlots.length}개의 이미지가 필요합니다.`
                         }
                       </p>
 
-                      {/* 다중 이미지 슬롯 표시 */}
-                      {section.imageSlots && section.imageSlots.length > 1 ? (
-                        <div className="space-y-3">
-                          {section.imageSlots.map((slot, slotIdx) => (
-                            <div key={slot.id} className="bg-white rounded-lg p-3 border border-gray-200">
-                              <div className="flex justify-between items-center mb-2">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center">
-                                  <ImageIcon className="w-3 h-3 mr-1" />
-                                  이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
-                                </label>
-                                {/* 개별 슬롯 이미지 생성 버튼 */}
-                                <button
-                                  onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
-                                  disabled={generatingPreviewId === section.id || !slot.prompt}
-                                  className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50"
-                                >
-                                  {generatingPreviewId === section.id ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Sparkles className="w-3 h-3" />
-                                  )}
-                                  생성
-                                </button>
-                              </div>
-
-                              {/* 슬롯 이미지 미리보기 */}
-                              {slot.imageUrl && (
-                                <div className="mb-2">
-                                  <img
-                                    src={slot.imageUrl}
-                                    alt={`이미지 ${slotIdx + 1}`}
-                                    className="w-full h-24 object-contain bg-gray-50 rounded border border-gray-200"
-                                  />
-                                </div>
-                              )}
-
-                              <textarea
-                                rows={2}
-                                value={slot.prompt}
-                                onChange={(e) => {
-                                  const newSlots = [...(section.imageSlots || [])];
-                                  newSlots[slotIdx] = { ...newSlots[slotIdx], prompt: e.target.value };
-                                  const newSections = [...analysis.sections];
-                                  newSections[index] = { ...newSections[index], imageSlots: newSlots };
-                                  handleFieldChange('sections', newSections);
-                                }}
-                                disabled={section.useFixedImage}
-                                className={`w-full bg-gray-50 border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                                placeholder={`이미지 ${slotIdx + 1}의 스타일을 설명하세요`}
-                              />
+                      <div className="space-y-3">
+                        {section.imageSlots.map((slot, slotIdx) => (
+                          <div key={slot.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center">
+                                <ImageIcon className="w-3 h-3 mr-1" />
+                                이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
+                              </label>
+                              <button
+                                onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
+                                disabled={generatingPreviewId === section.id || !slot.prompt}
+                                className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50"
+                              >
+                                {generatingPreviewId === section.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-3 h-3" />
+                                )}
+                                생성
+                              </button>
                             </div>
-                          ))}
 
-                          {/* 전체 슬롯 이미지 생성 버튼 */}
-                          <button
-                            onClick={() => handleGeneratePreview(section.id)}
-                            disabled={generatingPreviewId === section.id}
-                            className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                          >
-                            {generatingPreviewId === section.id ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                이미지 생성 중...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-4 h-4" />
-                                전체 {section.imageSlots.length}개 이미지 미리보기 생성
-                              </>
+                            {slot.imageUrl && (
+                              <div className="mb-2">
+                                <img
+                                  src={slot.imageUrl}
+                                  alt={`이미지 ${slotIdx + 1}`}
+                                  className="w-full h-24 object-contain bg-gray-50 rounded border border-gray-200"
+                                />
+                              </div>
                             )}
-                          </button>
-                        </div>
-                      ) : (
-                        /* 단일 이미지 프롬프트 (기존 방식) */
-                        <textarea
-                          rows={section.useFixedImage ? 3 : 4}
-                          value={section.imagePrompt}
-                          onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
-                          disabled={section.useFixedImage}
-                          className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                          placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
+
+                            <textarea
+                              rows={2}
+                              value={slot.prompt}
+                              onChange={(e) => {
+                                const newSlots = [...(section.imageSlots || [])];
+                                newSlots[slotIdx] = { ...newSlots[slotIdx], prompt: e.target.value };
+                                const newSections = [...analysis.sections];
+                                newSections[index] = { ...newSections[index], imageSlots: newSlots };
+                                handleFieldChange('sections', newSections);
+                              }}
+                              disabled={section.useFixedImage}
+                              className={`w-full bg-gray-50 border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                              placeholder={`이미지 ${slotIdx + 1}의 스타일을 설명하세요`}
+                            />
+                          </div>
+                        ))}
+
+                        <button
+                          onClick={() => handleGeneratePreview(section.id)}
+                          disabled={generatingPreviewId === section.id}
+                          className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                        >
+                          {generatingPreviewId === section.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              이미지 생성 중...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4" />
+                              전체 {section.imageSlots.length}개 이미지 미리보기 생성
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleGeneratePreview(section.id, undefined, undefined, true)}
+                          disabled={generatingPreviewId === section.id}
+                          className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          이미지 미리보기 생성
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* 단일 이미지 섹션: 기존 2컬럼 레이아웃 유지 */
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase">섹션 제목</label>
+                        <input
+                          type="text"
+                          value={section.title}
+                          onChange={(e) => handleSectionChange(index, 'title', e.target.value)}
+                          className="w-full border-b border-gray-300 py-1 focus:border-blue-500 focus:outline-none font-medium text-gray-900"
+                          placeholder="제목을 입력하세요"
                         />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase">상세 설명</label>
+                        <textarea
+                          rows={5}
+                          value={section.content}
+                          onChange={(e) => handleSectionChange(index, 'content', e.target.value)}
+                          className="w-full border border-gray-200 rounded p-2 text-sm text-gray-700 focus:ring-1 focus:ring-blue-500 focus:outline-none mt-1"
+                          placeholder="섹션 내용을 입력하세요"
+                        />
+                      </div>
+
+                      {/* 고정 문구 표시 */}
+                      {section.fixedText && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <label className="text-xs font-semibold text-amber-700 uppercase flex items-center mb-1">
+                            <Lock className="w-3 h-3 mr-1" />
+                            고정 문구
+                          </label>
+                          <p className="text-sm text-amber-800">{section.fixedText}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* 고정 이미지 미리보기 */}
+                      {section.useFixedImage && section.fixedImageBase64 && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                          <label className="text-xs font-semibold text-emerald-700 uppercase flex items-center mb-2">
+                            <Lock className="w-3 h-3 mr-1" />
+                            고정 이미지 (AI 생성 대신 사용)
+                          </label>
+                          <img
+                            src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
+                            alt="고정 이미지"
+                            className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
+                            onClick={() => setImageViewModal({
+                              imageUrl: `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
+                              sectionTitle: `${section.title} (고정 이미지)`,
+                              sectionId: section.id
+                            })}
+                            title="클릭하여 크게 보기"
+                          />
+                        </div>
                       )}
 
-                      {/* 이미지 미리보기 버튼 및 결과 */}
-                      {!section.useFixedImage && (
-                        <div className="mt-3">
-                          {section.imageUrl && !section.isOriginalImage ? (
-                            // 이미지가 생성된 경우
-                            <div className="space-y-2">
-                              <div className="relative group">
-                                <img
-                                  src={section.imageUrl}
-                                  alt="미리보기"
-                                  className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
-                                  onClick={() => setImageViewModal({
-                                    imageUrl: section.imageUrl!,
-                                    sectionTitle: section.title,
-                                    sectionId: section.id
-                                  })}
-                                  title="클릭하여 크게 보기"
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
+                      <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
+                        <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          이미지 생성 프롬프트 (한국어/영어 가능)
+                          {section.imageSlots && section.imageSlots.length > 1 && (
+                            <span className="ml-2 bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full">
+                              {section.imageSlots.length}개 이미지
+                            </span>
+                          )}
+                        </label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          {section.useFixedImage
+                            ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
+                            : section.imageSlots && section.imageSlots.length > 1
+                              ? `이 섹션은 ${section.layoutType} 레이아웃으로 ${section.imageSlots.length}개의 이미지가 필요합니다.`
+                              : '한국어 또는 영어로 이미지 스타일을 설명하세요.'
+                          }
+                        </p>
+
+                        {/* 다중 이미지 슬롯 표시 */}
+                        {section.imageSlots && section.imageSlots.length > 1 ? (
+                          <div className="space-y-3">
+                            {section.imageSlots.map((slot, slotIdx) => (
+                              <div key={slot.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                                <div className="flex justify-between items-center mb-2">
+                                  <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center">
+                                    <ImageIcon className="w-3 h-3 mr-1" />
+                                    이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
+                                  </label>
+                                  {/* 개별 슬롯 이미지 생성 버튼 */}
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setImageViewModal({
-                                        imageUrl: section.imageUrl!,
-                                        sectionTitle: section.title,
-                                        sectionId: section.id
-                                      });
-                                    }}
-                                    className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
-                                    title="이미지 크게 보기"
+                                    onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
+                                    disabled={generatingPreviewId === section.id || !slot.prompt}
+                                    className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50"
                                   >
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    크게보기
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenEditPrompt(section.id);
-                                    }}
-                                    className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
-                                    title="프롬프트 수정 후 재생성"
-                                  >
-                                    <Edit3 className="w-3 h-3 mr-1" />
-                                    수정
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleGeneratePreview(section.id);
-                                    }}
-                                    disabled={generatingPreviewId === section.id}
-                                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                    title="동일 프롬프트로 재생성"
-                                  >
-                                    <RefreshCw className={`w-3 h-3 mr-1 ${generatingPreviewId === section.id ? 'animate-spin' : ''}`} />
-                                    재생성
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemovePreview(section.id);
-                                    }}
-                                    className="bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
-                                    title="미리보기 제거"
-                                  >
-                                    <X className="w-3 h-3" />
+                                    {generatingPreviewId === section.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Sparkles className="w-3 h-3" />
+                                    )}
+                                    생성
                                   </button>
                                 </div>
+
+                                {/* 슬롯 이미지 미리보기 */}
+                                {slot.imageUrl && (
+                                  <div className="mb-2">
+                                    <img
+                                      src={slot.imageUrl}
+                                      alt={`이미지 ${slotIdx + 1}`}
+                                      className="w-full h-24 object-contain bg-gray-50 rounded border border-gray-200"
+                                    />
+                                  </div>
+                                )}
+
+                                <textarea
+                                  rows={2}
+                                  value={slot.prompt}
+                                  onChange={(e) => {
+                                    const newSlots = [...(section.imageSlots || [])];
+                                    newSlots[slotIdx] = { ...newSlots[slotIdx], prompt: e.target.value };
+                                    const newSections = [...analysis.sections];
+                                    newSections[index] = { ...newSections[index], imageSlots: newSlots };
+                                    handleFieldChange('sections', newSections);
+                                  }}
+                                  disabled={section.useFixedImage}
+                                  className={`w-full bg-gray-50 border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                                  placeholder={`이미지 ${slotIdx + 1}의 스타일을 설명하세요`}
+                                />
                               </div>
-                              <p className="text-xs text-green-600 flex items-center">
-                                <Eye className="w-3 h-3 mr-1" />
-                                미리보기 생성 완료 - 마우스를 올려 수정/재생성
-                              </p>
-                            </div>
-                          ) : (
-                            // 이미지가 없는 경우
+                            ))}
+
+                            {/* 전체 슬롯 이미지 생성 버튼 */}
                             <button
                               onClick={() => handleGeneratePreview(section.id)}
-                              disabled={generatingPreviewId === section.id || !section.imagePrompt}
-                              className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={generatingPreviewId === section.id}
+                              className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                             >
                               {generatingPreviewId === section.id ? (
                                 <>
@@ -626,16 +681,123 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                               ) : (
                                 <>
                                   <Sparkles className="w-4 h-4" />
-                                  이미지 미리보기 생성
+                                  전체 {section.imageSlots.length}개 이미지 미리보기 생성
                                 </>
                               )}
                             </button>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        ) : (
+                          /* 단일 이미지 프롬프트 (기존 방식) */
+                          <textarea
+                            rows={section.useFixedImage ? 3 : 4}
+                            value={section.imagePrompt}
+                            onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
+                            disabled={section.useFixedImage}
+                            className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                            placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
+                          />
+                        )}
+
+                        {/* 이미지 미리보기 버튼 및 결과 */}
+                        {!section.useFixedImage && (
+                          <div className="mt-3">
+                            {section.imageUrl && !section.isOriginalImage ? (
+                              // 이미지가 생성된 경우
+                              <div className="space-y-2">
+                                <div className="relative group">
+                                  <img
+                                    src={section.imageUrl}
+                                    alt="미리보기"
+                                    className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
+                                    onClick={() => setImageViewModal({
+                                      imageUrl: section.imageUrl!,
+                                      sectionTitle: section.title,
+                                      sectionId: section.id
+                                    })}
+                                    title="클릭하여 크게 보기"
+                                  />
+                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setImageViewModal({
+                                          imageUrl: section.imageUrl!,
+                                          sectionTitle: section.title,
+                                          sectionId: section.id
+                                        });
+                                      }}
+                                      className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                      title="이미지 크게 보기"
+                                    >
+                                      <Eye className="w-3 h-3 mr-1" />
+                                      크게보기
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEditPrompt(section.id);
+                                      }}
+                                      className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                      title="프롬프트 수정 후 재생성"
+                                    >
+                                      <Edit3 className="w-3 h-3 mr-1" />
+                                      수정
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleGeneratePreview(section.id);
+                                      }}
+                                      disabled={generatingPreviewId === section.id}
+                                      className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                      title="동일 프롬프트로 재생성"
+                                    >
+                                      <RefreshCw className={`w-3 h-3 mr-1 ${generatingPreviewId === section.id ? 'animate-spin' : ''}`} />
+                                      재생성
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemovePreview(section.id);
+                                      }}
+                                      className="bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                                      title="미리보기 제거"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-green-600 flex items-center">
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  미리보기 생성 완료 - 마우스를 올려 수정/재생성
+                                </p>
+                              </div>
+                            ) : (
+                              // 이미지가 없는 경우
+                              <button
+                                onClick={() => handleGeneratePreview(section.id)}
+                                disabled={generatingPreviewId === section.id || !section.imagePrompt}
+                                className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {generatingPreviewId === section.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    이미지 생성 중...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="w-4 h-4" />
+                                    이미지 미리보기 생성
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             ))}
           </div>

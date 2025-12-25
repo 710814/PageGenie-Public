@@ -18,6 +18,7 @@ import {
   applyRestoredSettings
 } from './services/settingsBackupService';
 import { Loader2, Settings } from 'lucide-react';
+import { ProgressStepper } from './components/ProgressStepper';
 
 const AppContent: React.FC = () => {
   const [step, setStep] = useState<Step>(Step.SELECT_MODE);
@@ -421,6 +422,19 @@ const AppContent: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Progress Stepper (모드 선택 단계 이후 표시) */}
+      {step > Step.SELECT_MODE && step <= Step.RESULT && mode !== AppMode.IMAGE_EDIT && (
+        <div className="bg-white border-b border-gray-100 py-6 mb-2">
+          <ProgressStepper
+            currentStep={
+              step === Step.UPLOAD_DATA ? 1 :
+                (step === Step.ANALYSIS_REVIEW || step === Step.GENERATING) ? 2 :
+                  step === Step.RESULT ? 3 : 0
+            }
+          />
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1" style={{ minHeight: 'calc(100vh - 80px)' }}>
