@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { ProductAnalysis, AppMode, UploadedFile } from '../types';
-import { Download, Code, CheckCircle, ExternalLink, Table, Loader2, RefreshCw, Settings, X, MessageSquare, Image as ImageIcon, Eye } from 'lucide-react';
+import { Download, Code, CheckCircle, ExternalLink, Table, Loader2, RefreshCw, Settings, X, MessageSquare, Image as ImageIcon, Eye, ArrowLeft, Home, Copy } from 'lucide-react';
 import { saveToGoogleSheet, openGoogleSheet, generateCSV, getGasUrl, DEFAULT_GAS_URL } from '../services/googleSheetService';
 import { generateSectionImage } from '../services/geminiService';
 import { useToastContext } from '../contexts/ToastContext';
@@ -773,12 +773,7 @@ ${data.marketingCopy}
             })}
           </div>
 
-          <button
-            onClick={onRestart}
-            className="w-full mt-8 py-3 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 font-medium"
-          >
-            처음으로 돌아가기
-          </button>
+
         </div>
       </div>
 
@@ -835,6 +830,43 @@ ${data.marketingCopy}
           </div>
         )
       }
+      {/* 하단 플로팅 액션 바 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-2xl z-40">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* 왼쪽: 이전 단계 버튼 */}
+          <button
+            onClick={onRestart}
+            className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            이전 단계로
+          </button>
+
+          {/* 오른쪽: 액션 버튼들 */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(generateHTML());
+                toast.success('HTML 코드가 클립보드에 복사되었습니다.');
+              }}
+              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
+            >
+              <Copy className="w-4 h-4" />
+              HTML 복사
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
+            >
+              <Home className="w-4 h-4" />
+              새 페이지 만들기
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 하단 플로팅 바 공간 확보 */}
+      <div className="h-20" />
     </div >
   );
 };

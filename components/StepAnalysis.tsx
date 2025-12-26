@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
 import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType } from '../types';
-import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move, Check } from 'lucide-react';
+import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move, Check, LayoutGrid } from 'lucide-react';
 import { generateSectionImage } from '../services/geminiService';
 import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
@@ -605,23 +605,6 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           <h2 className="text-2xl font-bold text-gray-900">상세페이지 기획안 검토</h2>
           <p className="text-gray-500">AI가 제안한 기획안을 검토하고 수정하세요. 이미지 미리보기를 생성하여 최종 시안을 확인할 수 있습니다.</p>
         </div>
-        <button
-          onClick={onConfirm}
-          disabled={isLoading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? (
-            <>
-              <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-              생성 중...
-            </>
-          ) : (
-            <>
-              <Save className="w-5 h-5 mr-2" />
-              상세페이지 생성 시작
-            </>
-          )}
-        </button>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -1952,7 +1935,46 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </div>
         </div>
       )}
-    </div >
+      {/* 하단 플로팅 액션 바 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-2xl z-50">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* 섹션/이미지 상태 정보 */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4" />
+                <span className="font-bold text-sm">{analysis.sections.length}개 섹션</span>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              이미지: {analysis.sections.filter(s => s.imageUrl || s.imageSlots?.some(slot => slot.imageUrl) || s.layoutType === 'text-only').length}/{analysis.sections.length} 완료
+            </div>
+          </div>
+
+          {/* 상세페이지 생성 버튼 */}
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                상세페이지 생성 시작
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 하단 플로팅 바 공간 확보 */}
+      <div className="h-20" />
+    </div>
   );
 });
 
