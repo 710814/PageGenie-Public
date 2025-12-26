@@ -633,6 +633,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
               activeSectionId={activeSectionId || undefined}
               onSectionClick={scrollToSection}
               onMoveSection={moveSection}
+              onDeleteSection={removeSection}
             />
 
             {/* 기본 정보 (접이식) */}
@@ -710,8 +711,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                 key={section.id}
                 ref={(el) => { sectionRefs.current[section.id] = el; }}
                 className={`bg-white p-6 rounded-xl shadow-sm border-2 group transition-all duration-200 ${activeSectionId === section.id
-                    ? 'border-indigo-400 ring-2 ring-indigo-100'
-                    : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-indigo-400 ring-2 ring-indigo-100'
+                  : 'border-gray-200 hover:border-gray-300'
                   }`}
                 onClick={() => setActiveSectionId(section.id)}
               >
