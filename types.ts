@@ -69,6 +69,10 @@ export interface ImageSlot {
   fixedImageBase64?: string;         // 고정 이미지 (Base64)
   fixedImageMimeType?: string;       // 고정 이미지 MIME 타입
   useFixedImage?: boolean;           // 고정 이미지 사용 여부
+  // 이미지 크롭/줌 설정
+  cropZoom?: number;                 // 저장된 확대 배율 (기본 1)
+  cropPanX?: number;                 // 저장된 X축 이동 (기본 0)
+  cropPanY?: number;                 // 저장된 Y축 이동 (기본 0)
 }
 
 /**
@@ -95,6 +99,11 @@ export interface SectionData {
   fixedImageBase64?: string;         // 고정 이미지 Base64
   fixedImageMimeType?: string;       // 고정 이미지 MIME
   useFixedImage?: boolean;           // 고정 이미지 사용 여부
+
+  // 단일 이미지 크롭/줌 설정
+  cropZoom?: number;                 // 저장된 확대 배율 (기본 1)
+  cropPanX?: number;                 // 저장된 X축 이동 (기본 0)
+  cropPanY?: number;                 // 저장된 Y축 이동 (기본 0)
 }
 
 export interface ProductAnalysis {

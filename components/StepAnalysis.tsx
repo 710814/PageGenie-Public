@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
 import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType } from '../types';
-import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move } from 'lucide-react';
+import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move, Check } from 'lucide-react';
 import { generateSectionImage } from '../services/geminiService';
 import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
@@ -33,6 +33,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     imageUrl: string;
     sectionTitle: string;
     sectionId: string;
+    slotIndex?: number;      // 슬롯 인덱스 (단일 이미지는 undefined)
     zoom: number;
     panX: number;
     panY: number;
@@ -227,17 +228,64 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     reader.readAsDataURL(file);
   }, [analysis, onUpdate, toast]);
 
-  // 이미지 뷰 모달 열기 (줌/팬 초기화 포함)
-  const openImageViewModal = useCallback((imageUrl: string, sectionTitle: string, sectionId: string) => {
+  // 이미지 뷰 모달 열기 (저장된 크롭 설정 불러오기)
+  const openImageViewModal = useCallback((imageUrl: string, sectionTitle: string, sectionId: string, slotIndex?: number) => {
+    // 해당 섹션/슬롯의 저장된 크롭 설정 찾기
+    const section = analysis.sections.find(s => s.id === sectionId);
+    let savedZoom = 1, savedPanX = 0, savedPanY = 0;
+
+    if (section) {
+      if (slotIndex !== undefined && section.imageSlots?.[slotIndex]) {
+        // 슬롯 이미지
+        const slot = section.imageSlots[slotIndex];
+        savedZoom = slot.cropZoom || 1;
+        savedPanX = slot.cropPanX || 0;
+        savedPanY = slot.cropPanY || 0;
+      } else {
+        // 단일 이미지
+        savedZoom = section.cropZoom || 1;
+        savedPanX = section.cropPanX || 0;
+        savedPanY = section.cropPanY || 0;
+      }
+    }
+
     setImageViewModal({
       imageUrl,
       sectionTitle,
       sectionId,
-      zoom: 1,
-      panX: 0,
-      panY: 0,
+      slotIndex,
+      zoom: savedZoom,
+      panX: savedPanX,
+      panY: savedPanY,
     });
-  }, []);
+  }, [analysis.sections]);
+
+  // 크롭 설정 저장
+  const handleSaveCrop = useCallback(() => {
+    if (!imageViewModal) return;
+
+    const { sectionId, slotIndex, zoom, panX, panY } = imageViewModal;
+
+    const updatedSections = analysis.sections.map(section => {
+      if (section.id !== sectionId) return section;
+
+      if (slotIndex !== undefined && section.imageSlots) {
+        // 슬롯 이미지 크롭 설정 저장
+        const newSlots = section.imageSlots.map((slot, idx) =>
+          idx === slotIndex
+            ? { ...slot, cropZoom: zoom, cropPanX: panX, cropPanY: panY }
+            : slot
+        );
+        return { ...section, imageSlots: newSlots };
+      } else {
+        // 단일 이미지 크롭 설정 저장
+        return { ...section, cropZoom: zoom, cropPanX: panX, cropPanY: panY };
+      }
+    });
+
+    onUpdate({ ...analysis, sections: updatedSections });
+    toast.success(`크롭 설정이 저장되었습니다. (배율: ${Math.round(zoom * 100)}%)`);
+  }, [imageViewModal, analysis, onUpdate, toast]);
 
   // 줌 핸들러
   const handleZoom = useCallback((delta: number) => {
@@ -246,7 +294,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     setImageViewModal({ ...imageViewModal, zoom: newZoom });
   }, [imageViewModal]);
 
-  // 줌 리셋
+  // 줌 리셋 (초기화)
   const handleResetZoom = useCallback(() => {
     if (!imageViewModal) return;
     setImageViewModal({ ...imageViewModal, zoom: 1, panX: 0, panY: 0 });
@@ -809,6 +857,13 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
 
                             {slot.imageUrl && (
                               <div className="mb-2 relative group/slot">
+                                {/* 크롭 설정 저장됨 배지 */}
+                                {(slot.cropZoom && slot.cropZoom !== 1) && (
+                                  <div className="absolute top-1 left-1 z-10 bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                                    <ZoomIn className="w-2.5 h-2.5" />
+                                    {Math.round(slot.cropZoom * 100)}%
+                                  </div>
+                                )}
                                 <img
                                   src={slot.imageUrl}
                                   alt={`이미지 ${slotIdx + 1}`}
@@ -816,7 +871,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   onClick={() => openImageViewModal(
                                     slot.imageUrl!,
                                     `${section.title} - 이미지 ${slotIdx + 1}`,
-                                    `${section.id}-slot-${slotIdx}`
+                                    section.id,
+                                    slotIdx
                                   )}
                                   title="클릭하여 크게 보기"
                                 />
@@ -828,7 +884,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                       openImageViewModal(
                                         slot.imageUrl!,
                                         `${section.title} - 이미지 ${slotIdx + 1}`,
-                                        `${section.id}-slot-${slotIdx}`
+                                        section.id,
+                                        slotIdx
                                       );
                                     }}
                                     className="bg-white text-gray-800 px-2 py-1 rounded text-[10px] font-medium flex items-center hover:bg-gray-100 transition-colors"
@@ -1156,6 +1213,13 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                               // 이미지가 생성된 경우
                               <div className="space-y-2">
                                 <div className="relative group">
+                                  {/* 크롭 설정 저장됨 배지 */}
+                                  {(section.cropZoom && section.cropZoom !== 1) && (
+                                    <div className="absolute top-1 left-1 z-10 bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                                      <ZoomIn className="w-2.5 h-2.5" />
+                                      {Math.round(section.cropZoom * 100)}%
+                                    </div>
+                                  )}
                                   <img
                                     src={section.imageUrl}
                                     alt="미리보기"
@@ -1442,6 +1506,16 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                   )}
                 </div>
                 <div className="flex gap-3">
+                  {/* 크롭 설정 저장 버튼 */}
+                  <button
+                    onClick={handleSaveCrop}
+                    disabled={imageViewModal.zoom === 1 && imageViewModal.panX === 0 && imageViewModal.panY === 0}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="현재 확대/위치 설정을 저장하여 최종 출력물에 반영합니다"
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    크롭 저장
+                  </button>
                   <button
                     onClick={() => {
                       setImageViewModal(null);
