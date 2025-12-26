@@ -10,13 +10,14 @@ import { saveAs } from 'file-saver';
 interface Props {
   data: ProductAnalysis;
   onRestart: () => void;
+  onGoBack: () => void;
   mode: AppMode;
-  uploadedFiles: UploadedFile[]; // Changed to Array
+  uploadedFiles: UploadedFile[];
   onUpdate: (data: ProductAnalysis) => void;
   onOpenSettings: () => void;
 }
 
-export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFiles, onUpdate, onOpenSettings }) => {
+export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, uploadedFiles, onUpdate, onOpenSettings }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveType, setSaveType] = useState<'sheet' | 'drive' | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
@@ -71,9 +72,11 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
         return `
             <section class="section">
                 <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
-                    ${section.imageSlots?.map((slot, idx) =>
-          slot.imageUrl ? `<img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="width: 100%; height: auto; aspect-ratio: 1/1; object-fit: cover; margin-bottom: 0;" />` : ''
-        ).join('')}
+                    ${section.imageSlots?.map((slot, idx) => {
+          const hasCrop = slot.cropZoom && slot.cropZoom !== 1;
+          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px); transform-origin: center;` : '';
+          return slot.imageUrl ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px;"><img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; ${cropStyle}" /></div>` : ''
+        }).join('')}
                 </div>
                 <h2>${section.title}</h2>
                 <p>${section.content}</p>
@@ -81,9 +84,12 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
             `;
       }
 
+      // 일반 섹션 (single image)
+      const hasCrop = section.cropZoom && section.cropZoom !== 1;
+      const cropStyle = hasCrop ? `transform: scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px); transform-origin: center;` : '';
       return `
           <section class="section">
-              ${section.imageUrl ? `<img src="images/section_${section.id}.png" alt="${section.title}" />` : ''}
+              ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px;"><img src="images/section_${section.id}.png" alt="${section.title}" style="width: 100%; height: auto; ${cropStyle}" /></div>` : ''}
               <h2>${section.title}</h2>
               <p>${section.content}</p>
           </section>
@@ -249,11 +255,13 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
         return `
         <section class="section">
             <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
-                ${section.imageSlots?.map((slot, slotIdx) =>
-          slot.imageUrl
-            ? `<img src="${slot.imageUrl}" alt="${section.title} - ${slotIdx + 1}" style="width: 100%; height: auto; border-radius: 8px; object-fit: cover; aspect-ratio: 1/1;" />`
+                ${section.imageSlots?.map((slot, slotIdx) => {
+          const hasCrop = slot.cropZoom && slot.cropZoom !== 1;
+          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px); transform-origin: center;` : '';
+          return slot.imageUrl
+            ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px;"><img src="${slot.imageUrl}" alt="${section.title} - ${slotIdx + 1}" style="width: 100%; height: 100%; object-fit: cover; ${cropStyle}" /></div>`
             : `<div style="width: 100%; aspect-ratio: 1/1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">이미지 ${slotIdx + 1}</div>`
-        ).join('')}
+        }).join('')}
             </div>
             <h2>${section.title}</h2>
             <p>${section.content}</p>
@@ -265,9 +273,12 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, mode, uploadedFil
             <p>${section.content}</p>
         </section>`;
       } else {
+        // 일반 섹션 (single image)
+        const hasCrop = section.cropZoom && section.cropZoom !== 1;
+        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px); transform-origin: center;` : '';
         return `
         <section class="section">
-            ${section.imageUrl ? `<img src="${section.imageUrl}" alt="${section.title}" />` : ''}
+            ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px;"><img src="${section.imageUrl}" alt="${section.title}" style="width: 100%; height: auto; ${cropStyle}" /></div>` : ''}
             <h2>${section.title}</h2>
             <p>${section.content}</p>
         </section>`;
@@ -835,7 +846,7 @@ ${data.marketingCopy}
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* 왼쪽: 이전 단계 버튼 */}
           <button
-            onClick={onRestart}
+            onClick={onGoBack}
             className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

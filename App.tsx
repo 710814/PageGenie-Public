@@ -396,6 +396,11 @@ const AppContent: React.FC = () => {
     setAnalysisResult(null);
   }, []);
 
+  // 이전 단계로 돌아가기 (상태 유지)
+  const goBack = useCallback(() => {
+    setStep(Step.ANALYSIS_REVIEW);
+  }, []);
+
   const handleOpenSettings = useCallback(() => {
     setIsSettingsOpen(true);
   }, []);
@@ -520,6 +525,7 @@ const AppContent: React.FC = () => {
                 <StepResult
                   data={analysisResult}
                   onRestart={restart}
+                  onGoBack={goBack}
                   mode={mode}
                   uploadedFiles={uploadedFiles}
                   onUpdate={setAnalysisResult}
