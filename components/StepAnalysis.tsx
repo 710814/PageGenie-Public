@@ -1113,7 +1113,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                         </div>
                       )}
 
-                      <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
+                      <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''} ${section.layoutType === 'text-only' ? 'hidden' : ''}`}>
                         <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
                           <Sparkles className="w-3 h-3 mr-1" />
                           이미지 생성 프롬프트 (한국어/영어 가능)
