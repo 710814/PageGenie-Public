@@ -1973,7 +1973,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
       </div>
 
       {/* 하단 플로팅 바 공간 확보 */}
-      <div className="h-20" />
+      <div className="h-24" />
     </div>
   );
 });
