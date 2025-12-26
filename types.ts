@@ -120,6 +120,23 @@ export interface Template {
   sourceImageThumbnail?: string;     // 원본 참조 이미지 썸네일 (선택)
 }
 
+/**
+ * 섹션 프리셋 - 자주 사용하는 섹션 설정을 저장
+ * 예: 배송/반품 안내, 스펙 정보, AS 안내 등
+ */
+export interface SectionPreset {
+  id: string;
+  name: string;                      // 프리셋 이름 (예: "배송/반품 안내")
+  description?: string;              // 설명
+  sectionType: SectionType;          // 섹션 타입
+  layoutType: LayoutType;            // 레이아웃 타입
+  slotCount: number;                 // 이미지 슬롯 수
+  fixedText?: string;                // 고정 문구
+  fixedImageBase64?: string;         // 고정 이미지 (Base64)
+  fixedImageMimeType?: string;       // 고정 이미지 MIME 타입
+  createdAt: number;
+}
+
 export interface UploadedFile {
   file: File;
   previewUrl: string;

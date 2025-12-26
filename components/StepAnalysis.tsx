@@ -1,7 +1,8 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
-import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot } from '../types';
-import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload } from 'lucide-react';
+import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType } from '../types';
+import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateSectionImage } from '../services/geminiService';
+import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
 
 interface Props {
@@ -34,13 +35,26 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     sectionId: string;
   } | null>(null);
 
-  // 섹션 추가 모달 상태
+  // 섹션 추가 모달 상태 (확장)
   const [addSectionModal, setAddSectionModal] = useState<{
     isOpen: boolean;
+    activeTab: 'new' | 'preset';        // 새로 만들기 / 프리셋에서
     sectionType: string;
     layoutType: string;
     slotCount: number;
+    fixedText: string;                   // 고정 문구
+    fixedImageBase64?: string;           // 고정 이미지 Base64
+    fixedImageMimeType?: string;         // 고정 이미지 MIME
+    showAdvanced: boolean;               // 고급 설정 펼치기
+    saveAsPreset: boolean;               // 프리셋으로 저장 모드
+    presetName: string;                  // 프리셋 이름
   } | null>(null);
+
+  // 섹션 프리셋 목록
+  const [sectionPresets, setSectionPresets] = useState<SectionPreset[]>([]);
+
+  // 모달용 파일 input ref
+  const modalImageInputRef = useRef<HTMLInputElement | null>(null);
 
   // 파일 input refs
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
@@ -256,21 +270,144 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     handleFieldChange('sections', newSections);
   }, [analysis.sections, handleFieldChange]);
 
-  // 섹션 추가 모달 열기
+  // 섹션 추가 모달 열기 (확장)
   const openAddSectionModal = useCallback(() => {
+    // 프리셋 목록 새로고침
+    setSectionPresets(getSectionPresets());
+
     setAddSectionModal({
       isOpen: true,
+      activeTab: 'new',
       sectionType: 'custom',
       layoutType: 'full-width',
       slotCount: 1,
+      fixedText: '',
+      fixedImageBase64: undefined,
+      fixedImageMimeType: undefined,
+      showAdvanced: false,
+      saveAsPreset: false,
+      presetName: '',
     });
   }, []);
 
-  // 섹션 추가 확인
+  // 모달 내 고정 이미지 업로드 핸들러
+  const handleModalImageUpload = useCallback((file: File) => {
+    if (!addSectionModal) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const base64Data = base64String.split(',')[1];
+
+      setAddSectionModal({
+        ...addSectionModal,
+        fixedImageBase64: base64Data,
+        fixedImageMimeType: file.type,
+      });
+    };
+    reader.readAsDataURL(file);
+  }, [addSectionModal]);
+
+  // 모달 내 고정 이미지 제거
+  const handleRemoveModalImage = useCallback(() => {
+    if (!addSectionModal) return;
+
+    setAddSectionModal({
+      ...addSectionModal,
+      fixedImageBase64: undefined,
+      fixedImageMimeType: undefined,
+    });
+  }, [addSectionModal]);
+
+  // 현재 설정을 프리셋으로 저장
+  const handleSaveAsPreset = useCallback(() => {
+    if (!addSectionModal || !addSectionModal.presetName.trim()) {
+      toast.warning('프리셋 이름을 입력해주세요.');
+      return;
+    }
+
+    const newPreset: SectionPreset = {
+      id: `preset-${Date.now()}`,
+      name: addSectionModal.presetName.trim(),
+      sectionType: addSectionModal.sectionType as SectionType,
+      layoutType: addSectionModal.layoutType as LayoutType,
+      slotCount: addSectionModal.slotCount,
+      fixedText: addSectionModal.fixedText || undefined,
+      fixedImageBase64: addSectionModal.fixedImageBase64,
+      fixedImageMimeType: addSectionModal.fixedImageMimeType,
+      createdAt: Date.now(),
+    };
+
+    saveSectionPreset(newPreset);
+    setSectionPresets(getSectionPresets());
+
+    setAddSectionModal({
+      ...addSectionModal,
+      saveAsPreset: false,
+      presetName: '',
+    });
+
+    toast.success(`'${newPreset.name}' 프리셋이 저장되었습니다.`);
+  }, [addSectionModal, toast]);
+
+  // 프리셋 삭제
+  const handleDeletePreset = useCallback((presetId: string) => {
+    if (confirm('이 프리셋을 삭제하시겠습니까?')) {
+      deleteSectionPreset(presetId);
+      setSectionPresets(getSectionPresets());
+      toast.info('프리셋이 삭제되었습니다.');
+    }
+  }, [toast]);
+
+  // 프리셋으로 섹션 추가
+  const handleApplyPreset = useCallback((preset: SectionPreset) => {
+    const isGrid = preset.layoutType === 'grid-2' || preset.layoutType === 'grid-3';
+    const slotCount = preset.slotCount || (isGrid ? (preset.layoutType === 'grid-3' ? 3 : 2) : 1);
+
+    const imageSlots: ImageSlot[] = isGrid
+      ? Array.from({ length: slotCount }, (_, i) => ({
+        id: `slot-${Date.now()}-${i}`,
+        slotType: 'product' as const,
+        prompt: '',
+      }))
+      : [{
+        id: `slot-${Date.now()}-0`,
+        slotType: 'product' as const,
+        prompt: '',
+      }];
+
+    const newSection: SectionData = {
+      id: `new-${Date.now()}`,
+      title: preset.name,
+      content: preset.description || '내용을 입력하세요.',
+      imagePrompt: 'Product photo, professional quality',
+      sectionType: preset.sectionType,
+      layoutType: preset.layoutType,
+      imageSlots,
+      fixedText: preset.fixedText,
+      fixedImageBase64: preset.fixedImageBase64,
+      fixedImageMimeType: preset.fixedImageMimeType,
+      useFixedImage: !!preset.fixedImageBase64,
+    };
+
+    handleFieldChange('sections', [...analysis.sections, newSection]);
+    setAddSectionModal(null);
+
+    setTimeout(() => {
+      if (sectionsContainerRef.current) {
+        const lastChild = sectionsContainerRef.current.lastElementChild;
+        lastChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+
+    toast.success(`'${preset.name}' 프리셋이 적용되었습니다.`);
+  }, [analysis.sections, handleFieldChange, toast]);
+
+  // 섹션 추가 확인 (확장)
   const confirmAddSection = useCallback(() => {
     if (!addSectionModal) return;
 
-    const { sectionType, layoutType, slotCount } = addSectionModal;
+    const { sectionType, layoutType, slotCount, fixedText, fixedImageBase64, fixedImageMimeType } = addSectionModal;
     const isGrid = layoutType === 'grid-2' || layoutType === 'grid-3';
 
     // 슬롯 생성
@@ -294,6 +431,11 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
       sectionType: sectionType as any,
       layoutType: layoutType as any,
       imageSlots,
+      // 고정 요소 추가
+      fixedText: fixedText || undefined,
+      fixedImageBase64: fixedImageBase64,
+      fixedImageMimeType: fixedImageMimeType,
+      useFixedImage: !!fixedImageBase64,
     };
 
     handleFieldChange('sections', [...analysis.sections, newSection]);
@@ -1159,100 +1301,332 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         )
       }
 
-      {/* 섹션 추가 모달 */}
+      {/* 섹션 추가 모달 (확장) */}
       {addSectionModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center flex-shrink-0">
               <h3 className="text-lg font-bold text-white">새 섹션 추가</h3>
               <button onClick={() => setAddSectionModal(null)} className="text-white/80 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
-              {/* 섹션 타입 선택 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">섹션 타입</label>
-                <select
-                  value={addSectionModal.sectionType}
-                  onChange={(e) => {
-                    const newType = e.target.value;
-                    const recommendedLayout = layoutRecommendations[newType] || 'full-width';
-                    setAddSectionModal({
-                      ...addSectionModal,
-                      sectionType: newType,
-                      layoutType: recommendedLayout,
-                      slotCount: recommendedLayout === 'grid-3' ? 3 : recommendedLayout === 'grid-2' ? 2 : 1
-                    });
-                  }}
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  {Object.entries(sectionTypeLabels).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
+            {/* 탭 */}
+            <div className="flex border-b flex-shrink-0">
+              <button
+                onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'new' })}
+                className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'new'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                    : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <Plus className="w-4 h-4 inline mr-1" />
+                새로 만들기
+              </button>
+              <button
+                onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'preset' })}
+                className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'preset'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                    : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <Bookmark className="w-4 h-4 inline mr-1" />
+                프리셋에서 ({sectionPresets.length})
+              </button>
+            </div>
 
-              {/* 레이아웃 선택 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  레이아웃 <span className="text-xs font-normal text-gray-400">(타입에 따라 자동 추천)</span>
-                </label>
-                <select
-                  value={addSectionModal.layoutType}
-                  onChange={(e) => {
-                    const newLayout = e.target.value;
-                    setAddSectionModal({
-                      ...addSectionModal,
-                      layoutType: newLayout,
-                      slotCount: newLayout === 'grid-3' ? 3 : newLayout === 'grid-2' ? 2 : 1
-                    });
-                  }}
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  {Object.entries(layoutTypeLabels).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 이미지 슬롯 수 (Grid 레이아웃일 때만) */}
-              {(addSectionModal.layoutType === 'grid-2' || addSectionModal.layoutType === 'grid-3') && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">이미지 슬롯 수</label>
-                  <div className="flex gap-2">
-                    {[2, 3, 4].map((num) => (
-                      <button
-                        key={num}
-                        onClick={() => setAddSectionModal({ ...addSectionModal, slotCount: num })}
-                        className={`flex-1 py-2 rounded-lg border font-medium transition-colors ${addSectionModal.slotCount === num
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                      >
-                        {num}개
-                      </button>
-                    ))}
+            {/* 콘텐츠 */}
+            <div className="flex-1 overflow-y-auto">
+              {/* 새로 만들기 탭 */}
+              {addSectionModal.activeTab === 'new' && (
+                <div className="p-6 space-y-5">
+                  {/* 섹션 타입 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">섹션 타입</label>
+                    <select
+                      value={addSectionModal.sectionType}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        const recommendedLayout = layoutRecommendations[newType] || 'full-width';
+                        setAddSectionModal({
+                          ...addSectionModal,
+                          sectionType: newType,
+                          layoutType: recommendedLayout,
+                          slotCount: recommendedLayout === 'grid-3' ? 3 : recommendedLayout === 'grid-2' ? 2 : 1
+                        });
+                      }}
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      {Object.entries(sectionTypeLabels).map(([key, label]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
                   </div>
+
+                  {/* 레이아웃 선택 */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      레이아웃 <span className="text-xs font-normal text-gray-400">(타입에 따라 자동 추천)</span>
+                    </label>
+                    <select
+                      value={addSectionModal.layoutType}
+                      onChange={(e) => {
+                        const newLayout = e.target.value;
+                        setAddSectionModal({
+                          ...addSectionModal,
+                          layoutType: newLayout,
+                          slotCount: newLayout === 'grid-3' ? 3 : newLayout === 'grid-2' ? 2 : 1
+                        });
+                      }}
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      {Object.entries(layoutTypeLabels).map(([key, label]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 이미지 슬롯 수 (Grid 레이아웃일 때만) */}
+                  {(addSectionModal.layoutType === 'grid-2' || addSectionModal.layoutType === 'grid-3') && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">이미지 슬롯 수</label>
+                      <div className="flex gap-2">
+                        {[2, 3, 4].map((num) => (
+                          <button
+                            key={num}
+                            onClick={() => setAddSectionModal({ ...addSectionModal, slotCount: num })}
+                            className={`flex-1 py-2 rounded-lg border font-medium transition-colors ${addSectionModal.slotCount === num
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
+                          >
+                            {num}개
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 고급 설정 토글 */}
+                  <button
+                    onClick={() => setAddSectionModal({ ...addSectionModal, showAdvanced: !addSectionModal.showAdvanced })}
+                    className="w-full flex items-center justify-between py-2 px-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-600 transition-colors"
+                  >
+                    <span className="flex items-center">
+                      <Lock className="w-4 h-4 mr-2" />
+                      고급 설정 (고정 문구/이미지)
+                    </span>
+                    {addSectionModal.showAdvanced ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+
+                  {/* 고급 설정 영역 */}
+                  {addSectionModal.showAdvanced && (
+                    <div className="space-y-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      {/* 고정 문구 */}
+                      <div>
+                        <label className="text-xs font-bold text-amber-700 block mb-1.5 flex items-center">
+                          <Type className="w-3 h-3 mr-1" />
+                          고정 문구
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={addSectionModal.fixedText}
+                          onChange={(e) => setAddSectionModal({ ...addSectionModal, fixedText: e.target.value })}
+                          placeholder="예: '무료 배송', 'KC 인증 완료' 등"
+                          className="w-full text-sm border border-amber-200 bg-white rounded-lg p-2.5 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none resize-none"
+                        />
+                      </div>
+
+                      {/* 고정 이미지 */}
+                      <div>
+                        <label className="text-xs font-bold text-emerald-700 block mb-1.5 flex items-center">
+                          <ImageIcon className="w-3 h-3 mr-1" />
+                          고정 이미지
+                        </label>
+
+                        <input
+                          type="file"
+                          ref={modalImageInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleModalImageUpload(file);
+                            e.target.value = '';
+                          }}
+                        />
+
+                        {addSectionModal.fixedImageBase64 ? (
+                          <div className="relative group">
+                            <img
+                              src={`data:${addSectionModal.fixedImageMimeType || 'image/png'};base64,${addSectionModal.fixedImageBase64}`}
+                              alt="고정 이미지"
+                              className="w-full h-32 object-contain bg-white rounded-lg border border-emerald-200"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => modalImageInputRef.current?.click()}
+                                className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-xs font-medium"
+                              >
+                                변경
+                              </button>
+                              <button
+                                onClick={handleRemoveModalImage}
+                                className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => modalImageInputRef.current?.click()}
+                            className="border-2 border-dashed border-emerald-200 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
+                          >
+                            <Upload className="w-6 h-6 mx-auto mb-1 text-emerald-300" />
+                            <p className="text-xs font-medium text-emerald-600">클릭하여 업로드</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 프리셋으로 저장 옵션 */}
+                  {addSectionModal.saveAsPreset ? (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-3">
+                      <label className="text-xs font-bold text-indigo-700 block flex items-center">
+                        <Bookmark className="w-3 h-3 mr-1" />
+                        프리셋 이름
+                      </label>
+                      <input
+                        type="text"
+                        value={addSectionModal.presetName}
+                        onChange={(e) => setAddSectionModal({ ...addSectionModal, presetName: e.target.value })}
+                        placeholder="예: 배송/반품 안내"
+                        className="w-full text-sm border border-indigo-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-400 outline-none"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setAddSectionModal({ ...addSectionModal, saveAsPreset: false, presetName: '' })}
+                          className="flex-1 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={handleSaveAsPreset}
+                          className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+                        >
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddSectionModal({ ...addSectionModal, saveAsPreset: true })}
+                      className="w-full py-2 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    >
+                      <Bookmark className="w-4 h-4 mr-1" />
+                      이 설정을 프리셋으로 저장
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* 프리셋에서 탭 */}
+              {addSectionModal.activeTab === 'preset' && (
+                <div className="p-6">
+                  {sectionPresets.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <Bookmark className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">저장된 프리셋이 없습니다</p>
+                      <p className="text-sm mt-1">"새로 만들기" 탭에서 프리셋을 저장하세요</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sectionPresets.map((preset) => (
+                        <div
+                          key={preset.id}
+                          className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all group cursor-pointer"
+                          onClick={() => handleApplyPreset(preset)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
+                                {preset.name}
+                              </h4>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                  {sectionTypeLabels[preset.sectionType] || preset.sectionType}
+                                </span>
+                                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                  {layoutTypeLabels[preset.layoutType] || preset.layoutType}
+                                </span>
+                                {preset.fixedText && (
+                                  <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded flex items-center">
+                                    <Type className="w-2 h-2 mr-0.5" />
+                                    고정문구
+                                  </span>
+                                )}
+                                {preset.fixedImageBase64 && (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded flex items-center">
+                                    <ImageIcon className="w-2 h-2 mr-0.5" />
+                                    고정이미지
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePreset(preset.id);
+                              }}
+                              className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="프리셋 삭제"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {preset.fixedImageBase64 && (
+                            <div className="mt-3">
+                              <img
+                                src={`data:${preset.fixedImageMimeType || 'image/png'};base64,${preset.fixedImageBase64}`}
+                                alt="프리셋 고정 이미지"
+                                className="w-full h-20 object-contain bg-gray-50 rounded border border-gray-100"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-              <button
-                onClick={() => setAddSectionModal(null)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmAddSection}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
-              >
-                섹션 추가
-              </button>
-            </div>
+            {/* 푸터 (새로 만들기 탭에서만 표시) */}
+            {addSectionModal.activeTab === 'new' && !addSectionModal.saveAsPreset && (
+              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 flex-shrink-0 border-t">
+                <button
+                  onClick={() => setAddSectionModal(null)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmAddSection}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                >
+                  섹션 추가
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
