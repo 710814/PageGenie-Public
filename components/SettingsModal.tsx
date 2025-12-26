@@ -1115,6 +1115,85 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         />
                       </div>
 
+                      {/* 고정 이미지 업로드 */}
+                      <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-4">
+                        <label className="text-xs font-bold text-emerald-700 block mb-1.5 flex items-center">
+                          <ImageIcon className="w-3 h-3 mr-1" />
+                          고정 이미지 (선택사항)
+                        </label>
+                        <p className="text-xs text-emerald-600 mb-3">배송/반품 정보, 스펙표 등 항상 표시될 이미지를 업로드하세요.</p>
+
+                        {/* 숨겨진 파일 입력 */}
+                        <input
+                          type="file"
+                          ref={(el) => { sectionImageInputRefs.current[idx] = el; }}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleSectionImageUpload(idx, file);
+                            e.target.value = '';
+                          }}
+                        />
+
+                        {section.fixedImageBase64 ? (
+                          /* 이미지가 있을 때: 미리보기 + 토글 + 삭제 */
+                          <div className="space-y-3">
+                            {/* 이미지 미리보기 */}
+                            <div className="relative group">
+                              <img
+                                src={`data:${section.fixedImageMimeType || 'image/png'};base64,${section.fixedImageBase64}`}
+                                alt="고정 이미지 미리보기"
+                                className="w-full max-h-48 object-contain rounded-lg border border-emerald-200 bg-white"
+                              />
+                              {/* 오버레이 버튼 */}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => sectionImageInputRefs.current[idx]?.click()}
+                                  className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
+                                >
+                                  변경
+                                </button>
+                                <button
+                                  onClick={() => removeFixedImage(idx)}
+                                  className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* 사용 토글 */}
+                            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-emerald-200">
+                              <div className="flex items-center">
+                                <Check className={`w-4 h-4 mr-2 ${section.useFixedImage ? 'text-emerald-600' : 'text-gray-300'}`} />
+                                <span className="text-sm font-medium text-gray-700">고정 이미지 사용</span>
+                              </div>
+                              <button
+                                onClick={() => toggleUseFixedImage(idx)}
+                                className={`flex items-center transition-colors ${section.useFixedImage ? 'text-emerald-600' : 'text-gray-400'}`}
+                              >
+                                {section.useFixedImage ? (
+                                  <ToggleRight className="w-8 h-8" />
+                                ) : (
+                                  <ToggleLeft className="w-8 h-8" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* 이미지가 없을 때: 업로드 영역 */
+                          <div
+                            onClick={() => sectionImageInputRefs.current[idx]?.click()}
+                            className="border-2 border-dashed border-emerald-200 rounded-lg p-6 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all group"
+                          >
+                            <Upload className="w-8 h-8 mx-auto mb-2 text-emerald-300 group-hover:text-emerald-500 transition-colors" />
+                            <p className="text-sm font-medium text-emerald-600">클릭하여 이미지 업로드</p>
+                            <p className="text-xs text-emerald-400 mt-1">PNG, JPG, WEBP 지원</p>
+                          </div>
+                        )}
+                      </div>
+
                       {/* 이미지 슬롯 에디터 */}
                       <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
