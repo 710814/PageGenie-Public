@@ -14,18 +14,18 @@ interface SectionMiniMapProps {
 const getBadgeInfo = (layoutType: string) => {
     switch (layoutType) {
         case 'text-only':
-            return { icon: Type, label: '텍스트' };
+            return { icon: Type, label: '텍스트', color: 'bg-gray-100 border-gray-200 text-gray-600' };
         case 'full-width':
-            return { icon: Image, label: '전체' };
+            return { icon: Image, label: '전체', color: 'bg-blue-50 border-blue-200 text-blue-600' };
         case 'split-left':
         case 'split-right':
-            return { icon: Columns, label: '분할' };
+            return { icon: Columns, label: '분할', color: 'bg-purple-50 border-purple-200 text-purple-600' };
         case 'grid-2':
-            return { icon: LayoutGrid, label: '2열' };
+            return { icon: LayoutGrid, label: '2열', color: 'bg-green-50 border-green-200 text-green-600' };
         case 'grid-3':
-            return { icon: LayoutGrid, label: '3열' };
+            return { icon: LayoutGrid, label: '3열', color: 'bg-emerald-50 border-emerald-200 text-emerald-600' };
         default:
-            return { icon: Image, label: '전체' };
+            return { icon: Image, label: '전체', color: 'bg-blue-50 border-blue-200 text-blue-600' };
     }
 };
 
@@ -92,7 +92,7 @@ export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
                             </span>
 
                             {/* 배지 */}
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border bg-blue-50 border-blue-200 text-blue-600 text-[11px] font-semibold shrink-0">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border ${badge.color} text-[11px] font-semibold shrink-0`}>
                                 <Icon className="w-3 h-3" />
                                 {badge.label}
                             </span>
