@@ -4,6 +4,7 @@ import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Imag
 import { generateSectionImage } from '../services/geminiService';
 import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
+import { SectionMiniMap } from './SectionMiniMap';
 
 interface Props {
   analysis: ProductAnalysis;
@@ -60,6 +61,12 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
 
   // 섹션 프리셋 목록
   const [sectionPresets, setSectionPresets] = useState<SectionPreset[]>([]);
+
+  // 현재 활성 섹션 (미니맵 하이라이트용)
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+
+  // 각 섹션 요소의 ref (스크롤 이동용)
+  const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // 모달용 파일 input ref
   const modalImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -579,6 +586,15 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     handleFieldChange('sections', newSections);
   }, [analysis.sections, handleFieldChange]);
 
+  // 섹션으로 스크롤 이동 (미니맵에서 클릭 시)
+  const scrollToSection = useCallback((sectionId: string) => {
+    setActiveSectionId(sectionId);
+    const sectionEl = sectionRefs.current[sectionId];
+    if (sectionEl) {
+      sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
   // 메모이제이션된 섹션 개수
   const sectionCount = useMemo(() => analysis.sections.length, [analysis.sections.length]);
 
@@ -609,61 +625,70 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left Col: Basic Info */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 sticky top-6">
-            <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">기본 정보</h3>
+        {/* Left Col: Section MiniMap (sticky) */}
+        <div className="lg:col-span-1 hidden lg:block">
+          <div className="sticky top-6 space-y-4">
+            <SectionMiniMap
+              sections={analysis.sections}
+              activeSectionId={activeSectionId || undefined}
+              onSectionClick={scrollToSection}
+              onMoveSection={moveSection}
+            />
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상품명</label>
-                <input
-                  type="text"
-                  value={analysis.productName}
-                  onChange={(e) => handleFieldChange('productName', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
-                <input
-                  type="text"
-                  value={analysis.detectedCategory || ''}
-                  onChange={(e) => handleFieldChange('detectedCategory', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 bg-gray-50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">마케팅 문구 (헤드라인)</label>
-                <textarea
-                  rows={4}
-                  value={analysis.marketingCopy}
-                  onChange={(e) => handleFieldChange('marketingCopy', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주요 특징</label>
-                <div className="space-y-2">
-                  {analysis.mainFeatures.map((feature, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      value={feature}
-                      onChange={(e) => {
-                        const newFeatures = [...analysis.mainFeatures];
-                        newFeatures[i] = e.target.value;
-                        handleFieldChange('mainFeatures', newFeatures);
-                      }}
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                    />
-                  ))}
+            {/* 기본 정보 (접이식) */}
+            <details className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <summary className="px-4 py-3 bg-gray-50 cursor-pointer text-sm font-bold text-gray-700 flex items-center hover:bg-gray-100 transition-colors list-none">
+                <ChevronDown className="w-4 h-4 mr-2 text-gray-500" />
+                기본 정보
+              </summary>
+              <div className="p-4 space-y-3 text-sm">
+                <div>
+                  <label className="text-xs text-gray-500">상품명</label>
+                  <input
+                    type="text"
+                    value={analysis.productName}
+                    onChange={(e) => handleFieldChange('productName', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">카테고리</label>
+                  <input
+                    type="text"
+                    value={analysis.detectedCategory || ''}
+                    onChange={(e) => handleFieldChange('detectedCategory', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">마케팅 문구</label>
+                  <textarea
+                    value={analysis.marketingCopy}
+                    onChange={(e) => handleFieldChange('marketingCopy', e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-200 rounded-lg p-2 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">주요 특징</label>
+                  <div className="space-y-1 mt-1">
+                    {analysis.mainFeatures.map((feature, i) => (
+                      <input
+                        key={i}
+                        type="text"
+                        value={feature}
+                        onChange={(e) => {
+                          const newFeatures = [...analysis.mainFeatures];
+                          newFeatures[i] = e.target.value;
+                          handleFieldChange('mainFeatures', newFeatures);
+                        }}
+                        className="w-full border border-gray-200 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            </details>
           </div>
         </div>
 
@@ -681,7 +706,15 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
 
           <div className="space-y-4" ref={sectionsContainerRef}>
             {analysis.sections.map((section, index) => (
-              <div key={section.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 group transition-all duration-200">
+              <div
+                key={section.id}
+                ref={(el) => { sectionRefs.current[section.id] = el; }}
+                className={`bg-white p-6 rounded-xl shadow-sm border-2 group transition-all duration-200 ${activeSectionId === section.id
+                    ? 'border-indigo-400 ring-2 ring-indigo-100'
+                    : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                onClick={() => setActiveSectionId(section.id)}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center text-gray-400">
                     <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded mr-2">
