@@ -26,7 +26,7 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
           PageGenie
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          상품 이미지만 있으면 AI가 상세페이지를 자동으로 설계하고 디자인합니다.<br/>
+          상품 이미지만 있으면 AI가 상세페이지를 자동으로 설계하고 디자인합니다.<br />
           현지화가 필요한 해외 상품 페이지도 완벽하게 한국어 버전으로 재탄생합니다.
         </p>
       </div>
@@ -47,7 +47,7 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
             상품 이미지로 생성 (Mode A)
           </h3>
           <p className="text-gray-600 mb-6">
-            상품 사진 한 장만 업로드하세요. <br/>
+            상품 사진 한 장만 업로드하세요. <br />
             AI가 상품명, 특징, 마케팅 문구를 분석하여 상세페이지 전체를 새롭게 창조합니다.
           </p>
           <div className="mt-auto flex items-center text-blue-600 font-semibold group-hover:translate-x-2 transition-transform">
@@ -67,10 +67,10 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
             <Globe className="w-8 h-8 text-indigo-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            기존 페이지 현지화 (Mode B)
+            기존 페이지 현지화 (Mode B) <span className="text-base font-medium text-gray-500">(준비중)</span>
           </h3>
           <p className="text-gray-600 mb-6">
-            해외 상품 상세페이지(스크린샷)를 업로드하세요. <br/>
+            해외 상품 상세페이지(스크린샷)를 업로드하세요. <br />
             기존 레이아웃 흐름을 유지하면서 자연스러운 한국어로 내용을 재구성합니다.
           </p>
           <div className="mt-auto flex items-center text-indigo-600 font-semibold group-hover:translate-x-2 transition-transform">
@@ -90,10 +90,10 @@ export const StepModeSelection: React.FC<Props> = React.memo(({ onSelectMode }) 
             <ImageIcon className="w-8 h-8 text-green-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            이미지 수정 (Mode C)
+            이미지 수정 (Mode C) <span className="text-base font-medium text-gray-500">(준비중)</span>
           </h3>
           <p className="text-gray-600 mb-6">
-            단일 이미지를 업로드하세요. <br/>
+            단일 이미지를 업로드하세요. <br />
             이미지의 외국어 텍스트를 한국어로 번역하거나 삭제하여 수정된 이미지를 생성합니다.
           </p>
           <div className="mt-auto flex items-center text-green-600 font-semibold group-hover:translate-x-2 transition-transform">
