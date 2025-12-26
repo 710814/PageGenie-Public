@@ -108,6 +108,7 @@ export interface SectionData {
 
 export interface ProductAnalysis {
   productName: string;
+  productVisualDescription?: string;  // AI가 추출한 상품 시각적 설명 (이미지 프롬프트용)
   mainFeatures: string[];
   marketingCopy: string;
   sections: SectionData[];
