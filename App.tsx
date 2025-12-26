@@ -492,7 +492,7 @@ const AppContent: React.FC = () => {
         {isLoading && step !== Step.GENERATING ? (
           <div className="flex flex-col items-center justify-center h-[60vh]">
             <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Gemini가 작업 중입니다</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">전자상거래 전문 AI가 작업 중입니다</h3>
             <p className="text-gray-500 animate-pulse">{loadingMessage}</p>
           </div>
         ) : (
