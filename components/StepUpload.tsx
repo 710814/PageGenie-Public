@@ -744,18 +744,38 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
         </div>
       </div>
 
-      {/* Submit Button */}
-      <div className="mt-8 flex justify-center">
-        <button
-          onClick={handleSubmit}
-          disabled={totalImageCount === 0}
-          className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
-        >
-          <Layers className="w-6 h-6" />
-          AI 분석 시작 ({totalImageCount}장)
-          <ArrowRight className="w-6 h-6" />
-        </button>
-      </div>
+      {/* 하단 플로팅 액션 바 - 이미지 1장 이상 업로드 시 표시 */}
+      {totalImageCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-2xl z-50">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            {/* 이미지 카운트 */}
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" />
+                <span className="font-bold text-sm">{totalImageCount}장 선택됨</span>
+              </div>
+              {colorOptions.length > 0 && (
+                <span className="text-xs text-gray-500">
+                  (기본 {mainImages.length}장 + 컬러옵션 {colorOptions.reduce((acc, opt) => acc + opt.images.length, 0)}장)
+                </span>
+              )}
+            </div>
+
+            {/* 분석 시작 버튼 */}
+            <button
+              onClick={handleSubmit}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+            >
+              <Layers className="w-5 h-5" />
+              AI 분석 시작
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 하단 플로팅 바 공간 확보 */}
+      {totalImageCount > 0 && <div className="h-20" />}
     </div>
   );
 };
