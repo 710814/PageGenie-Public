@@ -819,17 +819,27 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           <Lock className="w-3 h-3 mr-1" />
                           고정 이미지 (AI 생성 대신 사용)
                         </label>
-                        <img
-                          src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
-                          alt="고정 이미지"
-                          className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
+                        <div
+                          className="w-full h-32 bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors overflow-hidden"
                           onClick={() => openImageViewModal(
                             `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
                             `${section.title} (고정 이미지)`,
                             section.id
                           )}
                           title="클릭하여 크게 보기"
-                        />
+                        >
+                          <img
+                            src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
+                            alt="고정 이미지"
+                            className="w-full h-full object-cover"
+                            style={{
+                              transform: section.cropZoom && section.cropZoom !== 1
+                                ? `scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px)`
+                                : undefined,
+                              transformOrigin: 'center center'
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -1096,17 +1106,27 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                             <Lock className="w-3 h-3 mr-1" />
                             고정 이미지 (AI 생성 대신 사용)
                           </label>
-                          <img
-                            src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
-                            alt="고정 이미지"
-                            className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
+                          <div
+                            className="w-full h-32 bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors overflow-hidden"
                             onClick={() => openImageViewModal(
                               `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
                               `${section.title} (고정 이미지)`,
                               section.id
                             )}
                             title="클릭하여 크게 보기"
-                          />
+                          >
+                            <img
+                              src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
+                              alt="고정 이미지"
+                              className="w-full h-full object-cover"
+                              style={{
+                                transform: section.cropZoom && section.cropZoom !== 1
+                                  ? `scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px)`
+                                  : undefined,
+                                transformOrigin: 'center center'
+                              }}
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -1173,11 +1193,17 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
 
                                 {/* 슬롯 이미지 미리보기 */}
                                 {slot.imageUrl && (
-                                  <div className="mb-2">
+                                  <div className="mb-2 h-24 overflow-hidden rounded border border-gray-200 bg-gray-50">
                                     <img
                                       src={slot.imageUrl}
                                       alt={`이미지 ${slotIdx + 1}`}
-                                      className="w-full h-24 object-contain bg-gray-50 rounded border border-gray-200"
+                                      className="w-full h-full object-cover"
+                                      style={{
+                                        transform: slot.cropZoom && slot.cropZoom !== 1
+                                          ? `scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px)`
+                                          : undefined,
+                                        transformOrigin: 'center center'
+                                      }}
                                     />
                                   </div>
                                 )}
