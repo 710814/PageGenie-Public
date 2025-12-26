@@ -72,7 +72,7 @@ export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
             </div>
 
             {/* 섹션 목록 */}
-            <div className="p-2 space-y-1 max-h-[400px] overflow-y-auto custom-scrollbar">
+            <div className="p-3 space-y-2 max-h-[450px] overflow-y-auto custom-scrollbar">
                 {sections.map((section, index) => {
                     const isActive = section.id === activeSectionId;
                     const typeInfo = getSectionTypeInfo(section.layoutType || 'full-width');
@@ -83,32 +83,32 @@ export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
                         <div
                             key={section.id}
                             className={`
-                                group relative rounded-lg px-3 py-2.5 cursor-pointer transition-all duration-200
+                                group relative rounded-xl px-4 py-4 cursor-pointer transition-all duration-200
                                 ${isActive
-                                    ? 'bg-indigo-50 border-2 border-indigo-400 shadow-sm'
-                                    : 'bg-gray-50 border border-transparent hover:bg-white hover:border-gray-200 hover:shadow-sm'
+                                    ? 'bg-blue-50 border-2 border-blue-400 shadow-md'
+                                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                                 }
                             `}
                             onClick={() => onSectionClick(section.id)}
                         >
                             {/* 메인 라인: 번호 + 타입 아이콘 + 제목 */}
                             <div className="flex items-center gap-2">
-                                {/* 번호 */}
+                                {/* 번호 (원형) */}
                                 <span className={`
-                                    text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full flex-shrink-0
-                                    ${isActive ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}
+                                    text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full flex-shrink-0
+                                    ${isActive ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}
                                 `}>
                                     {index + 1}
                                 </span>
 
-                                {/* 타입 아이콘 + 라벨 */}
-                                <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${typeInfo.color}`}>
-                                    <TypeIcon className="w-3 h-3" />
+                                {/* 타입 배지 */}
+                                <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-md flex-shrink-0 bg-blue-100 text-blue-600 border border-blue-300">
+                                    <TypeIcon className="w-3.5 h-3.5" />
                                     {typeInfo.label}
                                 </span>
 
                                 {/* 섹션 제목 */}
-                                <span className="flex-1 text-[11px] text-gray-700 font-medium truncate">
+                                <span className="flex-1 text-sm text-gray-800 font-medium truncate">
                                     {section.title || '(제목 없음)'}
                                 </span>
 
