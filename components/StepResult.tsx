@@ -73,8 +73,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
             <section class="section">
                 <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
                     ${section.imageSlots?.map((slot, idx) => {
-          const hasCrop = slot.cropZoom && slot.cropZoom !== 1;
-          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px); transform-origin: center;` : '';
+          const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
+          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px); transform-origin: center;` : '';
           return slot.imageUrl ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px;"><img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; ${cropStyle}" /></div>` : ''
         }).join('')}
                 </div>
@@ -85,8 +85,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
       }
 
       // 일반 섹션 (single image)
-      const hasCrop = section.cropZoom && section.cropZoom !== 1;
-      const cropStyle = hasCrop ? `transform: scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px); transform-origin: center;` : '';
+      const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
+      const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px); transform-origin: center;` : '';
       return `
           <section class="section">
               ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px;"><img src="images/section_${section.id}.png" alt="${section.title}" style="width: 100%; height: auto; ${cropStyle}" /></div>` : ''}
@@ -256,8 +256,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
         <section class="section">
             <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
                 ${section.imageSlots?.map((slot, slotIdx) => {
-          const hasCrop = slot.cropZoom && slot.cropZoom !== 1;
-          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px); transform-origin: center;` : '';
+          const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
+          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px); transform-origin: center;` : '';
           return slot.imageUrl
             ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px;"><img src="${slot.imageUrl}" alt="${section.title} - ${slotIdx + 1}" style="width: 100%; height: 100%; object-fit: cover; ${cropStyle}" /></div>`
             : `<div style="width: 100%; aspect-ratio: 1/1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">이미지 ${slotIdx + 1}</div>`
@@ -274,8 +274,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
         </section>`;
       } else {
         // 일반 섹션 (single image)
-        const hasCrop = section.cropZoom && section.cropZoom !== 1;
-        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px); transform-origin: center;` : '';
+        const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
+        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px); transform-origin: center;` : '';
         return `
         <section class="section">
             ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px;"><img src="${section.imageUrl}" alt="${section.title}" style="width: 100%; height: auto; ${cropStyle}" /></div>` : ''}

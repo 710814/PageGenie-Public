@@ -906,8 +906,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     alt={`이미지 ${slotIdx + 1}`}
                                     className="w-full h-full object-cover"
                                     style={{
-                                      transform: slot.cropZoom && slot.cropZoom !== 1
-                                        ? `scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px)`
+                                      transform: (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY
+                                        ? `scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
                                         : undefined,
                                       transformOrigin: 'center center'
                                     }}
@@ -1103,8 +1103,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                               alt="고정 이미지"
                               className="w-full h-full object-cover"
                               style={{
-                                transform: section.cropZoom && section.cropZoom !== 1
-                                  ? `scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px)`
+                                transform: (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY
+                                  ? `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
                                   : undefined,
                                 transformOrigin: 'center center'
                               }}
@@ -1182,8 +1182,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                       alt={`이미지 ${slotIdx + 1}`}
                                       className="w-full h-full object-cover"
                                       style={{
-                                        transform: slot.cropZoom && slot.cropZoom !== 1
-                                          ? `scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px)`
+                                        transform: (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY
+                                          ? `scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
                                           : undefined,
                                         transformOrigin: 'center center'
                                       }}
@@ -1287,8 +1287,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                       alt="미리보기"
                                       className="w-full h-full object-cover"
                                       style={{
-                                        transform: section.cropZoom && section.cropZoom !== 1
-                                          ? `scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px)`
+                                        transform: (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY
+                                          ? `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
                                           : undefined,
                                         transformOrigin: 'center center'
                                       }}
