@@ -243,8 +243,24 @@ const AppContent: React.FC = () => {
       let completedCount = 0;
 
       for (const section of finalResult.sections) {
-        // 고정 이미지가 있는 섹션은 AI 생성 건너뛰기
-        if (section.isOriginalImage && section.imageUrl) {
+        // ★ 고정 이미지(fixedImageBase64)가 있는 경우: imageUrl로 변환하여 사용
+        if (section.useFixedImage && section.fixedImageBase64) {
+          // fixedImageBase64를 data URL로 변환하여 imageUrl에 설정
+          const fixedImageUrl = `data:${section.fixedImageMimeType || 'image/png'};base64,${section.fixedImageBase64}`;
+          console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
+          newSections.push({
+            ...section,
+            imageUrl: fixedImageUrl,
+            isOriginalImage: true
+          });
+          // 완료 목록에 추가
+          setGenerationProgress(prev => ({
+            ...prev,
+            completedSectionIds: [...prev.completedSectionIds, section.id]
+          }));
+        }
+        // 이미 imageUrl이 있는 고정 이미지 섹션
+        else if (section.isOriginalImage && section.imageUrl) {
           console.log(`[Generate] 섹션 "${section.title}": 고정 이미지 사용 (AI 생성 건너뜀)`);
           newSections.push(section);
           // 완료 목록에 추가
