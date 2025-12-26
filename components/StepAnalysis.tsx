@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
 import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType } from '../types';
-import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move } from 'lucide-react';
 import { generateSectionImage } from '../services/geminiService';
 import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
@@ -28,12 +28,19 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     prompt: string;
   } | null>(null);
 
-  // 이미지 확대 모달 상태
+  // 이미지 확대 모달 상태 (Pan & Zoom 기능 포함)
   const [imageViewModal, setImageViewModal] = useState<{
     imageUrl: string;
     sectionTitle: string;
     sectionId: string;
+    zoom: number;
+    panX: number;
+    panY: number;
   } | null>(null);
+
+  // 드래그 상태
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // 섹션 추가 모달 상태 (확장)
   const [addSectionModal, setAddSectionModal] = useState<{
@@ -219,6 +226,58 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     };
     reader.readAsDataURL(file);
   }, [analysis, onUpdate, toast]);
+
+  // 이미지 뷰 모달 열기 (줌/팬 초기화 포함)
+  const openImageViewModal = useCallback((imageUrl: string, sectionTitle: string, sectionId: string) => {
+    setImageViewModal({
+      imageUrl,
+      sectionTitle,
+      sectionId,
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+    });
+  }, []);
+
+  // 줌 핸들러
+  const handleZoom = useCallback((delta: number) => {
+    if (!imageViewModal) return;
+    const newZoom = Math.max(0.5, Math.min(4, imageViewModal.zoom + delta));
+    setImageViewModal({ ...imageViewModal, zoom: newZoom });
+  }, [imageViewModal]);
+
+  // 줌 리셋
+  const handleResetZoom = useCallback(() => {
+    if (!imageViewModal) return;
+    setImageViewModal({ ...imageViewModal, zoom: 1, panX: 0, panY: 0 });
+  }, [imageViewModal]);
+
+  // 마우스 휠 줌
+  const handleWheelZoom = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.15 : 0.15;
+    handleZoom(delta);
+  }, [handleZoom]);
+
+  // 드래그 시작
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (!imageViewModal || imageViewModal.zoom <= 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - imageViewModal.panX, y: e.clientY - imageViewModal.panY });
+  }, [imageViewModal]);
+
+  // 드래그 중
+  const handleDragMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !imageViewModal) return;
+    const newPanX = e.clientX - dragStart.x;
+    const newPanY = e.clientY - dragStart.y;
+    setImageViewModal({ ...imageViewModal, panX: newPanX, panY: newPanY });
+  }, [isDragging, dragStart, imageViewModal]);
+
+  // 드래그 종료
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   // 레이아웃 추천 매핑
   const layoutRecommendations: { [key: string]: string } = {
@@ -682,11 +741,11 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
                           alt="고정 이미지"
                           className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
-                          onClick={() => setImageViewModal({
-                            imageUrl: `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
-                            sectionTitle: `${section.title} (고정 이미지)`,
-                            sectionId: section.id
-                          })}
+                          onClick={() => openImageViewModal(
+                            `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
+                            `${section.title} (고정 이미지)`,
+                            section.id
+                          )}
                           title="클릭하여 크게 보기"
                         />
                       </div>
@@ -716,18 +775,36 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                 <ImageIcon className="w-3 h-3 mr-1" />
                                 이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
                               </label>
-                              <button
-                                onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
-                                disabled={generatingPreviewId === section.id || !slot.prompt}
-                                className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50"
-                              >
-                                {generatingPreviewId === section.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Sparkles className="w-3 h-3" />
-                                )}
-                                생성
-                              </button>
+                              <div className="flex gap-1">
+                                {/* 직접 업로드 버튼 */}
+                                <label className="text-[10px] px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded flex items-center gap-1 cursor-pointer transition-colors">
+                                  <Upload className="w-3 h-3" />
+                                  업로드
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleUploadImage(section.id, file, slotIdx);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                {/* AI 생성 버튼 */}
+                                <button
+                                  onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
+                                  disabled={generatingPreviewId === section.id || !slot.prompt}
+                                  className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50 transition-colors"
+                                >
+                                  {generatingPreviewId === section.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="w-3 h-3" />
+                                  )}
+                                  생성
+                                </button>
+                              </div>
                             </div>
 
                             {slot.imageUrl && (
@@ -736,11 +813,11 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   src={slot.imageUrl}
                                   alt={`이미지 ${slotIdx + 1}`}
                                   className="w-full h-32 object-contain bg-gray-50 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
-                                  onClick={() => setImageViewModal({
-                                    imageUrl: slot.imageUrl!,
-                                    sectionTitle: `${section.title} - 이미지 ${slotIdx + 1}`,
-                                    sectionId: `${section.id}-slot-${slotIdx}`
-                                  })}
+                                  onClick={() => openImageViewModal(
+                                    slot.imageUrl!,
+                                    `${section.title} - 이미지 ${slotIdx + 1}`,
+                                    `${section.id}-slot-${slotIdx}`
+                                  )}
                                   title="클릭하여 크게 보기"
                                 />
                                 {/* Hover 액션 버튼들 */}
@@ -748,11 +825,11 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setImageViewModal({
-                                        imageUrl: slot.imageUrl!,
-                                        sectionTitle: `${section.title} - 이미지 ${slotIdx + 1}`,
-                                        sectionId: `${section.id}-slot-${slotIdx}`
-                                      });
+                                      openImageViewModal(
+                                        slot.imageUrl!,
+                                        `${section.title} - 이미지 ${slotIdx + 1}`,
+                                        `${section.id}-slot-${slotIdx}`
+                                      );
                                     }}
                                     className="bg-white text-gray-800 px-2 py-1 rounded text-[10px] font-medium flex items-center hover:bg-gray-100 transition-colors"
                                     title="이미지 크게 보기"
@@ -922,11 +999,11 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                             src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
                             alt="고정 이미지"
                             className="w-full h-32 object-contain bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors"
-                            onClick={() => setImageViewModal({
-                              imageUrl: `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
-                              sectionTitle: `${section.title} (고정 이미지)`,
-                              sectionId: section.id
-                            })}
+                            onClick={() => openImageViewModal(
+                              `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
+                              `${section.title} (고정 이미지)`,
+                              section.id
+                            )}
                             title="클릭하여 크게 보기"
                           />
                         </div>
@@ -1046,22 +1123,22 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     src={section.imageUrl}
                                     alt="미리보기"
                                     className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
-                                    onClick={() => setImageViewModal({
-                                      imageUrl: section.imageUrl!,
-                                      sectionTitle: section.title,
-                                      sectionId: section.id
-                                    })}
+                                    onClick={() => openImageViewModal(
+                                      section.imageUrl!,
+                                      section.title,
+                                      section.id
+                                    )}
                                     title="클릭하여 크게 보기"
                                   />
                                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setImageViewModal({
-                                          imageUrl: section.imageUrl!,
-                                          sectionTitle: section.title,
-                                          sectionId: section.id
-                                        });
+                                        openImageViewModal(
+                                          section.imageUrl!,
+                                          section.title,
+                                          section.id
+                                        );
                                       }}
                                       className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
                                       title="이미지 크게 보기"
@@ -1231,7 +1308,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         )
       }
 
-      {/* 이미지 확대 보기 모달 */}
+      {/* 이미지 확대 보기 모달 (Pan & Zoom) */}
       {
         imageViewModal && (
           <div
@@ -1251,28 +1328,82 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                   </h3>
                   <p className="text-blue-100 text-sm mt-0.5">{imageViewModal.sectionTitle}</p>
                 </div>
-                <button
-                  onClick={() => setImageViewModal(null)}
-                  className="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+                <div className="flex items-center gap-2">
+                  {/* 줌 컨트롤 */}
+                  <div className="flex items-center bg-white/10 rounded-lg px-2 py-1 gap-1">
+                    <button
+                      onClick={() => handleZoom(-0.25)}
+                      className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors"
+                      title="축소"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-white text-sm font-medium min-w-[50px] text-center">
+                      {Math.round(imageViewModal.zoom * 100)}%
+                    </span>
+                    <button
+                      onClick={() => handleZoom(0.25)}
+                      className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors"
+                      title="확대"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleResetZoom}
+                      className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors ml-1"
+                      title="초기화"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setImageViewModal(null)}
+                    className="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 이미지 영역 (Pan & Zoom) */}
+              <div
+                className={`flex-1 overflow-hidden p-6 bg-gray-100 flex items-center justify-center ${imageViewModal.zoom > 1 ? 'cursor-grab' : 'cursor-default'
+                  } ${isDragging ? 'cursor-grabbing' : ''}`}
+                onWheel={handleWheelZoom}
+                onMouseDown={handleDragStart}
+                onMouseMove={handleDragMove}
+                onMouseUp={handleDragEnd}
+                onMouseLeave={handleDragEnd}
+              >
+                <div
+                  style={{
+                    transform: `scale(${imageViewModal.zoom}) translate(${imageViewModal.panX / imageViewModal.zoom}px, ${imageViewModal.panY / imageViewModal.zoom}px)`,
+                    transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                  }}
                 >
-                  <X className="w-6 h-6" />
-                </button>
+                  <img
+                    src={imageViewModal.imageUrl}
+                    alt={imageViewModal.sectionTitle}
+                    className="max-w-full max-h-[55vh] object-contain rounded-lg shadow-lg select-none"
+                    draggable={false}
+                  />
+                </div>
               </div>
 
-              {/* 이미지 영역 */}
-              <div className="flex-1 overflow-auto p-6 bg-gray-100 flex items-center justify-center">
-                <img
-                  src={imageViewModal.imageUrl}
-                  alt={imageViewModal.sectionTitle}
-                  className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
-                />
-              </div>
-
-              {/* 액션 버튼 */}
+              {/* 도움말 & 액션 버튼 */}
               <div className="bg-white border-t px-6 py-4 flex justify-between items-center">
-                <p className="text-sm text-gray-500">
-                  💡 이미지가 마음에 들지 않으면 프롬프트를 수정하여 재생성하세요.
-                </p>
+                <div className="text-sm text-gray-500 flex items-center gap-4">
+                  <span className="flex items-center gap-1">
+                    <ZoomIn className="w-4 h-4" />
+                    마우스 휠: 확대/축소
+                  </span>
+                  {imageViewModal.zoom > 1 && (
+                    <span className="flex items-center gap-1">
+                      <Move className="w-4 h-4" />
+                      드래그: 이동
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
@@ -1318,8 +1449,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
               <button
                 onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'new' })}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'new'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 <Plus className="w-4 h-4 inline mr-1" />
@@ -1328,8 +1459,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
               <button
                 onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'preset' })}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'preset'
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 <Bookmark className="w-4 h-4 inline mr-1" />
