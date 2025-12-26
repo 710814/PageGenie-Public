@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, LayoutGrid, Type, Columns } from 'lucide-react';
+import { Image, LayoutGrid, Type, Columns, MoveUp, MoveDown, Trash2 } from 'lucide-react';
 import { SectionData } from '../types';
 
 interface SectionMiniMapProps {
@@ -38,7 +38,9 @@ const hasImage = (section: SectionData): boolean => {
 export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
     sections,
     activeSectionId,
-    onSectionClick
+    onSectionClick,
+    onMoveSection,
+    onDeleteSection
 }) => {
     const done = sections.filter(hasImage).length;
 
@@ -74,7 +76,7 @@ export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
                             key={section.id}
                             onClick={() => onSectionClick(section.id)}
                             className={`
-                                flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all
+                                group relative flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all
                                 ${active
                                     ? 'bg-white border-2 border-blue-500 shadow-sm'
                                     : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
@@ -96,9 +98,38 @@ export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
                             </span>
 
                             {/* 제목 */}
-                            <span className={`text-sm truncate ${active ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
+                            <span className={`text-sm truncate flex-1 ${active ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                                 {section.title || '(제목 없음)'}
                             </span>
+
+                            {/* 호버 액션 버튼 (복원) */}
+                            <div className="absolute right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-[2px] rounded-lg p-1 shadow-sm border border-gray-100">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onMoveSection(i, 'up'); }}
+                                    disabled={i === 0}
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                    title="위로"
+                                >
+                                    <MoveUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onMoveSection(i, 'down'); }}
+                                    disabled={i === sections.length - 1}
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                    title="아래로"
+                                >
+                                    <MoveDown className="w-3.5 h-3.5" />
+                                </button>
+                                {onDeleteSection && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDeleteSection(i); }}
+                                        className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500"
+                                        title="삭제"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     );
                 })}
