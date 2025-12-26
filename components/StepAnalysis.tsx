@@ -1038,19 +1038,36 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     <ImageIcon className="w-3 h-3 mr-1" />
                                     이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
                                   </label>
-                                  {/* 개별 슬롯 이미지 생성 버튼 */}
-                                  <button
-                                    onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
-                                    disabled={generatingPreviewId === section.id || !slot.prompt}
-                                    className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50"
-                                  >
-                                    {generatingPreviewId === section.id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Sparkles className="w-3 h-3" />
-                                    )}
-                                    생성
-                                  </button>
+                                  <div className="flex gap-1">
+                                    {/* 직접 업로드 버튼 */}
+                                    <label className="text-[10px] px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded flex items-center gap-1 cursor-pointer transition-colors">
+                                      <Upload className="w-3 h-3" />
+                                      업로드
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handleUploadImage(section.id, file, slotIdx);
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                    </label>
+                                    {/* 개별 슬롯 이미지 생성 버튼 */}
+                                    <button
+                                      onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
+                                      disabled={generatingPreviewId === section.id || !slot.prompt}
+                                      className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50 transition-colors"
+                                    >
+                                      {generatingPreviewId === section.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Sparkles className="w-3 h-3" />
+                                      )}
+                                      생성
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* 슬롯 이미지 미리보기 */}
@@ -1102,14 +1119,34 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           </div>
                         ) : (
                           /* 단일 이미지 프롬프트 (기존 방식) */
-                          <textarea
-                            rows={section.useFixedImage ? 3 : 4}
-                            value={section.imagePrompt}
-                            onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
-                            disabled={section.useFixedImage}
-                            className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                            placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
-                          />
+                          <div className="space-y-2">
+                            {/* 업로드 및 생성 버튼 헤더 */}
+                            <div className="flex justify-end gap-1">
+                              {/* 직접 업로드 버튼 */}
+                              <label className="text-[10px] px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded flex items-center gap-1 cursor-pointer transition-colors">
+                                <Upload className="w-3 h-3" />
+                                업로드
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadImage(section.id, file, 0);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <textarea
+                              rows={section.useFixedImage ? 3 : 4}
+                              value={section.imagePrompt}
+                              onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
+                              disabled={section.useFixedImage}
+                              className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                              placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
+                            />
+                          </div>
                         )}
 
                         {/* 이미지 미리보기 버튼 및 결과 */}
