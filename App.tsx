@@ -219,9 +219,9 @@ const AppContent: React.FC = () => {
     setStep(Step.GENERATING);
     setIsLoading(true);
 
-    // 생성할 섹션 계산 (고정 이미지, 미리보기 제외)
+    // 생성할 섹션 계산 (고정 이미지, 미리보기, text-only 레이아웃 제외)
     const sectionsToGenerate = analysisResult.sections.filter(
-      s => !s.isOriginalImage && !s.isPreview && s.imagePrompt && !s.imageUrl
+      s => !s.isOriginalImage && !s.isPreview && s.imagePrompt && !s.imageUrl && s.layoutType !== 'text-only'
     );
 
     // 진행 상태 초기화
@@ -318,8 +318,8 @@ const AppContent: React.FC = () => {
             currentSectionTitle: ''
           }));
         }
-        // 단일 이미지 프롬프트 처리 (기존 방식)
-        else if (section.imagePrompt) {
+        // 단일 이미지 프롬프트 처리 (기존 방식) - text-only 레이아웃은 건너뛰기
+        else if (section.imagePrompt && section.layoutType !== 'text-only') {
           // 현재 생성 중인 섹션 표시
           setGenerationProgress(prev => ({
             ...prev,
