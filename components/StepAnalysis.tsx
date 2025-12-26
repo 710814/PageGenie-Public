@@ -864,10 +864,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     {Math.round(slot.cropZoom * 100)}%
                                   </div>
                                 )}
-                                <img
-                                  src={slot.imageUrl}
-                                  alt={`이미지 ${slotIdx + 1}`}
-                                  className="w-full h-32 object-contain bg-gray-50 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
+                                <div
+                                  className="w-full h-32 bg-gray-50 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden"
                                   onClick={() => openImageViewModal(
                                     slot.imageUrl!,
                                     `${section.title} - 이미지 ${slotIdx + 1}`,
@@ -875,7 +873,19 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     slotIdx
                                   )}
                                   title="클릭하여 크게 보기"
-                                />
+                                >
+                                  <img
+                                    src={slot.imageUrl}
+                                    alt={`이미지 ${slotIdx + 1}`}
+                                    className="w-full h-full object-contain"
+                                    style={{
+                                      transform: slot.cropZoom && slot.cropZoom !== 1
+                                        ? `scale(${slot.cropZoom}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
+                                        : undefined,
+                                      transformOrigin: 'center center'
+                                    }}
+                                  />
+                                </div>
                                 {/* Hover 액션 버튼들 */}
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/slot:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover/slot:pointer-events-auto">
                                   <button
@@ -1220,17 +1230,27 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                       {Math.round(section.cropZoom * 100)}%
                                     </div>
                                   )}
-                                  <img
-                                    src={section.imageUrl}
-                                    alt="미리보기"
-                                    className="w-full h-32 object-contain bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors"
+                                  <div
+                                    className="w-full h-32 bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden"
                                     onClick={() => openImageViewModal(
                                       section.imageUrl!,
                                       section.title,
                                       section.id
                                     )}
                                     title="클릭하여 크게 보기"
-                                  />
+                                  >
+                                    <img
+                                      src={section.imageUrl}
+                                      alt="미리보기"
+                                      className="w-full h-full object-contain"
+                                      style={{
+                                        transform: section.cropZoom && section.cropZoom !== 1
+                                          ? `scale(${section.cropZoom}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
+                                          : undefined,
+                                        transformOrigin: 'center center'
+                                      }}
+                                    />
+                                  </div>
                                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
                                     <button
                                       onClick={(e) => {
