@@ -64,6 +64,8 @@ export interface ImageSlot {
   id: string;
   slotType: ImageSlotType;          // 이미지 유형
   prompt: string;                    // AI 이미지 생성 프롬프트
+  photographyStyle?: 'full-body' | 'close-up' | 'flat-lay' | 'lifestyle' | 'studio' | 'coordination' | 'diagram';  // 촬영 스타일
+  aspectRatio?: 'square' | 'portrait' | 'landscape' | 'wide';  // 이미지 비율
   imageUrl?: string;                 // 생성된 이미지 URL (일관성 위해 추가)
   generatedImageUrl?: string;        // 생성된 이미지 URL (deprecated, use imageUrl)
   fixedImageBase64?: string;         // 고정 이미지 (Base64)

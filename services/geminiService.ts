@@ -635,11 +635,21 @@ const templateExtractionSchema = {
                   enum: ["hero", "product", "detail", "material", "color_styling", "fit", "spec", "notice", "custom"],
                   description: "이미지 유형"
                 },
-                prompt: { type: "string", description: "범용 이미지 생성 프롬프트 ([PRODUCT] 플레이스홀더 사용)" }
+                photographyStyle: {
+                  type: "string",
+                  enum: ["full-body", "close-up", "flat-lay", "lifestyle", "studio", "coordination", "diagram"],
+                  description: "촬영 스타일 (전신샷, 클로즈업, 플랫레이, 라이프스타일, 스튜디오, 코디, 다이어그램)"
+                },
+                aspectRatio: {
+                  type: "string",
+                  enum: ["square", "portrait", "landscape", "wide"],
+                  description: "이미지 비율 (정사각형, 세로형, 가로형, 와이드)"
+                },
+                prompt: { type: "string", description: "범용 이미지 생성 프롬프트 ([PRODUCT] 플레이스홀더 사용, 촬영 스타일 포함)" }
               },
-              required: ["id", "slotType", "prompt"]
+              required: ["id", "slotType", "photographyStyle", "prompt"]
             },
-            description: "이미지 슬롯 배열 (섹션 내 이미지들)"
+            description: "이미지 슬롯 배열 (섹션 내 이미지들, 촬영 스타일 및 비율 포함)"
           }
         },
         required: ["id", "sectionType", "title", "layoutType", "imageSlots"]
@@ -651,65 +661,108 @@ const templateExtractionSchema = {
 
 /**
  * Enhanced prompt for template extraction
+ * 고도화된 템플릿 추출 프롬프트 - 시각적 분석, 레이아웃 감지, 촬영 스타일 추출
  */
 const templateExtractionPrompt = `
-You are an expert e-commerce product page designer analyzing a product detail page image.
-Your task is to extract a REUSABLE TEMPLATE STRUCTURE that can be applied to similar products.
+You are an expert e-commerce product page designer with deep experience in Korean online shopping malls.
+Your task is to analyze a product detail page image and extract a REUSABLE TEMPLATE STRUCTURE.
 
-## CRITICAL INSTRUCTIONS:
+## STEP 1: VISUAL LAYOUT DETECTION (레이아웃 감지)
 
-### 1. Analyze each distinct SECTION of the page:
+Carefully examine the image and identify layout patterns:
 
-**섹션 타입 (sectionType)** - Identify the purpose:
-- title: 상품명/타이틀 영역
-- hero: 메인 비주얼 영역 (대표 이미지)
-- description: 상품 설명/소개
-- colors: 색상 옵션/변형
-- material_detail: 소재/원단 상세
-- styling: 코디/스타일링 제안
-- fit: 핏/착용감/사이즈 안내
-- spec: 상세 스펙/사양표
-- notice: 안내사항/주의사항
-- custom: 기타
+**Grid Detection (그리드 감지):**
+- Count images arranged horizontally in the same row
+- 2 images side-by-side → layoutType: "grid-2"
+- 3 images side-by-side → layoutType: "grid-3"
+- Single image spanning full width → layoutType: "full-width" or "image-only"
 
-**레이아웃 (layoutType)** - How content is arranged:
-- full-width: 이미지가 전체 너비로 표시
-- split-left: 좌측 이미지 + 우측 텍스트
-- split-right: 좌측 텍스트 + 우측 이미지
-- grid-2: 2열 이미지 그리드
-- grid-3: 3열 이미지 그리드
-- text-only: 텍스트만 (이미지 없음)
-- image-only: 이미지만 (텍스트 없음)
+**Split Layout Detection (분할 레이아웃 감지):**
+- Image on LEFT + text on RIGHT → layoutType: "split-left"
+- Text on LEFT + image on RIGHT → layoutType: "split-right"
 
-### 2. For EACH image in the section, create an imageSlot:
+**Section Boundary Detection (섹션 경계 감지):**
+- Look for: horizontal lines, spacing gaps, background color changes
+- New section typically starts with a headline/title
+- Group related images and text together as one section
 
-**이미지 슬롯 타입 (slotType)**:
-- hero: 대표/메인 이미지
-- product: 상품 전체 이미지
-- detail: 디테일 클로즈업
-- material: 소재/텍스처 클로즈업
-- color_styling: 색상 변형/스타일링
-- fit: 착용/핏 이미지
-- spec: 스펙 도표/다이어그램
-- notice: 안내 이미지
-- custom: 기타
+## STEP 2: SECTION TYPE IDENTIFICATION (섹션 타입 식별)
 
-**프롬프트 작성 규칙 (IMPORTANT)**:
-- Write product-agnostic prompts using [PRODUCT] as placeholder
-- Include visual style, composition, lighting, background
-- Example: "Full body shot of a model wearing [PRODUCT] in a minimalist room setting with warm natural lighting"
-- Example: "Close-up texture shot of [PRODUCT] material with soft studio lighting"
-- Write in English for better AI image generation
+For each section, identify its PURPOSE:
 
-### 3. Output Requirements:
-- Return valid JSON matching the schema
-- title and content fields in Korean
-- imageSlot prompt in English with [PRODUCT] placeholder
-- Include 4-8 sections for a complete template
-- Each section should have at least 1 imageSlot (except text-only sections)
+| sectionType | 특징 | 일반적 레이아웃 |
+|-------------|------|----------------|
+| hero | 메인 대표 이미지, 상품 전체 보이는 첫 이미지 | full-width, image-only |
+| description | 상품 소개/설명 텍스트 | full-width, split-* |
+| material_detail | 소재/원단 클로즈업, 텍스처 강조 | full-width, grid-2 |
+| colors | 색상별 상품 나열, 컬러칩 | grid-2, grid-3 |
+| styling | 코디/스타일링, 다른 아이템과 조합 | grid-2, full-width |
+| fit | 착용샷, 사이즈 안내, 모델 피팅 | full-width, split-* |
+| detail | 디테일 클로즈업 (자수, 단추, 지퍼 등) | grid-2, grid-3 |
+| spec | 사이즈표, 스펙 다이어그램 | full-width, text-only |
+| notice | 배송/반품/세탁 안내 | text-only, full-width |
 
-## TEMPLATE PURPOSE:
-This template will be used to generate new product pages. The structure, layout types, and image prompts will be reused - only the actual product content will change. Focus on extracting PATTERNS, not specific content.
+## STEP 3: PHOTOGRAPHY STYLE ANALYSIS (촬영 스타일 분석)
+
+For EACH image in a section, identify the photographyStyle:
+
+| photographyStyle | 설명 | 예시 |
+|-----------------|------|------|
+| full-body | 전신 착용컷, 모델 전체 보임 | 모델이 옷을 입고 서있는 컷 |
+| close-up | 극단적 확대, 디테일/텍스처 강조 | 자수 패턴, 원단 결 클로즈업 |
+| flat-lay | 평면 배치, 위에서 촬영 | 바닥에 펼쳐놓은 상품 |
+| lifestyle | 실생활 환경에서 자연스러운 장면 | 집에서 편하게 입고 있는 모습 |
+| studio | 깔끔한 스튜디오 배경, 단색 배경 | 흰 배경에 상품만 촬영 |
+| coordination | 코디 제안, 여러 아이템 조합 | 상하의+액세서리 함께 |
+| diagram | 도표, 사이즈 안내, 설명 그래픽 | 사이즈표, 세탁 기호 |
+
+Also identify aspectRatio:
+- square: 정사각형 (1:1)
+- portrait: 세로형 (2:3, 3:4)
+- landscape: 가로형 (3:2, 4:3)
+- wide: 와이드 배너형 (16:9, 21:9)
+
+## STEP 4: PAGE FLOW / STORYLINE ANALYSIS (페이지 흐름 분석)
+
+Analyze the logical flow from TOP to BOTTOM:
+
+**Typical Korean e-commerce page flow:**
+1. Hero image (대표 이미지) - first impression
+2. Product description (상품 설명) - key features
+3. Detail shots (디테일 컷) - close-ups of features
+4. Material/quality (소재/품질) - texture and material
+5. Styling/coordination (코디 제안) - how to wear/use
+6. Fit/size (핏/사이즈) - size guide
+7. Spec/info (스펙 정보) - detailed specifications
+8. Notice (안내사항) - shipping, returns, care
+
+**PRESERVE this natural flow in your template output!**
+
+## STEP 5: IMAGE PROMPT CREATION (이미지 프롬프트 작성)
+
+For each imageSlot, create a detailed, reusable prompt:
+
+**Structure:**
+[Photography Style] + [Subject with [PRODUCT] placeholder] + [Composition] + [Background/Setting] + [Lighting]
+
+**Examples:**
+- Hero: "Studio shot of [PRODUCT] displayed on clean white background, centered composition, professional product photography lighting"
+- Detail: "Extreme close-up macro shot of [PRODUCT] texture and stitching detail, shallow depth of field, soft diffused lighting"
+- Styling: "Flat-lay coordination shot of [PRODUCT] paired with complementary accessories, overhead angle, lifestyle props, soft natural lighting"
+- Fit: "Full body shot of a model wearing [PRODUCT], natural standing pose, neutral studio background, even soft lighting"
+
+## OUTPUT REQUIREMENTS:
+
+1. Return valid JSON matching the schema
+2. Include 4-10 sections covering the full page
+3. Each section must have:
+   - Correct sectionType based on content purpose
+   - Correct layoutType based on visual arrangement
+   - imageSlots with photographyStyle and aspectRatio
+   - Detailed prompts using [PRODUCT] placeholder
+4. title and content in Korean
+5. prompts in English for AI image generation
+6. Preserve the natural page flow/storyline
 `;
 
 /**
@@ -829,6 +882,8 @@ const convertToTemplate = (templateData: any): Template => {
     imageSlots: sec.imageSlots?.map((slot: any) => ({
       id: slot.id || `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       slotType: slot.slotType || 'hero',
+      photographyStyle: slot.photographyStyle || 'studio',
+      aspectRatio: slot.aspectRatio || 'portrait',
       prompt: slot.prompt || '',
     })) || [],
     // 하위 호환성: 첫 번째 이미지 슬롯의 프롬프트를 imagePrompt로 설정
