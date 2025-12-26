@@ -911,10 +911,10 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   <img
                                     src={slot.imageUrl}
                                     alt={`이미지 ${slotIdx + 1}`}
-                                    className="w-full h-full object-contain"
+                                    className="w-full h-full object-cover"
                                     style={{
                                       transform: slot.cropZoom && slot.cropZoom !== 1
-                                        ? `scale(${slot.cropZoom}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
+                                        ? `scale(${slot.cropZoom}) translate(${-(slot.cropPanX || 0) / slot.cropZoom}px, ${-(slot.cropPanY || 0) / slot.cropZoom}px)`
                                         : undefined,
                                       transformOrigin: 'center center'
                                     }}
@@ -1276,10 +1276,10 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                     <img
                                       src={section.imageUrl}
                                       alt="미리보기"
-                                      className="w-full h-full object-contain"
+                                      className="w-full h-full object-cover"
                                       style={{
                                         transform: section.cropZoom && section.cropZoom !== 1
-                                          ? `scale(${section.cropZoom}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
+                                          ? `scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px)`
                                           : undefined,
                                         transformOrigin: 'center center'
                                       }}
