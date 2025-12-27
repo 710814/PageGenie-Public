@@ -702,55 +702,70 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                 onClick={() => setActiveSectionId(section.id)}
               >
                 <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center text-gray-400">
-                    <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded mr-2">
+                  <div className="flex items-center text-gray-400 flex-wrap gap-1">
+                    <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded mr-1">
                       SECTION {index + 1}
                     </span>
-                    {/* 고정 요소 표시 배지 */}
+                    {/* 단일 배지: 레이아웃 또는 이미지 상태 */}
+                    {section.layoutType && section.layoutType !== 'full-width' ? (
+                      // 그리드 레이아웃인 경우 레이아웃 타입 표시
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center" title={`레이아웃: ${section.layoutType}`}>
+                        <ImageIcon className="w-3 h-3 mr-0.5" />
+                        {section.layoutType}
+                      </span>
+                    ) : section.imageUrl && !section.isOriginalImage ? (
+                      // 이미지가 생성된 경우
+                      <span className="bg-green-100 text-green-700 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center" title="이미지 미리보기 생성됨">
+                        <ImageIcon className="w-3 h-3 mr-0.5" />
+                        미리보기
+                      </span>
+                    ) : section.useFixedImage && section.fixedImageBase64 ? (
+                      // 고정 이미지 사용
+                      <span className="bg-emerald-100 text-emerald-700 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center" title="고정 이미지 사용">
+                        <ImageIcon className="w-3 h-3 mr-0.5" />
+                        고정이미지
+                      </span>
+                    ) : (
+                      // 기본: 이미지 대기 중
+                      <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center" title="이미지 대기 중">
+                        <ImageIcon className="w-3 h-3 mr-0.5" />
+                        전체
+                      </span>
+                    )}
+                    {/* 고정 문구 배지 (추가 정보) */}
                     {section.fixedText && (
-                      <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full mr-1 flex items-center" title="고정 문구 포함">
+                      <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center" title="고정 문구 포함">
                         <Type className="w-3 h-3 mr-0.5" />
                         고정문구
                       </span>
                     )}
-                    {section.useFixedImage && section.fixedImageBase64 && (
-                      <span className="bg-emerald-100 text-emerald-700 text-[10px] font-medium px-2 py-0.5 rounded-full mr-1 flex items-center" title="고정 이미지 사용">
-                        <ImageIcon className="w-3 h-3 mr-0.5" />
-                        고정이미지
-                      </span>
-                    )}
-                    {section.layoutType && section.layoutType !== 'full-width' && (
-                      <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full mr-1" title={`레이아웃: ${section.layoutType}`}>
-                        {section.layoutType}
-                      </span>
-                    )}
-                    {/* Reorder Buttons */}
-                    <div className="flex items-center space-x-1 ml-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => moveSection(index, 'up')}
-                        disabled={index === 0}
-                        className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
-                        title="위로 이동"
-                      >
-                        <ArrowUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => moveSection(index, 'down')}
-                        disabled={index === analysis.sections.length - 1}
-                        className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-colors"
-                        title="아래로 이동"
-                      >
-                        <ArrowDown className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
-                  <button
-                    onClick={() => removeSection(index)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                    title="섹션 삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Action Buttons - Grouped on Right */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); moveSection(index, 'up'); }}
+                      disabled={index === 0}
+                      className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-400 hover:text-gray-600 transition-colors"
+                      title="위로 이동"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); moveSection(index, 'down'); }}
+                      disabled={index === analysis.sections.length - 1}
+                      className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-400 hover:text-gray-600 transition-colors"
+                      title="아래로 이동"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeSection(index); }}
+                      className="p-1.5 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 transition-colors"
+                      title="섹션 삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* 다중 이미지 슬롯 섹션 (grid-2, grid-3): 1컬럼 레이아웃 */}
@@ -805,7 +820,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           고정 이미지 (AI 생성 대신 사용)
                         </label>
                         <div
-                          className="w-full h-32 bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors overflow-hidden"
+                          className="w-full h-32 bg-gray-100 rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors overflow-hidden flex items-center justify-center p-2"
                           onClick={() => openImageViewModal(
                             `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
                             `${section.title} (고정 이미지)`,
@@ -813,17 +828,19 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           )}
                           title="클릭하여 크게 보기"
                         >
-                          <img
-                            src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
-                            alt="고정 이미지"
-                            className="w-full h-full object-cover"
+                          <div
                             style={{
                               transform: section.cropZoom && section.cropZoom !== 1
-                                ? `scale(${section.cropZoom}) translate(${-(section.cropPanX || 0) / section.cropZoom}px, ${-(section.cropPanY || 0) / section.cropZoom}px)`
+                                ? `scale(${section.cropZoom}) translate(${(section.cropPanX || 0) / section.cropZoom}px, ${(section.cropPanY || 0) / section.cropZoom}px)`
                                 : undefined,
-                              transformOrigin: 'center center'
                             }}
-                          />
+                          >
+                            <img
+                              src={`data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`}
+                              alt="고정 이미지"
+                              className="max-w-full max-h-32 object-contain"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -894,7 +911,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   </div>
                                 )}
                                 <div
-                                  className="w-full h-32 bg-gray-50 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden"
+                                  className="w-full h-32 bg-gray-100 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden flex items-center justify-center p-2"
                                   onClick={() => openImageViewModal(
                                     slot.imageUrl!,
                                     `${section.title} - 이미지 ${slotIdx + 1}`,
@@ -903,17 +920,19 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                                   )}
                                   title="클릭하여 크게 보기"
                                 >
-                                  <img
-                                    src={slot.imageUrl}
-                                    alt={`이미지 ${slotIdx + 1}`}
-                                    className="w-full h-full object-cover"
+                                  <div
                                     style={{
                                       transform: (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY
                                         ? `scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
                                         : undefined,
-                                      transformOrigin: 'center center'
                                     }}
-                                  />
+                                  >
+                                    <img
+                                      src={slot.imageUrl}
+                                      alt={`이미지 ${slotIdx + 1}`}
+                                      className="max-w-full max-h-32 object-contain"
+                                    />
+                                  </div>
                                 </div>
                                 {/* Hover 액션 버튼들 */}
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/slot:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover/slot:pointer-events-auto">
@@ -1047,26 +1066,30 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                     </div>
                   </div>
                 ) : (
-                  /* 단일 이미지 섹션: 기존 2컬럼 레이아웃 유지 */
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
+                  /* 단일 이미지 섹션: 새로운 45:55 레이아웃 */
+                  <div className="grid md:grid-cols-[45%_1fr] gap-6">
+                    {/* 좌측: 텍스트 입력 영역 */}
+                    <div className="space-y-4">
+                      {/* 섹션 제목 */}
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase">섹션 제목</label>
                         <input
                           type="text"
                           value={section.title}
                           onChange={(e) => handleSectionChange(index, 'title', e.target.value)}
-                          className="w-full border-b border-gray-300 py-1 focus:border-blue-500 focus:outline-none font-medium text-gray-900"
+                          className="w-full border-b border-gray-300 py-2 focus:border-blue-500 focus:outline-none font-medium text-gray-900"
                           placeholder="제목을 입력하세요"
                         />
                       </div>
+
+                      {/* 상세 설명 */}
                       <div>
                         <label className="text-xs font-semibold text-gray-500 uppercase">상세 설명</label>
                         <textarea
-                          rows={5}
+                          rows={4}
                           value={section.content}
                           onChange={(e) => handleSectionChange(index, 'content', e.target.value)}
-                          className="w-full border border-gray-200 rounded p-2 text-sm text-gray-700 focus:ring-1 focus:ring-blue-500 focus:outline-none mt-1"
+                          className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-1 focus:ring-blue-500 focus:outline-none mt-1"
                           placeholder="섹션 내용을 입력하세요"
                         />
                       </div>
@@ -1081,18 +1104,77 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                           <p className="text-sm text-amber-800">{section.fixedText}</p>
                         </div>
                       )}
+
+                      {/* 이미지 생성 프롬프트 (좌측 하단) */}
+                      {section.layoutType !== 'text-only' && (
+                        <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
+                          <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            이미지 생성 프롬프트
+                          </label>
+                          <p className="text-xs text-gray-500 mb-2">
+                            {section.useFixedImage
+                              ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
+                              : '한국어 또는 영어로 이미지 스타일을 설명하세요.'
+                            }
+                          </p>
+                          <textarea
+                            rows={3}
+                            value={section.imagePrompt}
+                            onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
+                            disabled={section.useFixedImage}
+                            className={`w-full bg-white border border-gray-200 rounded-lg p-2.5 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
+                            placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진"
+                          />
+                          {/* 버튼 영역 */}
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => handleGeneratePreview(section.id)}
+                              disabled={generatingPreviewId === section.id || !section.imagePrompt || section.useFixedImage}
+                              className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {generatingPreviewId === section.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-4 h-4" />
+                                  이미지 생성
+                                </>
+                              )}
+                            </button>
+                            <label className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer transition-colors">
+                              <Upload className="w-4 h-4" />
+                              업로드
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadImage(section.id, file, 0);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-3">
+                    {/* 우측: 이미지 미리보기 영역 (h-64) */}
+                    <div className="flex flex-col">
                       {/* 고정 이미지 미리보기 */}
-                      {section.useFixedImage && section.fixedImageBase64 && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                          <label className="text-xs font-semibold text-emerald-700 uppercase flex items-center mb-2">
+                      {section.useFixedImage && section.fixedImageBase64 ? (
+                        <div className="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                          <label className="text-xs font-semibold text-emerald-700 uppercase flex items-center mb-3">
                             <Lock className="w-3 h-3 mr-1" />
                             고정 이미지 (AI 생성 대신 사용)
                           </label>
                           <div
-                            className="w-full h-32 bg-white rounded border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors overflow-hidden"
+                            className="w-full h-64 bg-white rounded-lg border border-emerald-200 cursor-pointer hover:border-emerald-400 transition-colors overflow-hidden"
                             onClick={() => openImageViewModal(
                               `data:${section.fixedImageMimeType};base64,${section.fixedImageBase64}`,
                               `${section.title} (고정 이미지)`,
@@ -1106,290 +1188,123 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                               className="w-full h-full object-cover"
                               style={{
                                 transform: (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY
-                                  ? `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
+                                  ? `scale(${section.cropZoom || 1}) translate(${-(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${-(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
                                   : undefined,
                                 transformOrigin: 'center center'
                               }}
                             />
                           </div>
                         </div>
-                      )}
-
-                      <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''} ${section.layoutType === 'text-only' ? 'hidden' : ''}`}>
-                        <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
-                          <Sparkles className="w-3 h-3 mr-1" />
-                          이미지 생성 프롬프트 (한국어/영어 가능)
-                          {section.imageSlots && section.imageSlots.length > 1 && (
-                            <span className="ml-2 bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full">
-                              {section.imageSlots.length}개 이미지
-                            </span>
-                          )}
-                        </label>
-                        <p className="text-xs text-gray-500 mb-2">
-                          {section.useFixedImage
-                            ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
-                            : section.imageSlots && section.imageSlots.length > 1
-                              ? `이 섹션은 ${section.layoutType} 레이아웃으로 ${section.imageSlots.length}개의 이미지가 필요합니다.`
-                              : '한국어 또는 영어로 이미지 스타일을 설명하세요.'
-                          }
-                        </p>
-
-                        {/* 다중 이미지 슬롯 표시 */}
-                        {section.imageSlots && section.imageSlots.length > 1 ? (
-                          <div className="space-y-3">
-                            {section.imageSlots.map((slot, slotIdx) => (
-                              <div key={slot.id} className="bg-white rounded-lg p-3 border border-gray-200">
-                                <div className="flex justify-between items-center mb-2">
-                                  <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center">
-                                    <ImageIcon className="w-3 h-3 mr-1" />
-                                    이미지 {slotIdx + 1}/{section.imageSlots!.length} ({slot.slotType})
-                                  </label>
-                                  <div className="flex gap-1">
-                                    {/* 직접 업로드 버튼 */}
-                                    <label className="text-[10px] px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded flex items-center gap-1 cursor-pointer transition-colors">
-                                      <Upload className="w-3 h-3" />
-                                      업로드
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) handleUploadImage(section.id, file, slotIdx);
-                                          e.target.value = '';
-                                        }}
-                                      />
-                                    </label>
-                                    {/* 개별 슬롯 이미지 생성 버튼 */}
-                                    <button
-                                      onClick={() => handleGeneratePreview(section.id, undefined, slotIdx)}
-                                      disabled={generatingPreviewId === section.id || !slot.prompt}
-                                      className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded flex items-center gap-1 disabled:opacity-50 transition-colors"
-                                    >
-                                      {generatingPreviewId === section.id ? (
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                      ) : (
-                                        <Sparkles className="w-3 h-3" />
-                                      )}
-                                      생성
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* 슬롯 이미지 미리보기 */}
-                                {slot.imageUrl && (
-                                  <div className="mb-2 h-24 overflow-hidden rounded border border-gray-200 bg-gray-50">
-                                    <img
-                                      src={slot.imageUrl}
-                                      alt={`이미지 ${slotIdx + 1}`}
-                                      className="w-full h-full object-cover"
-                                      style={{
-                                        transform: (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY
-                                          ? `scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
-                                          : undefined,
-                                        transformOrigin: 'center center'
-                                      }}
-                                    />
-                                  </div>
-                                )}
-
-                                <textarea
-                                  rows={2}
-                                  value={slot.prompt}
-                                  onChange={(e) => {
-                                    const newSlots = [...(section.imageSlots || [])];
-                                    newSlots[slotIdx] = { ...newSlots[slotIdx], prompt: e.target.value };
-                                    const newSections = [...analysis.sections];
-                                    newSections[index] = { ...newSections[index], imageSlots: newSlots };
-                                    handleFieldChange('sections', newSections);
-                                  }}
-                                  disabled={section.useFixedImage}
-                                  className={`w-full bg-gray-50 border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                                  placeholder={`이미지 ${slotIdx + 1}의 스타일을 설명하세요`}
-                                />
+                      ) : section.imageUrl && !section.isOriginalImage ? (
+                        /* 생성된 이미지 미리보기 */
+                        <div className="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                          <label className="text-xs font-semibold text-indigo-600 uppercase flex items-center mb-3">
+                            <ImageIcon className="w-3 h-3 mr-1" />
+                            이미지 미리보기
+                          </label>
+                          <div className="relative group">
+                            {/* 크롭 설정 저장됨 배지 */}
+                            {(section.cropZoom && section.cropZoom !== 1) && (
+                              <div className="absolute top-2 left-2 z-10 bg-green-600 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                                <ZoomIn className="w-3 h-3" />
+                                {Math.round(section.cropZoom * 100)}%
                               </div>
-                            ))}
-
-                            {/* 전체 슬롯 이미지 생성 버튼 */}
-                            <button
-                              onClick={() => handleGeneratePreview(section.id)}
-                              disabled={generatingPreviewId === section.id}
-                              className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                            >
-                              {generatingPreviewId === section.id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  이미지 생성 중...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="w-4 h-4" />
-                                  전체 {section.imageSlots.length}개 이미지 미리보기 생성
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        ) : (
-                          /* 단일 이미지 프롬프트 (기존 방식) */
-                          <div className="space-y-2">
-                            {/* 업로드 및 생성 버튼 헤더 */}
-                            <div className="flex justify-end gap-1">
-                              {/* 직접 업로드 버튼 */}
-                              <label className="text-[10px] px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded flex items-center gap-1 cursor-pointer transition-colors">
-                                <Upload className="w-3 h-3" />
-                                업로드
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleUploadImage(section.id, file, 0);
-                                    e.target.value = '';
-                                  }}
-                                />
-                              </label>
-                            </div>
-                            <textarea
-                              rows={section.useFixedImage ? 3 : 4}
-                              value={section.imagePrompt}
-                              onChange={(e) => handleSectionChange(index, 'imagePrompt', e.target.value)}
-                              disabled={section.useFixedImage}
-                              className={`w-full bg-white border border-gray-200 rounded p-2 text-sm text-gray-600 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${section.useFixedImage ? 'cursor-not-allowed' : ''}`}
-                              placeholder="예: 나무 테이블 위의 상품, 미니멀한 배경, 고품질 사진&#10;또는: Product on wooden table, minimalist background, high quality"
-                            />
-                          </div>
-                        )}
-
-                        {/* 이미지 미리보기 버튼 및 결과 */}
-                        {!section.useFixedImage && (
-                          <div className="mt-3">
-                            {section.imageUrl && !section.isOriginalImage ? (
-                              // 이미지가 생성된 경우
-                              <div className="space-y-2">
-                                <div className="relative group">
-                                  {/* 크롭 설정 저장됨 배지 */}
-                                  {(section.cropZoom && section.cropZoom !== 1) && (
-                                    <div className="absolute top-1 left-1 z-10 bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
-                                      <ZoomIn className="w-2.5 h-2.5" />
-                                      {Math.round(section.cropZoom * 100)}%
-                                    </div>
-                                  )}
-                                  <div
-                                    className="w-full h-32 bg-white rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden"
-                                    onClick={() => openImageViewModal(
-                                      section.imageUrl!,
-                                      section.title,
-                                      section.id
-                                    )}
-                                    title="클릭하여 크게 보기"
-                                  >
-                                    <img
-                                      src={section.imageUrl}
-                                      alt="미리보기"
-                                      className="w-full h-full object-cover"
-                                      style={{
-                                        transform: (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY
-                                          ? `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
-                                          : undefined,
-                                        transformOrigin: 'center center'
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openImageViewModal(
-                                          section.imageUrl!,
-                                          section.title,
-                                          section.id
-                                        );
-                                      }}
-                                      className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
-                                      title="이미지 크게 보기"
-                                    >
-                                      <Eye className="w-3 h-3 mr-1" />
-                                      크게보기
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenEditPrompt(section.id);
-                                      }}
-                                      className="bg-white text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
-                                      title="프롬프트 수정 후 재생성"
-                                    >
-                                      <Edit3 className="w-3 h-3 mr-1" />
-                                      수정
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleGeneratePreview(section.id);
-                                      }}
-                                      disabled={generatingPreviewId === section.id}
-                                      className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                      title="동일 프롬프트로 재생성"
-                                    >
-                                      <RefreshCw className={`w-3 h-3 mr-1 ${generatingPreviewId === section.id ? 'animate-spin' : ''}`} />
-                                      재생성
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemovePreview(section.id);
-                                      }}
-                                      className="bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
-                                      title="미리보기 제거"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                    {/* 업로드 버튼 */}
-                                    <label className="bg-green-600 text-white p-1.5 rounded-lg hover:bg-green-700 transition-colors cursor-pointer" title="직접 업로드">
-                                      <Upload className="w-3 h-3" />
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          e.stopPropagation();
-                                          const file = e.target.files?.[0];
-                                          if (file) handleUploadImage(section.id, file);
-                                          e.target.value = '';
-                                        }}
-                                      />
-                                    </label>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-green-600 flex items-center">
-                                  <Eye className="w-3 h-3 mr-1" />
-                                  미리보기 생성 완료 - 마우스를 올려 수정/재생성
-                                </p>
-                              </div>
-                            ) : (
-                              // 이미지가 없는 경우
-                              <button
-                                onClick={() => handleGeneratePreview(section.id)}
-                                disabled={generatingPreviewId === section.id || !section.imagePrompt}
-                                className="w-full py-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {generatingPreviewId === section.id ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    이미지 생성 중...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-4 h-4" />
-                                    이미지 미리보기 생성
-                                  </>
-                                )}
-                              </button>
                             )}
+                            <div
+                              className="w-full h-64 bg-gray-100 rounded-lg border border-indigo-200 cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden flex items-center justify-center p-4"
+                              onClick={() => openImageViewModal(
+                                section.imageUrl!,
+                                section.title,
+                                section.id
+                              )}
+                              title="클릭하여 크게 보기"
+                            >
+                              <div
+                                style={{
+                                  transform: (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY
+                                    ? `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
+                                    : undefined,
+                                }}
+                              >
+                                <img
+                                  src={section.imageUrl}
+                                  alt="미리보기"
+                                  className="max-w-full max-h-64 object-contain"
+                                />
+                              </div>
+                            </div>
+                            {/* 호버 액션 버튼들 */}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2 pointer-events-none group-hover:pointer-events-auto">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openImageViewModal(
+                                    section.imageUrl!,
+                                    section.title,
+                                    section.id
+                                  );
+                                }}
+                                className="bg-white text-gray-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                title="이미지 크게 보기"
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                크게보기
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditPrompt(section.id);
+                                }}
+                                className="bg-white text-gray-800 px-3 py-2 rounded-lg text-xs font-medium flex items-center hover:bg-gray-100 transition-colors"
+                                title="프롬프트 수정 후 재생성"
+                              >
+                                <Edit3 className="w-4 h-4 mr-1" />
+                                수정
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGeneratePreview(section.id);
+                                }}
+                                disabled={generatingPreviewId === section.id}
+                                className="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                title="동일 프롬프트로 재생성"
+                              >
+                                <RefreshCw className={`w-4 h-4 mr-1 ${generatingPreviewId === section.id ? 'animate-spin' : ''}`} />
+                                재생성
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemovePreview(section.id);
+                                }}
+                                className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition-colors"
+                                title="미리보기 제거"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                        )}
-                      </div>
+                          <p className="text-xs text-green-600 flex items-center mt-2">
+                            <Eye className="w-3 h-3 mr-1" />
+                            미리보기 생성 완료 - 마우스를 올려 수정/재생성
+                          </p>
+                        </div>
+                      ) : (
+                        /* 이미지 없는 경우: 플레이스홀더 */
+                        <div className="flex-1 bg-white border border-gray-200 rounded-xl p-4">
+                          <div className="w-full h-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center min-h-[260px]">
+                            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                              <ImageIcon className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <p className="text-sm text-gray-500 text-center mb-1">이미지 미리보기 영역</p>
+                            <p className="text-xs text-gray-400 text-center">
+                              좌측에서 프롬프트를 입력하고<br />
+                              "이미지 생성" 버튼을 클릭하세요
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1398,31 +1313,6 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </div>
         </div>
       </div>
-
-      {/* 하단 고정 액션 바 */}
-      {
-        previewCount > 0 && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-2xl border border-gray-200 rounded-full px-6 py-3 flex items-center gap-4 z-30">
-            <span className="text-sm text-gray-600">
-              <Eye className="w-4 h-4 inline mr-1" />
-              미리보기 {previewCount}개 생성됨
-            </span>
-            <div className="w-px h-6 bg-gray-200"></div>
-            <button
-              onClick={onConfirm}
-              disabled={isLoading}
-              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-full font-semibold flex items-center shadow-lg disabled:opacity-50 text-sm"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              나머지 생성 후 완료
-            </button>
-          </div>
-        )
-      }
 
       {/* 프롬프트 수정 모달 */}
       {
@@ -1609,334 +1499,336 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
       }
 
       {/* 섹션 추가 모달 (확장) */}
-      {addSectionModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
-            {/* 헤더 */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center flex-shrink-0">
-              <h3 className="text-lg font-bold text-white">새 섹션 추가</h3>
-              <button onClick={() => setAddSectionModal(null)} className="text-white/80 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {
+        addSectionModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
+              {/* 헤더 */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center flex-shrink-0">
+                <h3 className="text-lg font-bold text-white">새 섹션 추가</h3>
+                <button onClick={() => setAddSectionModal(null)} className="text-white/80 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-            {/* 탭 */}
-            <div className="flex border-b flex-shrink-0">
-              <button
-                onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'new' })}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'new'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <Plus className="w-4 h-4 inline mr-1" />
-                새로 만들기
-              </button>
-              <button
-                onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'preset' })}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'preset'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <Bookmark className="w-4 h-4 inline mr-1" />
-                프리셋에서 ({sectionPresets.length})
-              </button>
-            </div>
+              {/* 탭 */}
+              <div className="flex border-b flex-shrink-0">
+                <button
+                  onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'new' })}
+                  className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'new'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <Plus className="w-4 h-4 inline mr-1" />
+                  새로 만들기
+                </button>
+                <button
+                  onClick={() => setAddSectionModal({ ...addSectionModal, activeTab: 'preset' })}
+                  className={`flex-1 py-3 text-sm font-medium transition-colors ${addSectionModal.activeTab === 'preset'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <Bookmark className="w-4 h-4 inline mr-1" />
+                  프리셋에서 ({sectionPresets.length})
+                </button>
+              </div>
 
-            {/* 콘텐츠 */}
-            <div className="flex-1 overflow-y-auto">
-              {/* 새로 만들기 탭 */}
-              {addSectionModal.activeTab === 'new' && (
-                <div className="p-6 space-y-5">
-                  {/* 섹션 타입 선택 */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">섹션 타입</label>
-                    <select
-                      value={addSectionModal.sectionType}
-                      onChange={(e) => {
-                        const newType = e.target.value;
-                        const recommendedLayout = layoutRecommendations[newType] || 'full-width';
-                        setAddSectionModal({
-                          ...addSectionModal,
-                          sectionType: newType,
-                          layoutType: recommendedLayout,
-                          slotCount: recommendedLayout === 'grid-3' ? 3 : recommendedLayout === 'grid-2' ? 2 : 1
-                        });
-                      }}
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    >
-                      {Object.entries(sectionTypeLabels).map(([key, label]) => (
-                        <option key={key} value={key}>{label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* 레이아웃 선택 */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      레이아웃 <span className="text-xs font-normal text-gray-400">(타입에 따라 자동 추천)</span>
-                    </label>
-                    <select
-                      value={addSectionModal.layoutType}
-                      onChange={(e) => {
-                        const newLayout = e.target.value;
-                        setAddSectionModal({
-                          ...addSectionModal,
-                          layoutType: newLayout,
-                          slotCount: newLayout === 'grid-3' ? 3 : newLayout === 'grid-2' ? 2 : 1
-                        });
-                      }}
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    >
-                      {Object.entries(layoutTypeLabels).map(([key, label]) => (
-                        <option key={key} value={key}>{label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* 이미지 슬롯 수 (Grid 레이아웃일 때만) */}
-                  {(addSectionModal.layoutType === 'grid-2' || addSectionModal.layoutType === 'grid-3') && (
+              {/* 콘텐츠 */}
+              <div className="flex-1 overflow-y-auto">
+                {/* 새로 만들기 탭 */}
+                {addSectionModal.activeTab === 'new' && (
+                  <div className="p-6 space-y-5">
+                    {/* 섹션 타입 선택 */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">이미지 슬롯 수</label>
-                      <div className="flex gap-2">
-                        {[2, 3, 4].map((num) => (
-                          <button
-                            key={num}
-                            onClick={() => setAddSectionModal({ ...addSectionModal, slotCount: num })}
-                            className={`flex-1 py-2 rounded-lg border font-medium transition-colors ${addSectionModal.slotCount === num
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                              }`}
-                          >
-                            {num}개
-                          </button>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">섹션 타입</label>
+                      <select
+                        value={addSectionModal.sectionType}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          const recommendedLayout = layoutRecommendations[newType] || 'full-width';
+                          setAddSectionModal({
+                            ...addSectionModal,
+                            sectionType: newType,
+                            layoutType: recommendedLayout,
+                            slotCount: recommendedLayout === 'grid-3' ? 3 : recommendedLayout === 'grid-2' ? 2 : 1
+                          });
+                        }}
+                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        {Object.entries(sectionTypeLabels).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
                         ))}
-                      </div>
+                      </select>
                     </div>
-                  )}
 
-                  {/* 고급 설정 토글 */}
-                  <button
-                    onClick={() => setAddSectionModal({ ...addSectionModal, showAdvanced: !addSectionModal.showAdvanced })}
-                    className="w-full flex items-center justify-between py-2 px-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-600 transition-colors"
-                  >
-                    <span className="flex items-center">
-                      <Lock className="w-4 h-4 mr-2" />
-                      고급 설정 (고정 문구/이미지)
-                    </span>
-                    {addSectionModal.showAdvanced ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-
-                  {/* 고급 설정 영역 */}
-                  {addSectionModal.showAdvanced && (
-                    <div className="space-y-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      {/* 고정 문구 */}
-                      <div>
-                        <label className="text-xs font-bold text-amber-700 block mb-1.5 flex items-center">
-                          <Type className="w-3 h-3 mr-1" />
-                          고정 문구
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={addSectionModal.fixedText}
-                          onChange={(e) => setAddSectionModal({ ...addSectionModal, fixedText: e.target.value })}
-                          placeholder="예: '무료 배송', 'KC 인증 완료' 등"
-                          className="w-full text-sm border border-amber-200 bg-white rounded-lg p-2.5 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none resize-none"
-                        />
-                      </div>
-
-                      {/* 고정 이미지 */}
-                      <div>
-                        <label className="text-xs font-bold text-emerald-700 block mb-1.5 flex items-center">
-                          <ImageIcon className="w-3 h-3 mr-1" />
-                          고정 이미지
-                        </label>
-
-                        <input
-                          type="file"
-                          ref={modalImageInputRef}
-                          className="hidden"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleModalImageUpload(file);
-                            e.target.value = '';
-                          }}
-                        />
-
-                        {addSectionModal.fixedImageBase64 ? (
-                          <div className="relative group">
-                            <img
-                              src={`data:${addSectionModal.fixedImageMimeType || 'image/png'};base64,${addSectionModal.fixedImageBase64}`}
-                              alt="고정 이미지"
-                              className="w-full h-32 object-contain bg-white rounded-lg border border-emerald-200"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => modalImageInputRef.current?.click()}
-                                className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-xs font-medium"
-                              >
-                                변경
-                              </button>
-                              <button
-                                onClick={handleRemoveModalImage}
-                                className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium"
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => modalImageInputRef.current?.click()}
-                            className="border-2 border-dashed border-emerald-200 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
-                          >
-                            <Upload className="w-6 h-6 mx-auto mb-1 text-emerald-300" />
-                            <p className="text-xs font-medium text-emerald-600">클릭하여 업로드</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 프리셋으로 저장 옵션 */}
-                  {addSectionModal.saveAsPreset ? (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-3">
-                      <label className="text-xs font-bold text-indigo-700 block flex items-center">
-                        <Bookmark className="w-3 h-3 mr-1" />
-                        프리셋 이름
+                    {/* 레이아웃 선택 */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        레이아웃 <span className="text-xs font-normal text-gray-400">(타입에 따라 자동 추천)</span>
                       </label>
-                      <input
-                        type="text"
-                        value={addSectionModal.presetName}
-                        onChange={(e) => setAddSectionModal({ ...addSectionModal, presetName: e.target.value })}
-                        placeholder="예: 배송/반품 안내"
-                        className="w-full text-sm border border-indigo-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-400 outline-none"
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setAddSectionModal({ ...addSectionModal, saveAsPreset: false, presetName: '' })}
-                          className="flex-1 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium"
-                        >
-                          취소
-                        </button>
-                        <button
-                          onClick={handleSaveAsPreset}
-                          className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
-                        >
-                          저장
-                        </button>
-                      </div>
+                      <select
+                        value={addSectionModal.layoutType}
+                        onChange={(e) => {
+                          const newLayout = e.target.value;
+                          setAddSectionModal({
+                            ...addSectionModal,
+                            layoutType: newLayout,
+                            slotCount: newLayout === 'grid-3' ? 3 : newLayout === 'grid-2' ? 2 : 1
+                          });
+                        }}
+                        className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        {Object.entries(layoutTypeLabels).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setAddSectionModal({ ...addSectionModal, saveAsPreset: true })}
-                      className="w-full py-2 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg font-medium transition-colors flex items-center justify-center"
-                    >
-                      <Bookmark className="w-4 h-4 mr-1" />
-                      이 설정을 프리셋으로 저장
-                    </button>
-                  )}
-                </div>
-              )}
 
-              {/* 프리셋에서 탭 */}
-              {addSectionModal.activeTab === 'preset' && (
-                <div className="p-6">
-                  {sectionPresets.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
-                      <Bookmark className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium">저장된 프리셋이 없습니다</p>
-                      <p className="text-sm mt-1">"새로 만들기" 탭에서 프리셋을 저장하세요</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {sectionPresets.map((preset) => (
-                        <div
-                          key={preset.id}
-                          className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all group cursor-pointer"
-                          onClick={() => handleApplyPreset(preset)}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
-                                {preset.name}
-                              </h4>
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                                  {sectionTypeLabels[preset.sectionType] || preset.sectionType}
-                                </span>
-                                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                                  {layoutTypeLabels[preset.layoutType] || preset.layoutType}
-                                </span>
-                                {preset.fixedText && (
-                                  <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded flex items-center">
-                                    <Type className="w-2 h-2 mr-0.5" />
-                                    고정문구
-                                  </span>
-                                )}
-                                {preset.fixedImageBase64 && (
-                                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded flex items-center">
-                                    <ImageIcon className="w-2 h-2 mr-0.5" />
-                                    고정이미지
-                                  </span>
-                                )}
+                    {/* 이미지 슬롯 수 (Grid 레이아웃일 때만) */}
+                    {(addSectionModal.layoutType === 'grid-2' || addSectionModal.layoutType === 'grid-3') && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">이미지 슬롯 수</label>
+                        <div className="flex gap-2">
+                          {[2, 3, 4].map((num) => (
+                            <button
+                              key={num}
+                              onClick={() => setAddSectionModal({ ...addSectionModal, slotCount: num })}
+                              className={`flex-1 py-2 rounded-lg border font-medium transition-colors ${addSectionModal.slotCount === num
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                              {num}개
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 고급 설정 토글 */}
+                    <button
+                      onClick={() => setAddSectionModal({ ...addSectionModal, showAdvanced: !addSectionModal.showAdvanced })}
+                      className="w-full flex items-center justify-between py-2 px-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-600 transition-colors"
+                    >
+                      <span className="flex items-center">
+                        <Lock className="w-4 h-4 mr-2" />
+                        고급 설정 (고정 문구/이미지)
+                      </span>
+                      {addSectionModal.showAdvanced ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {/* 고급 설정 영역 */}
+                    {addSectionModal.showAdvanced && (
+                      <div className="space-y-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        {/* 고정 문구 */}
+                        <div>
+                          <label className="text-xs font-bold text-amber-700 block mb-1.5 flex items-center">
+                            <Type className="w-3 h-3 mr-1" />
+                            고정 문구
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={addSectionModal.fixedText}
+                            onChange={(e) => setAddSectionModal({ ...addSectionModal, fixedText: e.target.value })}
+                            placeholder="예: '무료 배송', 'KC 인증 완료' 등"
+                            className="w-full text-sm border border-amber-200 bg-white rounded-lg p-2.5 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none resize-none"
+                          />
+                        </div>
+
+                        {/* 고정 이미지 */}
+                        <div>
+                          <label className="text-xs font-bold text-emerald-700 block mb-1.5 flex items-center">
+                            <ImageIcon className="w-3 h-3 mr-1" />
+                            고정 이미지
+                          </label>
+
+                          <input
+                            type="file"
+                            ref={modalImageInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleModalImageUpload(file);
+                              e.target.value = '';
+                            }}
+                          />
+
+                          {addSectionModal.fixedImageBase64 ? (
+                            <div className="relative group">
+                              <img
+                                src={`data:${addSectionModal.fixedImageMimeType || 'image/png'};base64,${addSectionModal.fixedImageBase64}`}
+                                alt="고정 이미지"
+                                className="w-full h-32 object-contain bg-white rounded-lg border border-emerald-200"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => modalImageInputRef.current?.click()}
+                                  className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-xs font-medium"
+                                >
+                                  변경
+                                </button>
+                                <button
+                                  onClick={handleRemoveModalImage}
+                                  className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium"
+                                >
+                                  삭제
+                                </button>
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeletePreset(preset.id);
-                              }}
-                              className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="프리셋 삭제"
+                          ) : (
+                            <div
+                              onClick={() => modalImageInputRef.current?.click()}
+                              className="border-2 border-dashed border-emerald-200 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-all"
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          {preset.fixedImageBase64 && (
-                            <div className="mt-3">
-                              <img
-                                src={`data:${preset.fixedImageMimeType || 'image/png'};base64,${preset.fixedImageBase64}`}
-                                alt="프리셋 고정 이미지"
-                                className="w-full h-20 object-contain bg-gray-50 rounded border border-gray-100"
-                              />
+                              <Upload className="w-6 h-6 mx-auto mb-1 text-emerald-300" />
+                              <p className="text-xs font-medium text-emerald-600">클릭하여 업로드</p>
                             </div>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
+
+                    {/* 프리셋으로 저장 옵션 */}
+                    {addSectionModal.saveAsPreset ? (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-3">
+                        <label className="text-xs font-bold text-indigo-700 block flex items-center">
+                          <Bookmark className="w-3 h-3 mr-1" />
+                          프리셋 이름
+                        </label>
+                        <input
+                          type="text"
+                          value={addSectionModal.presetName}
+                          onChange={(e) => setAddSectionModal({ ...addSectionModal, presetName: e.target.value })}
+                          placeholder="예: 배송/반품 안내"
+                          className="w-full text-sm border border-indigo-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-400 outline-none"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setAddSectionModal({ ...addSectionModal, saveAsPreset: false, presetName: '' })}
+                            className="flex-1 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={handleSaveAsPreset}
+                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+                          >
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setAddSectionModal({ ...addSectionModal, saveAsPreset: true })}
+                        className="w-full py-2 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg font-medium transition-colors flex items-center justify-center"
+                      >
+                        <Bookmark className="w-4 h-4 mr-1" />
+                        이 설정을 프리셋으로 저장
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 프리셋에서 탭 */}
+                {addSectionModal.activeTab === 'preset' && (
+                  <div className="p-6">
+                    {sectionPresets.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <Bookmark className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="font-medium">저장된 프리셋이 없습니다</p>
+                        <p className="text-sm mt-1">"새로 만들기" 탭에서 프리셋을 저장하세요</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {sectionPresets.map((preset) => (
+                          <div
+                            key={preset.id}
+                            className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all group cursor-pointer"
+                            onClick={() => handleApplyPreset(preset)}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
+                                  {preset.name}
+                                </h4>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                    {sectionTypeLabels[preset.sectionType] || preset.sectionType}
+                                  </span>
+                                  <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                    {layoutTypeLabels[preset.layoutType] || preset.layoutType}
+                                  </span>
+                                  {preset.fixedText && (
+                                    <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded flex items-center">
+                                      <Type className="w-2 h-2 mr-0.5" />
+                                      고정문구
+                                    </span>
+                                  )}
+                                  {preset.fixedImageBase64 && (
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded flex items-center">
+                                      <ImageIcon className="w-2 h-2 mr-0.5" />
+                                      고정이미지
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeletePreset(preset.id);
+                                }}
+                                className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="프리셋 삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            {preset.fixedImageBase64 && (
+                              <div className="mt-3">
+                                <img
+                                  src={`data:${preset.fixedImageMimeType || 'image/png'};base64,${preset.fixedImageBase64}`}
+                                  alt="프리셋 고정 이미지"
+                                  className="w-full h-20 object-contain bg-gray-50 rounded border border-gray-100"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 푸터 (새로 만들기 탭에서만 표시) */}
+              {addSectionModal.activeTab === 'new' && !addSectionModal.saveAsPreset && (
+                <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 flex-shrink-0 border-t">
+                  <button
+                    onClick={() => setAddSectionModal(null)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={confirmAddSection}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    섹션 추가
+                  </button>
                 </div>
               )}
             </div>
-
-            {/* 푸터 (새로 만들기 탭에서만 표시) */}
-            {addSectionModal.activeTab === 'new' && !addSectionModal.saveAsPreset && (
-              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 flex-shrink-0 border-t">
-                <button
-                  onClick={() => setAddSectionModal(null)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={confirmAddSection}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
-                >
-                  섹션 추가
-                </button>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )
+      }
       {/* 하단 플로팅 액션 바 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-2xl z-50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -1975,8 +1867,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
       </div>
 
       {/* 하단 플로팅 바 공간 확보 */}
-      <div className="h-24" />
-    </div>
+      <div className="h-32" />
+    </div >
   );
 });
 

@@ -74,8 +74,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
                 <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
                     ${section.imageSlots?.map((slot, idx) => {
           const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
-          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px); transform-origin: center;` : '';
-          return slot.imageUrl ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px;"><img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover; ${cropStyle}" /></div>` : ''
+          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px);` : '';
+          return slot.imageUrl ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="max-width: 100%; max-height: 100%; object-fit: contain;" /></div></div>` : ''
         }).join('')}
                 </div>
                 <h2>${section.title}</h2>
@@ -86,10 +86,10 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
 
       // 일반 섹션 (single image)
       const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
-      const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px); transform-origin: center;` : '';
+      const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px);` : '';
       return `
           <section class="section">
-              ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px;"><img src="images/section_${section.id}.png" alt="${section.title}" style="width: 100%; height: auto; ${cropStyle}" /></div>` : ''}
+              ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="images/section_${section.id}.png" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>` : ''}
               <h2>${section.title}</h2>
               <p>${section.content}</p>
           </section>
@@ -257,9 +257,9 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
             <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
                 ${section.imageSlots?.map((slot, slotIdx) => {
           const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
-          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px); transform-origin: center;` : '';
+          const cropStyle = hasCrop ? `transform: scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px);` : '';
           return slot.imageUrl
-            ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px;"><img src="${slot.imageUrl}" alt="${section.title} - ${slotIdx + 1}" style="width: 100%; height: 100%; object-fit: cover; ${cropStyle}" /></div>`
+            ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="${slot.imageUrl}" alt="${section.title} - ${slotIdx + 1}" style="max-width: 100%; max-height: 100%; object-fit: contain;" /></div></div>`
             : `<div style="width: 100%; aspect-ratio: 1/1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">이미지 ${slotIdx + 1}</div>`
         }).join('')}
             </div>
@@ -275,10 +275,10 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
       } else {
         // 일반 섹션 (single image)
         const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
-        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px); transform-origin: center;` : '';
+        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px);` : '';
         return `
         <section class="section">
-            ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px;"><img src="${section.imageUrl}" alt="${section.title}" style="width: 100%; height: auto; ${cropStyle}" /></div>` : ''}
+            ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="${section.imageUrl}" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>` : ''}
             <h2>${section.title}</h2>
             <p>${section.content}</p>
         </section>`;
@@ -628,63 +628,85 @@ ${data.marketingCopy}
                         {/* Grid Layout: 여러 이미지 표시 */}
                         {isGridLayout && hasMultipleSlots ? (
                           <div className={`grid gap-4 mb-8 ${gridCols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                            {section.imageSlots?.map((slot, slotIdx) => (
-                              <div key={slotIdx} className="relative group aspect-square">
-                                {slot.imageUrl ? (
-                                  <>
-                                    <img
-                                      src={slot.imageUrl}
-                                      alt={`${section.title} - ${slotIdx + 1}`}
-                                      className="w-full h-full object-cover rounded-lg shadow-sm"
-                                    />
-                                    {/* Grid Slot Overlay Actions */}
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity rounded-lg">
-                                      <a
-                                        href={slot.imageUrl}
-                                        download={`section_${section.id}_slot_${slotIdx}.png`}
-                                        className="p-1.5 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
-                                        title="다운로드"
-                                        onClick={(e) => e.stopPropagation()}
+                            {section.imageSlots?.map((slot, slotIdx) => {
+                              const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
+                              return (
+                                <div key={slotIdx} className="relative group aspect-square overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                                  {slot.imageUrl ? (
+                                    <>
+                                      <div
+                                        style={hasCrop ? {
+                                          transform: `scale(${slot.cropZoom || 1}) translate(${(slot.cropPanX || 0) / (slot.cropZoom || 1)}px, ${(slot.cropPanY || 0) / (slot.cropZoom || 1)}px)`
+                                        } : undefined}
                                       >
-                                        <Download className="w-4 h-4" />
-                                      </a>
+                                        <img
+                                          src={slot.imageUrl}
+                                          alt={`${section.title} - ${slotIdx + 1}`}
+                                          className="max-w-full max-h-full object-contain shadow-sm"
+                                        />
+                                      </div>
+                                      {/* Grid Slot Overlay Actions */}
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity rounded-lg">
+                                        <a
+                                          href={slot.imageUrl}
+                                          download={`section_${section.id}_slot_${slotIdx}.png`}
+                                          className="p-1.5 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-sm transition-colors"
+                                          title="다운로드"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Download className="w-4 h-4" />
+                                        </a>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
+                                      이미지 없음
                                     </div>
-                                  </>
-                                ) : (
-                                  <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">
-                                    이미지 없음
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
                         ) : !isTextOnly && section.imageUrl ? (
                           /* Single Image Layout */
-                          <div className="relative group inline-block w-full max-w-full">
-                            <img
-                              src={section.imageUrl}
-                              alt={section.title}
-                              className="w-full h-auto rounded-lg shadow-md mb-8 object-cover"
-                            />
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleOpenRegenModal(section.id, section.imagePrompt)}
-                                disabled={!!regeneratingId}
-                                className="bg-white/90 hover:bg-white text-gray-700 p-2.5 rounded-full shadow-lg border border-gray-200 transition-all hover:scale-105 disabled:opacity-70 disabled:scale-100"
-                                title="이미지 다시 생성 (프롬프트 수정)"
-                              >
-                                <RefreshCw className={`w-5 h-5 ${regeneratingId === section.id ? 'animate-spin text-blue-600' : ''}`} />
-                              </button>
-                            </div>
-                            {regeneratingId === section.id && (
-                              <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-lg">
-                                <div className="bg-white px-4 py-2 rounded-full shadow-lg flex items-center text-sm font-medium text-blue-600">
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  재생성 중...
+                          (() => {
+                            const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
+                            return (
+                              <div className="relative group inline-block w-full max-w-full mb-8">
+                                <div className="overflow-hidden rounded-lg shadow-md bg-gray-100 flex items-center justify-center">
+                                  <div
+                                    style={hasCrop ? {
+                                      transform: `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
+                                    } : undefined}
+                                  >
+                                    <img
+                                      src={section.imageUrl}
+                                      alt={section.title}
+                                      className="max-w-full h-auto object-contain"
+                                    />
+                                  </div>
                                 </div>
+                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => handleOpenRegenModal(section.id, section.imagePrompt)}
+                                    disabled={!!regeneratingId}
+                                    className="bg-white/90 hover:bg-white text-gray-700 p-2.5 rounded-full shadow-lg border border-gray-200 transition-all hover:scale-105 disabled:opacity-70 disabled:scale-100"
+                                    title="이미지 다시 생성 (프롬프트 수정)"
+                                  >
+                                    <RefreshCw className={`w-5 h-5 ${regeneratingId === section.id ? 'animate-spin text-blue-600' : ''}`} />
+                                  </button>
+                                </div>
+                                {regeneratingId === section.id && (
+                                  <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-lg">
+                                    <div className="bg-white px-4 py-2 rounded-full shadow-lg flex items-center text-sm font-medium text-blue-600">
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      재생성 중...
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            );
+                          })()
                         ) : !isTextOnly && !section.imageUrl ? (
                           /* No Image Placeholder */
                           <div className="w-full h-64 bg-gray-100 rounded-lg flex flex-col items-center justify-center mb-8 text-gray-400 group relative">
