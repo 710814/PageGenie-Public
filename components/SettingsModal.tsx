@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edit2, ArrowUp, ArrowDown, ChevronLeft, ChevronDown, ChevronUp, Layout, FileText, Image as ImageIcon, Upload, ToggleLeft, ToggleRight, Type, Cloud, CloudOff, RefreshCw, Layers } from 'lucide-react';
 import { getGasUrl, setGasUrl as saveGasUrl, getSheetId, setSheetId as saveSheetId, DEFAULT_GAS_URL } from '../services/googleSheetService';
-import { getTemplates, saveTemplate, deleteTemplate } from '../services/templateService';
+import { getTemplates, saveTemplate, deleteTemplate, createNewTemplate as createNewTemplateService } from '../services/templateService';
+import { CATEGORY_OPTIONS } from '../services/categoryPresets';
 import { extractTemplateFromImage, fileToGenerativePart } from '../services/geminiService';
 import {
   isAutoBackupEnabled,
@@ -143,6 +144,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   // Template Editing State
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [isCreatingNew, setIsCreatingNew] = useState(false); // 새 템플릿 생성 모드
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false); // 카테고리 선택 UI 표시
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sectionImageInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
@@ -349,12 +352,15 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       saveTemplate(editingTemplate);
       setTemplates(getTemplates());
       setEditingTemplate(null);
+      setIsCreatingNew(false); // 초기화
     }
   };
 
   const cancelEditing = () => {
-    if (confirm('수정 사항을 저장하지 않고 나가시겠습니까?')) {
+    if (isCreatingNew || confirm('수정 사항을 저장하지 않고 나가시겠습니까?')) {
       setEditingTemplate(null);
+      setIsCreatingNew(false);
+      setShowCategoryPicker(false);
     }
   };
 
@@ -841,12 +847,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
 
-                {/* 1. Upload/Add Card */}
-                <div
-                  onClick={() => !isAnalyzing && fileInputRef.current?.click()}
-                  className={`flex flex-col items-center justify-center min-h-[280px] border-2 border-dashed border-gray-300 rounded-xl transition-all group bg-white/50 ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer hover:shadow-lg'
-                    }`}
-                >
+                {/* 1. 새 템플릿 추가 - 두 가지 옵션 */}
+                <div className={`flex flex-col min-h-[280px] border-2 border-dashed border-gray-300 rounded-xl transition-all bg-white/50 overflow-hidden ${isAnalyzing ? 'opacity-50' : ''}`}>
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -855,11 +857,86 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     onChange={handleTemplateUpload}
                     disabled={isAnalyzing}
                   />
-                  <div className="p-4 bg-gray-100 rounded-full mb-3 group-hover:bg-blue-100 transition-colors">
-                    <Plus className="w-8 h-8 text-gray-400 group-hover:text-blue-600" />
-                  </div>
-                  <span className="text-gray-900 font-bold mb-1">새 템플릿 추가</span>
-                  <span className="text-xs text-gray-500">이미지 업로드</span>
+
+                  {/* 카테고리 선택 모드 */}
+                  {showCategoryPicker ? (
+                    <div className="flex-1 flex flex-col p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-gray-700">카테고리 선택</span>
+                        <button
+                          onClick={() => setShowCategoryPicker(false)}
+                          className="text-gray-400 hover:text-gray-600 p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 flex-1 overflow-y-auto">
+                        {CATEGORY_OPTIONS.map(cat => (
+                          <button
+                            key={cat.id}
+                            onClick={() => {
+                              const newTemplate = createNewTemplateService('새 템플릿', cat.id);
+                              setEditingTemplate(newTemplate);
+                              setIsCreatingNew(true);
+                              setShowCategoryPicker(false);
+                            }}
+                            className="flex items-center gap-2 p-2 text-left text-sm rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                          >
+                            <span className="text-lg">{cat.emoji}</span>
+                            <span className="text-gray-700 font-medium truncate">{cat.name}</span>
+                          </button>
+                        ))}
+                        {/* 직접 구성(빈 템플릿) */}
+                        <button
+                          onClick={() => {
+                            const newTemplate = createNewTemplateService('새 템플릿');
+                            setEditingTemplate(newTemplate);
+                            setIsCreatingNew(true);
+                            setShowCategoryPicker(false);
+                          }}
+                          className="flex items-center gap-2 p-2 text-left text-sm rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                        >
+                          <span className="text-lg">✏️</span>
+                          <span className="text-gray-700 font-medium">직접 구성</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* 기본 모드: 두 옵션 표시 */}
+                      <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                        <div className="p-3 bg-gray-100 rounded-full mb-3">
+                          <Plus className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <span className="text-gray-900 font-bold mb-1">새 템플릿 추가</span>
+                        <span className="text-xs text-gray-500 mb-4">원하는 방법을 선택하세요</span>
+                      </div>
+
+                      <div className="border-t border-gray-200 grid grid-cols-2 divide-x divide-gray-200">
+                        {/* 옵션 1: 참조 이미지로 생성 */}
+                        <button
+                          onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+                          disabled={isAnalyzing}
+                          className="p-3 flex flex-col items-center gap-1 hover:bg-blue-50 transition-colors group disabled:cursor-not-allowed"
+                        >
+                          <ImageIcon className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-medium text-gray-700">이미지로 생성</span>
+                          <span className="text-[10px] text-gray-400">AI 분석</span>
+                        </button>
+
+                        {/* 옵션 2: 직접 처음부터 생성 */}
+                        <button
+                          onClick={() => setShowCategoryPicker(true)}
+                          disabled={isAnalyzing}
+                          className="p-3 flex flex-col items-center gap-1 hover:bg-green-50 transition-colors group disabled:cursor-not-allowed"
+                        >
+                          <Layers className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-medium text-gray-700">직접 생성</span>
+                          <span className="text-[10px] text-gray-400">수동 구성</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* 2. Template Cards */}
