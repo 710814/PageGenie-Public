@@ -611,13 +611,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         {/* Left Col: Section MiniMap (sticky) */}
         <div className="lg:col-span-1 hidden lg:block">
           <div className="sticky top-6 space-y-4">
-            <SectionMiniMap
-              sections={analysis.sections}
-              activeSectionId={activeSectionId || undefined}
-              onSectionClick={scrollToSection}
-              onMoveSection={moveSection}
-              onDeleteSection={removeSection}
-            />
+
 
             {/* 기본 정보 (접이식) */}
             <details className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -673,6 +667,14 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                 </div>
               </div>
             </details>
+
+            <SectionMiniMap
+              sections={analysis.sections}
+              activeSectionId={activeSectionId || undefined}
+              onSectionClick={scrollToSection}
+              onMoveSection={moveSection}
+              onDeleteSection={removeSection}
+            />
           </div>
         </div>
 
