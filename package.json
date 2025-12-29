@@ -11,6 +11,7 @@
   "dependencies": {
     "@google/genai": "^1.33.0",
     "file-saver": "2.0.5",
+    "html-to-image": "^1.11.13",
     "jszip": "3.10.1",
     "lucide-react": "^0.561.0",
     "react": "^19.2.3",

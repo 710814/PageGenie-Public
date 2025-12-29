@@ -1,7 +1,7 @@
 import { ProductAnalysis, AppMode } from "../types";
 
 // 기본 데모 시트 ID (사용자 설정이 없을 경우 Fallback용)
-export const DEMO_SHEET_ID = '1DvQtasp2aQ5vC-PwKVDQt7LM1P8F5tiI6dgDGNFqUWE';
+export const DEMO_SHEET_ID = '1AmD-6NBjgfRdwYRZlArkbhA3q-RpMxnx4u5FavQk9o0';
 
 // 제공된 기본 GAS Web App URL (데모용)
 export const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwaOL3xBQiE7uLhbRHLbrlitf5xMYTA-Lmo5p2XB9HkGNkKYYvy_4nK_ee2JtYUY_Fddw/exec';

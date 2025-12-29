@@ -6,6 +6,7 @@ import { generateSectionImage } from '../services/geminiService';
 import { useToastContext } from '../contexts/ToastContext';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { toPng } from 'html-to-image';
 
 interface Props {
   data: ProductAnalysis;
@@ -19,7 +20,7 @@ interface Props {
 
 export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, uploadedFiles, onUpdate, onOpenSettings }) => {
   const [isSaving, setIsSaving] = useState(false);
-  const [saveType, setSaveType] = useState<'sheet' | 'drive' | null>(null);
+  const [saveType, setSaveType] = useState<'sheet' | 'drive' | 'image' | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const toast = useToastContext();
 
@@ -38,17 +39,16 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }
         .container { max-width: 800px; margin: 0 auto; }
-        .hero { text-align: center; padding: 60px 20px; background-color: #f9fafb; }
+        .hero { text-align: center; padding: 60px 20px; background-color: #fff; }
         .hero h1 { font-size: 2.5rem; margin-bottom: 20px; color: #111; }
         .hero p { font-size: 1.2rem; color: #555; max-width: 600px; margin: 0 auto; }
         .features { padding: 40px 20px; background: #fff; }
         .features ul { max-width: 600px; margin: 0 auto; padding-left: 20px; }
         .features li { margin-bottom: 10px; font-size: 1.1rem; }
         .section { padding: 60px 20px; border-bottom: 1px solid #eee; text-align: center; }
-        .section img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 30px; }
         .section h2 { font-size: 2rem; margin-bottom: 20px; }
         .section p { font-size: 1.1rem; color: #666; max-width: 700px; margin: 0 auto; white-space: pre-wrap; }
-        .footer { padding: 40px; text-align: center; font-size: 0.9rem; color: #999; background: #f1f1f1; }
     </style>
 </head>
 <body>
@@ -95,10 +95,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
           </section>
           `;
     }).join('')}
-
-        <footer class="footer">
-            <p>© ${new Date().getFullYear()} ${data.productName}. All rights reserved.</p>
-        </footer>
+    }).join('')}
     </div>
 </body>
 </html>
@@ -128,32 +125,31 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
         .hero { 
             text-align: center; 
             padding: 80px 30px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #fff;
+            color: #111;
         }
         .hero h1 { 
             font-size: 2.8rem; 
             margin-bottom: 20px; 
             font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .hero p { 
             font-size: 1.3rem; 
             max-width: 650px; 
             margin: 0 auto; 
-            opacity: 0.95;
+            color: #555;
             line-height: 1.8;
         }
         .features { 
             padding: 50px 30px; 
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+            background: #fff;
+            border-bottom: 1px solid #eee;
         }
         .features h3 {
             text-align: center;
             font-size: 1.5rem;
             margin-bottom: 30px;
-            color: #1e293b;
+            color: #111;
         }
         .features ul { 
             max-width: 650px; 
@@ -164,55 +160,40 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
         .features li { 
             margin-bottom: 15px; 
             font-size: 1.1rem; 
-            padding: 15px 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            position: relative;
-            padding-left: 50px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
         }
+        .features li:last-child { border-bottom: none; }
         .features li::before {
             content: "✓";
-            position: absolute;
-            left: 20px;
-            color: #10b981;
+            margin-right: 10px;
+            color: #2563eb;
             font-weight: bold;
         }
         .section { 
             padding: 70px 30px; 
-            border-bottom: 1px solid #e5e7eb; 
+            border-bottom: 1px solid #eee; 
             text-align: center;
-        }
-        .section:nth-child(even) {
-            background: #fafafa;
         }
         .section img { 
             max-width: 100%; 
             height: auto; 
-            border-radius: 12px; 
+            border-radius: 8px; 
             margin-bottom: 35px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
         }
         .section h2 { 
             font-size: 2rem; 
             margin-bottom: 20px;
-            color: #1e293b;
+            color: #111;
             font-weight: 600;
         }
         .section p { 
             font-size: 1.15rem; 
-            color: #64748b; 
+            color: #555; 
             max-width: 750px; 
             margin: 0 auto; 
             white-space: pre-wrap;
             line-height: 1.9;
-        }
-        .footer { 
-            padding: 50px 30px; 
-            text-align: center; 
-            font-size: 0.95rem; 
-            color: #94a3b8; 
-            background: #1e293b;
         }
         .preview-badge {
             position: fixed;
@@ -224,7 +205,6 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 600;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
             z-index: 1000;
         }
     </style>
@@ -285,10 +265,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
       }
     }).join('')}
 
-        <footer class="footer">
-            <p>© ${new Date().getFullYear()} ${data.productName}. All rights reserved.</p>
-            <p style="margin-top: 10px; font-size: 0.8rem;">이 페이지는 PageGenie로 생성되었습니다.</p>
-        </footer>
+    }).join('')}
     </div>
 </body>
 </html>`;
@@ -508,6 +485,71 @@ ${data.marketingCopy}
     }
   };
 
+  // 새창 미리보기 HTML을 이미지로 저장
+  const handleSavePreviewAsImage = async () => {
+    setIsSaving(true);
+    setSaveType('image');
+
+    try {
+      // 1. HTML 생성
+      const html = generateHTMLForPreview();
+
+      // 2. 숨겨진 iframe 생성 (미리보기 뱃지 제거한 버전)
+      const htmlWithoutBadge = html.replace('<div class="preview-badge">🔍 미리보기</div>', '');
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed; left:-9999px; top:0; width:860px; border:none;';
+      document.body.appendChild(iframe);
+
+      // 3. HTML 렌더링
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        throw new Error('iframe document not accessible');
+      }
+      iframeDoc.open();
+      iframeDoc.write(htmlWithoutBadge);
+      iframeDoc.close();
+
+      // 4. 폰트 및 이미지 로드 대기
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // 5. 컨테이너 요소 찾기
+      const container = iframeDoc.querySelector('.container') as HTMLElement;
+      if (!container) {
+        throw new Error('Container element not found');
+      }
+
+      // 6. iframe 높이를 컨텐츠에 맞게 조정
+      iframe.style.height = `${container.scrollHeight + 100}px`;
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 7. 이미지로 캡처
+      const dataUrl = await toPng(container, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+      });
+
+      // 8. 다운로드 트리거
+      const link = document.createElement('a');
+      link.download = `${data.productName.replace(/\s+/g, '_')}_preview.png`;
+      link.href = dataUrl;
+      link.click();
+
+      // 9. 정리
+      document.body.removeChild(iframe);
+
+      toast.success('미리보기가 이미지로 저장되었습니다.');
+    } catch (error) {
+      console.error('이미지 저장 실패:', error);
+      toast.error('이미지 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSaving(false);
+      setSaveType(null);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 relative">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -526,6 +568,25 @@ ${data.marketingCopy}
           >
             <Eye className="w-4 h-4 mr-2" />
             새 창 미리보기
+          </button>
+
+          {/* 이미지 저장 버튼 */}
+          <button
+            onClick={handleSavePreviewAsImage}
+            disabled={isSaving}
+            className={`flex items-center px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 ${isSaving && saveType === 'image' ? 'bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'}`}
+          >
+            {isSaving && saveType === 'image' ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                저장 중...
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-4 h-4 mr-2" />
+                이미지 저장
+              </>
+            )}
           </button>
 
           <button
@@ -593,24 +654,22 @@ ${data.marketingCopy}
             {/* Actual rendered preview */}
             <div className="max-w-[800px] mx-auto bg-white min-h-full">
               {/* Hero */}
-              <div className="text-center py-16 px-6 bg-slate-50">
+              <div className="text-center py-16 px-6 bg-white">
                 <h1 className="text-4xl font-bold text-gray-900 mb-6">{data.productName}</h1>
                 <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">{data.marketingCopy}</p>
               </div>
 
               {/* Features */}
               <div className="py-12 px-6">
-                <div className="max-w-2xl mx-auto bg-white border border-gray-100 rounded-xl p-8 shadow-sm">
-                  <h3 className="text-sm font-bold text-blue-600 uppercase mb-4 tracking-wider text-center">주요 특징 (Key Features)</h3>
-                  <ul className="space-y-3">
-                    {data.mainFeatures.map((feat, i) => (
-                      <li key={i} className="flex items-start text-gray-700">
-                        <span className="mr-2 text-blue-500">•</span>
-                        {feat}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <h3 className="text-xl font-bold text-center mb-8 text-gray-900">✨ 주요 특징 (Key Features)</h3>
+                <ul className="max-w-2xl mx-auto space-y-2">
+                  {data.mainFeatures.map((feat, i) => (
+                    <li key={i} className="flex items-start text-lg text-gray-700 py-2 border-b border-gray-100 last:border-0">
+                      <span className="mr-3 text-blue-600 font-bold">✓</span>
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               {/* Sections */}
@@ -623,7 +682,7 @@ ${data.marketingCopy}
                   const hasMultipleSlots = section.imageSlots && section.imageSlots.length > 1;
 
                   return (
-                    <div key={section.id} className="py-16 px-6 border-b border-gray-100 last:border-0">
+                    <div key={section.id} className="py-16 px-6 border-b border-gray-100 last:border-0 bg-white">
                       <div className="max-w-3xl mx-auto text-center">
                         {/* Grid Layout: 여러 이미지 표시 */}
                         {isGridLayout && hasMultipleSlots ? (
@@ -642,7 +701,7 @@ ${data.marketingCopy}
                                         <img
                                           src={slot.imageUrl}
                                           alt={`${section.title} - ${slotIdx + 1}`}
-                                          className="max-w-full max-h-full object-contain shadow-sm"
+                                          className="max-w-full max-h-full object-contain"
                                         />
                                       </div>
                                       {/* Grid Slot Overlay Actions */}
@@ -673,7 +732,7 @@ ${data.marketingCopy}
                             const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
                             return (
                               <div className="relative group inline-block w-full max-w-full mb-8">
-                                <div className="overflow-hidden rounded-lg shadow-md bg-gray-100 flex items-center justify-center">
+                                <div className="overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
                                   <div
                                     style={hasCrop ? {
                                       transform: `scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px)`
@@ -729,7 +788,7 @@ ${data.marketingCopy}
                 })}
               </div>
 
-              <div className="py-12 text-center text-gray-400 bg-gray-50 text-sm">
+              <div className="py-12 text-center text-gray-400 bg-white text-sm border-t border-gray-100">
                 Generated by PageGenie
               </div>
             </div>
