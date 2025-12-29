@@ -65,8 +65,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
         </section>
 
         ${data.sections.map(section => {
-      const isGrid = (section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots && section.imageSlots.length > 0;
-      const gridCols = section.layoutType === 'grid-3' ? 3 : 2;
+      const isGrid = (section.layoutType === 'grid-1' || section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots && section.imageSlots.length > 0;
+      const gridCols = section.layoutType === 'grid-3' ? 3 : section.layoutType === 'grid-2' ? 2 : 1;
 
       if (isGrid) {
         return `
@@ -226,7 +226,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
 
         ${data.sections.map((section, index) => {
       const layoutType = section.layoutType || 'full-width';
-      const isGridLayout = layoutType === 'grid-2' || layoutType === 'grid-3';
+      const isGridLayout = layoutType === 'grid-1' || layoutType === 'grid-2' || layoutType === 'grid-3';
       const isTextOnly = layoutType === 'text-only';
       const gridCols = layoutType === 'grid-3' ? 3 : layoutType === 'grid-2' ? 2 : 1;
       const hasMultipleSlots = section.imageSlots && section.imageSlots.length > 1;
@@ -329,7 +329,7 @@ ${data.marketingCopy}
           }
 
           // 그리드 이미지 저장
-          if ((section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots) {
+          if ((section.layoutType === 'grid-1' || section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots) {
             section.imageSlots.forEach((slot, idx) => {
               if (slot.imageUrl) {
                 const base64Data = slot.imageUrl.split(',')[1];
@@ -529,6 +529,7 @@ ${data.marketingCopy}
         pixelRatio: 2,
         backgroundColor: '#ffffff',
         cacheBust: true,
+        skipFonts: true,  // 외부 폰트(Google Fonts) CORS 오류 방지
       });
 
       // 8. 다운로드 트리거
@@ -676,7 +677,7 @@ ${data.marketingCopy}
               <div className="space-y-0">
                 {data.sections.map((section) => {
                   const layoutType = section.layoutType || 'full-width';
-                  const isGridLayout = layoutType === 'grid-2' || layoutType === 'grid-3';
+                  const isGridLayout = layoutType === 'grid-1' || layoutType === 'grid-2' || layoutType === 'grid-3';
                   const isTextOnly = layoutType === 'text-only';
                   const gridCols = layoutType === 'grid-3' ? 3 : layoutType === 'grid-2' ? 2 : 1;
                   const hasMultipleSlots = section.imageSlots && section.imageSlots.length > 1;
@@ -836,7 +837,7 @@ ${data.marketingCopy}
               }
 
               // 그리드 이미지들
-              if ((section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots) {
+              if ((section.layoutType === 'grid-1' || section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots) {
                 section.imageSlots.forEach((slot, slotIdx) => {
                   if (slot.imageUrl) {
                     items.push(
