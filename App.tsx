@@ -10,7 +10,7 @@ import { StepImageEditResult } from './components/StepImageEditResult';
 import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
 import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress } from './services/geminiService';
-import { getTemplates } from './services/templateService';
+import { getTemplates, initializeBuiltInTemplates } from './services/templateService';
 import {
   isAutoBackupEnabled,
   isSettingsEmpty,
@@ -47,8 +47,11 @@ const AppContent: React.FC = () => {
   // Toast 알림 시스템
   const toast = useToastContext();
 
-  // 앱 시작 시 자동 복원 시도
+  // 앱 시작 시 빌트인 템플릿 초기화 및 자동 복원 시도
   useEffect(() => {
+    // 빌트인 템플릿 초기화 (한 번만 실행)
+    initializeBuiltInTemplates();
+
     const tryAutoRestore = async () => {
       // 자동 백업이 활성화되어 있고, 현재 설정이 비어있을 때만 복원 시도
       if (isAutoBackupEnabled() && isSettingsEmpty()) {
@@ -299,13 +302,17 @@ const AppContent: React.FC = () => {
               continue;
             }
 
-            console.log(`[Generate] 섹션 "${section.title}" - 슬롯 ${i + 1}/${section.imageSlots.length}: "${slot.prompt?.slice(0, 50)}..."`);
+            // ★ 슬롯 인덱스에 맞는 컬러옵션 이미지를 참조 이미지로 사용 (제품 일관성 유지)
+            const colorOptionImage = productInputData?.colorOptions?.[i]?.images?.[0];
+            const refImage = colorOptionImage || primaryFile;
+
+            console.log(`[Generate] 섹션 "${section.title}" - 슬롯 ${i + 1}/${section.imageSlots.length}: "${slot.prompt?.slice(0, 50)}..." (참조: ${colorOptionImage ? `컬러옵션[${i}]` : '기본이미지'})`);
 
             try {
               const imageUrl = await generateSectionImage(
                 slot.prompt || section.imagePrompt || '',
-                primaryFile?.base64,
-                primaryFile?.mimeType,
+                refImage?.base64,
+                refImage?.mimeType,
                 mode,
                 productInputData?.modelSettings
               );

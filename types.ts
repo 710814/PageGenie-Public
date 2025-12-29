@@ -52,6 +52,7 @@ export type LayoutType =
   | 'full-width'      // 전체 너비 이미지
   | 'split-left'      // 좌측 이미지 + 우측 텍스트
   | 'split-right'     // 우측 이미지 + 좌측 텍스트
+  | 'grid-1'          // 1열 세로 그리드 (수직 배치)
   | 'grid-2'          // 2열 그리드
   | 'grid-3'          // 3열 그리드
   | 'text-only'       // 텍스트만

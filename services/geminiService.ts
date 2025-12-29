@@ -266,6 +266,7 @@ High quality, 4K resolution, professional e-commerce photography.`;
  */
 const getImageSlotCountForLayout = (layoutType: string): number => {
   switch (layoutType) {
+    case 'grid-1': return -1; // 특수값: 기존 슬롯 개수 유지
     case 'grid-2': return 2;
     case 'grid-3': return 3;
     case 'split-left':
@@ -292,6 +293,11 @@ const generateImageSlotsForLayout = (
   const requiredCount = getImageSlotCountForLayout(layoutType);
 
   if (requiredCount === 0) return [];
+
+  // grid-1: 기존 슬롯 그대로 유지 (개수 제한 없음)
+  if (requiredCount === -1 && existingSlots && existingSlots.length > 0) {
+    return existingSlots;
+  }
 
   // 기존 슬롯이 있으면 그대로 사용 (개수 맞으면)
   if (existingSlots && existingSlots.length === requiredCount) {
