@@ -131,6 +131,7 @@ export interface Template {
   // ★ 새로운 필드
   category?: string;                 // 템플릿 카테고리 (fashion, beauty 등)
   sourceImageThumbnail?: string;     // 원본 참조 이미지 썸네일 (선택)
+  isBuiltin?: boolean;               // 빌트인 템플릿 여부 (압축 대상 등 식별용)
 }
 
 /**

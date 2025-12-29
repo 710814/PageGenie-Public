@@ -59,6 +59,52 @@ const normalizeUrlForComparison = (url: string): string => {
 };
 
 /**
+ * Base64 이미지 압축 (최대 너비 1024px, JPEG 0.6)
+ */
+const compressBase64Image = (base64: string): Promise<string> => {
+  return new Promise((resolve) => {
+    // 이미 압축된 키워드가 있거나 너무 짧으면 패스
+    if (!base64 || base64.length < 5000) {
+      resolve(base64);
+      return;
+    }
+
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      const MAX_WIDTH = 1024;
+
+      // 크기 조정
+      if (width > MAX_WIDTH) {
+        height = (height * MAX_WIDTH) / width;
+        width = MAX_WIDTH;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(base64);
+        return;
+      }
+      ctx.fillStyle = '#FFFFFF'; // 투명 배경 방지
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // JPEG 0.6 품질로 압축
+      const compressed = canvas.toDataURL('image/jpeg', 0.6);
+
+      // 만약 압축 결과가 더 크다면 원본 사용
+      resolve(compressed.length < base64.length ? compressed : base64);
+    };
+    img.onerror = () => resolve(base64);
+  });
+};
+
+/**
  * 설정을 Google Drive에 백업
  * @returns 성공 여부
  */
@@ -78,11 +124,38 @@ export const backupSettingsToDrive = async (): Promise<{ success: boolean; messa
       return { success: false, message: '개인 GAS URL을 먼저 설정해주세요.' };
     }
 
+    // 템플릿 이미지 압축 처리 (비동기 병렬 처리)
+    const rawTemplates = getTemplates();
+    console.log('[Backup] 템플릿 이미지 압축 시작...');
+
+    const compressedTemplates = await Promise.all(
+      rawTemplates.map(async (tpl) => {
+        const sections = await Promise.all(tpl.sections.map(async (sec) => {
+          if (sec.fixedImageBase64) {
+            try {
+              const compressed = await compressBase64Image(sec.fixedImageBase64);
+              return {
+                ...sec,
+                fixedImageBase64: compressed,
+                // 압축으로 인해 MIME 타입이 변경될 수 있음 (JPEG)
+                fixedImageMimeType: 'image/jpeg'
+              };
+            } catch (e) {
+              console.warn('Image compression failed:', e);
+              return sec;
+            }
+          }
+          return sec;
+        }));
+        return { ...tpl, sections };
+      })
+    );
+
     // 백업할 설정 데이터 구성
     const settings: BackupSettings = {
       gasUrl: getGasUrl(false), // 기본값 제외하고 실제 저장된 값만
       sheetId: getSheetId(),
-      templates: getTemplates(),
+      templates: compressedTemplates,
       backupDate: new Date().toISOString()
     };
 

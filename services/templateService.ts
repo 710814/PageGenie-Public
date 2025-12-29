@@ -133,6 +133,7 @@ export const FASHION_LOOKBOOK_TEMPLATE: Template = {
   name: '패션 룩북 (얼굴 익명)',
   description: '모델컷 중심의 의류 상세페이지. 컬러옵션별 3장씩 모델컷 (총 9장). 얼굴이 완전히 보이지 않는 익명 스타일.',
   category: 'fashion',
+  isBuiltin: true,
   createdAt: 1703836800000,
   sections: [
     // 섹션 1: 메인 비주얼
