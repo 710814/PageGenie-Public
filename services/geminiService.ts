@@ -952,15 +952,33 @@ export const analyzeProductImage = async (
 
   if (template) {
     // TEMPLATE MODE - 템플릿 구조 100% 유지
-    const templateStructure = JSON.stringify(template.sections.map(s => ({
-      id: s.id,
-      section_purpose: s.title,
-      content_guideline: s.content,
-      visual_style: s.imagePrompt,
-      fixed_text: s.fixedText || null,
-      layout_type: s.layoutType || 'full-width',
-      has_fixed_image: !!s.fixedImageBase64
-    })), null, 2);
+    // ★ colorOptions를 추출하여 플레이스홀더 치환 준비
+    const colorOptions = productData?.colorOptions || [];
+
+    // ★ AI에게 전달하기 전에 {{COLOR_N}} 플레이스홀더를 실제 색상으로 치환
+    const templateStructure = JSON.stringify(template.sections.map(s => {
+      // 제목, 내용, 이미지프롬프트에서 색상 플레이스홀더 치환
+      let processedTitle = s.title;
+      let processedContent = s.content;
+      let processedImagePrompt = s.imagePrompt || '';
+
+      colorOptions.forEach((color, idx) => {
+        const placeholder = new RegExp(`\\{\\{COLOR_${idx + 1}\\}\\}`, 'gi');
+        processedTitle = processedTitle.replace(placeholder, color.colorName);
+        processedContent = processedContent.replace(placeholder, color.colorName);
+        processedImagePrompt = processedImagePrompt.replace(placeholder, color.colorName);
+      });
+
+      return {
+        id: s.id,
+        section_purpose: processedTitle,
+        content_guideline: processedContent,
+        visual_style: processedImagePrompt,
+        fixed_text: s.fixedText || null,
+        layout_type: s.layoutType || 'full-width',
+        has_fixed_image: !!s.fixedImageBase64
+      };
+    }), null, 2);
 
     const sectionCount = template.sections.length;
     const sectionIds = template.sections.map(s => s.id).join(', ');
