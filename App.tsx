@@ -9,7 +9,7 @@ import { StepResult } from './components/StepResult';
 import { StepImageEditResult } from './components/StepImageEditResult';
 import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
-import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress } from './services/geminiService';
+import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress, findMatchingColorOption } from './services/geminiService';
 import { getTemplates, initializeBuiltInTemplates } from './services/templateService';
 import {
   isAutoBackupEnabled,
@@ -242,6 +242,12 @@ const AppContent: React.FC = () => {
       const finalResult = { ...analysisResult };
       const primaryFile = uploadedFiles.length > 0 ? uploadedFiles[0] : null;
 
+      // ⭐ DEBUG: 이미지 생성 전 참조 이미지 상태 확인
+      console.log('[App.handleGenerate] ===== 이미지 생성 시작 =====');
+      console.log('[App.handleGenerate] uploadedFiles 개수:', uploadedFiles.length);
+      console.log('[App.handleGenerate] primaryFile 존재:', !!primaryFile);
+      console.log('[App.handleGenerate] primaryFile.base64 크기:', primaryFile?.base64 ? `${Math.round(primaryFile.base64.length / 1024)}KB` : 'N/A');
+
       const newSections = [];
       let completedCount = 0;
 
@@ -302,11 +308,13 @@ const AppContent: React.FC = () => {
               continue;
             }
 
-            // ★ 슬롯 인덱스에 맞는 컬러옵션 이미지를 참조 이미지로 사용 (제품 일관성 유지)
-            const colorOptionImage = productInputData?.colorOptions?.[i]?.images?.[0];
+            // ★ 프롬프트에서 컬러명을 추출하여 해당 컬러옵션 이미지를 참조
+            const slotPrompt = slot.prompt || section.imagePrompt || '';
+            const matchedColorOption = findMatchingColorOption(slotPrompt, productInputData?.colorOptions);
+            const colorOptionImage = matchedColorOption?.images?.[0];
             const refImage = colorOptionImage || primaryFile;
 
-            console.log(`[Generate] 섹션 "${section.title}" - 슬롯 ${i + 1}/${section.imageSlots.length}: "${slot.prompt?.slice(0, 50)}..." (참조: ${colorOptionImage ? `컬러옵션[${i}]` : '기본이미지'})`);
+            console.log(`[Generate] 섹션 "${section.title}" - 슬롯 ${i + 1}/${section.imageSlots.length}: "${slotPrompt.slice(0, 50)}..." (참조: ${matchedColorOption ? `컬러옵션[${matchedColorOption.colorName}]` : '기본이미지'})`);
 
             try {
               const imageUrl = await generateSectionImage(
@@ -519,6 +527,7 @@ const AppContent: React.FC = () => {
                 isLoading={isLoading}
                 uploadedFiles={uploadedFiles}
                 mode={mode}
+                productInputData={productInputData}
               />
             )}
             {step === Step.RESULT && analysisResult && (

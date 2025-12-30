@@ -7,7 +7,8 @@ import type {
   GeminiPart,
   GeminiInlineDataPart,
   GeminiTextPart,
-  GeminiGenerationConfig
+  GeminiGenerationConfig,
+  GeminiSafetySettings
 } from "../types/gemini";
 
 // 보안 강화: API 키는 GAS 프록시를 통해 서버 사이드에서만 사용
@@ -77,6 +78,7 @@ async function callGeminiViaProxy(requestData: {
   model: string;
   contents: GeminiRequest['contents'];
   config?: GeminiGenerationConfig;
+  safetySettings?: GeminiSafetySettings[];
 }, timeoutMs?: number): Promise<GeminiResponse> {
   const gasUrl = getGasUrl(true);
 
@@ -154,7 +156,8 @@ async function callGeminiViaProxy(requestData: {
         body: JSON.stringify({
           model: requestData.model,
           contents: requestData.contents,
-          config: requestData.config
+          config: requestData.config,
+          safetySettings: requestData.safetySettings
         }),
         redirect: 'follow', // GAS 리다이렉트 따라가기
         signal: controller.signal
@@ -321,6 +324,45 @@ const generateImageSlotsForLayout = (
 };
 
 /**
+ * 프롬프트에서 컬러옵션명을 자동 추출하여 일치하는 컬러옵션 찾기
+ * - 등록된 colorOptions의 colorName과 프롬프트 내용을 매칭
+ * - 컬러옵션별 이미지 참조에 사용
+ * @returns 매칭된 컬러옵션 또는 undefined
+ */
+export const findMatchingColorOption = (
+  prompt: string,
+  colorOptions: import('../types').ColorOption[] | undefined
+): import('../types').ColorOption | undefined => {
+  if (!prompt || !colorOptions?.length) return undefined;
+
+  // 프롬프트를 소문자로 변환하여 검색
+  const lowerPrompt = prompt.toLowerCase();
+
+  for (const option of colorOptions) {
+    const colorName = option.colorName.toLowerCase();
+
+    // 다양한 패턴으로 컬러명 검색
+    const patterns = [
+      colorName,                           // 정확한 컬러명
+      `wearing ${colorName}`,              // "wearing 와인"
+      `${colorName} color`,                // "와인 color"
+      `${colorName}-color`,                // "와인-color"
+      `${colorName} colored`,              // "와인 colored"
+      `in ${colorName}`,                   // "in 와인"
+    ];
+
+    // 하나라도 매칭되면 해당 컬러옵션 반환
+    if (patterns.some(pattern => lowerPrompt.includes(pattern))) {
+      console.log(`[findMatchingColorOption] 컬러 매칭 성공: "${option.colorName}" in prompt`);
+      return option;
+    }
+  }
+
+  console.log(`[findMatchingColorOption] 컬러 매칭 실패, 프롬프트: "${prompt.slice(0, 50)}..."`);
+  return undefined;
+};
+
+/**
  * 이미지 프롬프트에서 색상 플레이스홀더를 실제 컬러 옵션으로 대체
  * - {{COLOR_1}}, {{COLOR_2}}, {{COLOR_3}} 등을 colorOptions 이름으로 대체
  * - 하드코딩된 색상 패턴도 감지하여 대체 시도
@@ -449,11 +491,9 @@ const applyTemplateStructure = (
     // ★ 섹션 타입별 촬영 가이드 가져오기
     const sectionImageGuide = SECTION_TYPE_IMAGE_GUIDES[effectiveSectionType] || SECTION_TYPE_IMAGE_GUIDES.custom;
 
-    // ★ AI가 생성한 imagePrompt 사용 (이미 productVisualDescription 포함됨)
-    // 없으면 템플릿 프롬프트에서 [PRODUCT] 대체
-    let baseImagePrompt = templateSection.useFixedImage
-      ? templateSection.imagePrompt
-      : (aiSection?.imagePrompt || templateSection.imagePrompt);
+    // ★ 템플릿 프롬프트 우선! (AI 생성 프롬프트는 템플릿 프롬프트가 없을 때만 대체)
+    // 템플릿에 정의된 imagePrompt를 최우선으로 사용
+    let baseImagePrompt = templateSection.imagePrompt || aiSection?.imagePrompt || '';
 
     // ★ [PRODUCT] 플레이스홀더를 실제 상품 시각적 설명으로 대체
     if (baseImagePrompt) {
@@ -1596,6 +1636,18 @@ export const generateSectionImage = async (
   mode: AppMode = AppMode.CREATION,
   modelSettings?: import('../types').ModelSettings
 ): Promise<string> => {
+  // ⭐ DEBUG: 참조 이미지 수신 상태 확인
+  console.log('[generateSectionImage] ===== 이미지 생성 시작 =====');
+  console.log('[generateSectionImage] 참조 이미지 존재:', !!referenceImageBase64);
+  console.log('[generateSectionImage] 참조 이미지 크기:', referenceImageBase64 ? `${Math.round(referenceImageBase64.length / 1024)}KB` : 'N/A');
+  console.log('[generateSectionImage] MIME 타입:', referenceMimeType || 'N/A');
+  console.log('[generateSectionImage] 모드:', mode);
+  console.log('[generateSectionImage] 프롬프트:', prompt.slice(0, 100) + '...');
+
+  if (!referenceImageBase64) {
+    console.warn('[generateSectionImage] ⚠️ 참조 이미지가 없습니다! 상품 일관성이 유지되지 않을 수 있습니다.');
+  }
+
   try {
     let fullPrompt = "";
 
@@ -1708,11 +1760,18 @@ CRITICAL INSTRUCTION: You MUST keep the EXACT same product from the reference im
 - You may change: background, lighting, camera angle, props, scene composition${modelDescription ? ', and HUMAN MODEL appearance' : ''}
 - The product must be clearly recognizable as the SAME item from the reference
 
+CRITICAL FRAMING: The ENTIRE product must be fully visible. 
+- DO NOT CROP any part of the product (sleeves, hem, neckline, sides).
+- Leave breathing room around the product.
+- If it's a full-body shot, show the full product.
+- If it's a detail shot, focus on details but keeping the context clear.
+
 ${modelDescription ? `## CRITICAL MODEL REQUIREMENTS (MUST FOLLOW):
 - REPLACE any model in the reference image with: ${modelDescription}
 - The product must be worn/held by this NEW model naturally
 - KEEP the product identical, but CHANGE the model as requested
 ` : ''}
+
 
 Generate a professional product photo with these specifications:
 ${prompt}
@@ -1738,6 +1797,7 @@ High quality, 4K resolution, professional e-commerce photography.
       } as GeminiInlineDataPart);
     }
 
+
     // GAS 프록시를 통한 호출 시도
     const gasUrl = getGasUrl(true);
 
@@ -1746,17 +1806,32 @@ High quality, 4K resolution, professional e-commerce photography.
     const normalizedDefaultUrl = normalizeUrlForComparison(DEFAULT_GAS_URL);
     const isDefaultUrl = normalizedGasUrl === normalizedDefaultUrl;
 
-    console.log('[Image Generate] 원본 GAS URL:', gasUrl);
-    console.log('[Image Generate] 정규화된 사용자 URL:', normalizedGasUrl);
     console.log('[Image Generate] 정규화된 기본 URL:', normalizedDefaultUrl);
     console.log('[Image Generate] 기본 URL과 비교 (정규화 후):', isDefaultUrl);
 
     // GAS URL이 설정되어 있고 기본 데모 URL이 아니면 프록시 사용
     if (gasUrl && gasUrl.trim() !== '' && !isDefaultUrl) {
+      // ⭐ 안전 설정: 패션 모델 이미지 생성 시 과도한 필터링 방지
+      const imageGenSafetySettings: GeminiSafetySettings[] = [
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_ONLY_HIGH"  // 중간 정도의 노출이나 타이트한 핏 허용
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_ONLY_HIGH"
+        }
+      ];
+
       // GAS 프록시 사용
       const result = await callGeminiViaProxy({
         model: MODEL_IMAGE_GEN,
         contents: { parts },
+        config: {
+          temperature: 0.4,  // 낮을수록 프롬프트 지시 정확도 향상
+          topK: 32
+        },
+        safetySettings: imageGenSafetySettings
       });
 
       for (const part of result.candidates?.[0]?.content?.parts || []) {

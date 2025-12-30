@@ -71,16 +71,37 @@ export const createNewTemplate = (name: string = '새 템플릿', categoryId?: s
 
 /**
  * 저장된 모든 템플릿 가져오기
+ * ★ 빌트인 템플릿: 사용자 수정 버전이 있으면 그것을 사용, 없으면 코드 버전 사용
  */
 export const getTemplates = (): Template[] => {
   const stored = localStorage.getItem(TEMPLATE_STORAGE_KEY);
-  if (!stored) return [];
-  try {
-    return JSON.parse(stored);
-  } catch (e) {
-    console.error("Failed to parse templates", e);
-    return [];
+  let userTemplates: Template[] = [];
+
+  if (stored) {
+    try {
+      userTemplates = JSON.parse(stored);
+    } catch (e) {
+      console.error("Failed to parse templates", e);
+      userTemplates = [];
+    }
   }
+
+  // ★ 빌트인 템플릿 목록
+  const builtInTemplates = [FASHION_LOOKBOOK_TEMPLATE];
+  const builtInIds = new Set(builtInTemplates.map(t => t.id));
+
+  // localStorage에 빌트인 템플릿 ID가 있는지 확인 (사용자 수정 버전)
+  const userModifiedBuiltInIds = new Set(
+    userTemplates.filter(t => builtInIds.has(t.id)).map(t => t.id)
+  );
+
+  // 사용자가 수정하지 않은 빌트인 템플릿만 코드 버전 추가
+  const codeBuildIns = builtInTemplates.filter(t => !userModifiedBuiltInIds.has(t.id));
+
+  // 결과: 코드 빌트인(수정 안된 것) + 사용자 템플릿(수정된 빌트인 포함)
+  const result = [...codeBuildIns, ...userTemplates];
+
+  return result;
 };
 
 /**
@@ -118,12 +139,12 @@ export const deleteTemplate = (id: string) => {
 /**
  * 모델컷 공통 스타일 프롬프트 (얼굴 완전 익명 + 실제 인간 모델 필수)
  */
-const ANONYMOUS_MODEL_STYLE = 'MUST be a REAL HUMAN MODEL wearing the garment (NOT mannequin, NOT ghost mannequin, NOT flat-lay, NOT product only), face cropped out above the neck showing only from shoulders/collar down, no face visible, human body posture and natural skin texture visible, fashion lookbook style photography';
+const ANONYMOUS_MODEL_STYLE = 'MUST be a REAL HUMAN MODEL wearing the garment (NOT mannequin, NOT ghost mannequin, NOT flat-lay, NOT product only), face cropped only at NOSE level to show FULL NECKLINE and COLLAR, visible chin and lips but no eyes, human body posture and natural skin texture visible, fashion lookbook style photography';
 
 /**
  * 네거티브 프롬프트 (생성하면 안되는 요소)
  */
-const NEGATIVE_ELEMENTS = 'NO mannequin, NO ghost mannequin, NO invisible model, NO floating clothes, NO flat-lay, NO product-only shot, NO headless dummy';
+const NEGATIVE_ELEMENTS = 'NO mannequin, NO ghost mannequin, NO invisible model, NO floating clothes, NO flat-lay, NO product-only shot, NO headless dummy, NO cropped product, NO cut off product, NO incomplete product view';
 
 /**
  * 패션 룩북 템플릿 - 컬러별 3장씩 모델컷 (정면전신, 상반신포즈, 상반신뒷모습)
@@ -143,7 +164,7 @@ export const FASHION_LOOKBOOK_TEMPLATE: Template = {
       content: '상품의 분위기와 감성을 전달하는 대표 이미지입니다.',
       sectionType: 'hero' as SectionType,
       layoutType: 'full-width' as LayoutType,
-      imagePrompt: `REAL HUMAN MODEL wearing the product, fashion lookbook hero shot, upper body shot from shoulders down, ${ANONYMOUS_MODEL_STYLE}, soft natural lighting, clean white studio background, high-end fashion magazine aesthetic, elegant pose, ${NEGATIVE_ELEMENTS}, MUST maintain exact product design from reference`
+      imagePrompt: `REAL HUMAN MODEL wearing the product, fashion lookbook hero shot, upper body shot from CHIN down showing full neckline, ${ANONYMOUS_MODEL_STYLE}, soft natural lighting, clean white studio background, high-end fashion magazine aesthetic, elegant pose, ${NEGATIVE_ELEMENTS}, MUST maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`
     },
     // 섹션 2: 인트로 (text-only)
     {
@@ -163,9 +184,9 @@ export const FASHION_LOOKBOOK_TEMPLATE: Template = {
       layoutType: 'grid-1' as LayoutType,
       imagePrompt: `All 3 images MUST show {{COLOR_1}} colored product with IDENTICAL design`,
       imageSlots: [
-        { id: 'slot-3-1', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_1}} colored product, FRONT FULL BODY shot from shoulders to feet, ${ANONYMOUS_MODEL_STYLE}, natural standing pose with visible arms and legs, clean white studio background, high-end fashion editorial, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'full-body' },
-        { id: 'slot-3-2', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_1}} colored product, UPPER BODY shot from shoulders to waist, ${ANONYMOUS_MODEL_STYLE}, dynamic pose with crossed arms or touching collar, visible human hands and skin, soft studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'close-up' },
-        { id: 'slot-3-3', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_1}} colored product, BACK VIEW showing model's back and shoulders, ${ANONYMOUS_MODEL_STYLE}, slight head turn or looking over shoulder pose, visible human body silhouette, studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'close-up' }
+        { id: 'slot-3-1', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_1}} colored product, FRONT FULL BODY shot, ${ANONYMOUS_MODEL_STYLE}, natural standing pose with visible arms and legs, clean white studio background, high-end fashion editorial, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'full-body' },
+        { id: 'slot-3-2', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_1}} colored product, UPPER BODY shot from CHIN down showing full neck, ${ANONYMOUS_MODEL_STYLE}, dynamic pose with crossed arms or touching collar, visible human hands and skin, soft studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'close-up' },
+        { id: 'slot-3-3', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_1}} colored product, EITHER Back View OR Side Profile based on reference context: IF reference shows back design -> Generate BACK VIEW. IF reference only shows front -> Generate SIDE PROFILE or 45-degree angle shot showing styling variety. ${ANONYMOUS_MODEL_STYLE}, visible human body silhouette, studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'close-up' }
       ]
     },
     // 섹션 4: 컬러2 스타일링 (세로 3장)
@@ -177,9 +198,9 @@ export const FASHION_LOOKBOOK_TEMPLATE: Template = {
       layoutType: 'grid-1' as LayoutType,
       imagePrompt: `All 3 images MUST show {{COLOR_2}} colored product with IDENTICAL design`,
       imageSlots: [
-        { id: 'slot-4-1', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_2}} colored product, FRONT FULL BODY shot from shoulders to feet, ${ANONYMOUS_MODEL_STYLE}, relaxed pose with one hand in pocket, clean white studio background, high-end fashion editorial, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'full-body' },
-        { id: 'slot-4-2', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_2}} colored product, UPPER BODY shot from shoulders to waist, ${ANONYMOUS_MODEL_STYLE}, casual pose with hands together, visible human hands and skin, soft studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'close-up' },
-        { id: 'slot-4-3', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_2}} colored product, BACK VIEW showing model's back and shoulders, ${ANONYMOUS_MODEL_STYLE}, walking away or turning pose, visible human body from behind, studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'close-up' }
+        { id: 'slot-4-1', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_2}} colored product, FRONT FULL BODY shot, ${ANONYMOUS_MODEL_STYLE}, relaxed pose with one hand in pocket, clean white studio background, high-end fashion editorial, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'full-body' },
+        { id: 'slot-4-2', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_2}} colored product, UPPER BODY shot from CHIN down showing full neck, ${ANONYMOUS_MODEL_STYLE}, casual pose with hands together, visible human hands and skin, soft studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'close-up' },
+        { id: 'slot-4-3', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_2}} colored product, EITHER Back View OR Side Profile based on reference context: IF reference shows back design -> Generate BACK VIEW. IF reference only shows front -> Generate SIDE PROFILE or 45-degree angle shot showing styling variety. ${ANONYMOUS_MODEL_STYLE}, visible human body silhouette, studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'close-up' }
       ]
     },
     // 섹션 5: 컬러3 스타일링 (세로 3장)
@@ -191,9 +212,9 @@ export const FASHION_LOOKBOOK_TEMPLATE: Template = {
       layoutType: 'grid-1' as LayoutType,
       imagePrompt: `All 3 images MUST show {{COLOR_3}} colored product with IDENTICAL design`,
       imageSlots: [
-        { id: 'slot-5-1', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_3}} colored product, FRONT FULL BODY shot from shoulders to feet, ${ANONYMOUS_MODEL_STYLE}, confident standing pose with casual lean, clean white studio background, high-end fashion editorial, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'full-body' },
-        { id: 'slot-5-2', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_3}} colored product, UPPER BODY shot from shoulders to waist, ${ANONYMOUS_MODEL_STYLE}, natural pose adjusting sleeve, visible human hands and arms, soft studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'close-up' },
-        { id: 'slot-5-3', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_3}} colored product, BACK VIEW showing model's back and shoulders, ${ANONYMOUS_MODEL_STYLE}, three-quarter back view, visible human body silhouette from behind, studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference`, photographyStyle: 'close-up' }
+        { id: 'slot-5-1', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_3}} colored product, FRONT FULL BODY shot, ${ANONYMOUS_MODEL_STYLE}, confident standing pose with casual lean, clean white studio background, high-end fashion editorial, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'full-body' },
+        { id: 'slot-5-2', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_3}} colored product, UPPER BODY shot from CHIN down showing full neck, ${ANONYMOUS_MODEL_STYLE}, natural pose adjusting sleeve, visible human hands and arms, soft studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'close-up' },
+        { id: 'slot-5-3', slotType: 'color_styling', prompt: `REAL HUMAN MODEL wearing {{COLOR_3}} colored product, EITHER Back View OR Side Profile based on reference context: IF reference shows back design -> Generate BACK VIEW. IF reference only shows front -> Generate SIDE PROFILE or 45-degree angle shot showing styling variety. ${ANONYMOUS_MODEL_STYLE}, visible human body silhouette, studio lighting, ${NEGATIVE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`, photographyStyle: 'close-up' }
       ]
     },
     // 섹션 6: 디테일 클로즈업

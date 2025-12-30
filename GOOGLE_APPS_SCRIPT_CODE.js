@@ -36,13 +36,22 @@ function callGeminiAPI(requestData) {
     var model = requestData.model || 'gemini-2.5-flash';
     var url = GEMINI_API_BASE + '/models/' + model + ':generateContent?key=' + apiKey;
 
+    // 페이로드 구성 - safetySettings 포함 (마네킹/머리없는 모델 방지)
+    var payload = {
+      contents: requestData.contents,
+      generationConfig: requestData.config || {}
+    };
+
+    // safetySettings가 전달된 경우 포함 (패션 모델 이미지 생성 시 과도한 필터링 방지)
+    if (requestData.safetySettings && requestData.safetySettings.length > 0) {
+      payload.safetySettings = requestData.safetySettings;
+      console.log('[GAS] safetySettings 적용:', JSON.stringify(requestData.safetySettings));
+    }
+
     var options = {
       'method': 'post',
       'contentType': 'application/json',
-      'payload': JSON.stringify({
-        contents: requestData.contents,
-        generationConfig: requestData.config || {}
-      }),
+      'payload': JSON.stringify(payload),
       'muteHttpExceptions': true,
       'timeout': 300000 // 5분 타임아웃 (Gemini API 응답 대기)
     };

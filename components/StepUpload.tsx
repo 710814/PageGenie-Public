@@ -14,18 +14,19 @@ interface Props {
   onProductSubmit: (data: ProductInputData) => void;
 }
 
-// 기본 색상 프리셋
+// 기본 색상 프리셋 (가나다 순)
 const COLOR_PRESETS = [
-  { name: '블랙', hex: '#000000' },
-  { name: '화이트', hex: '#FFFFFF' },
   { name: '그레이', hex: '#808080' },
+  { name: '그린', hex: '#008000' },
   { name: '네이비', hex: '#000080' },
   { name: '베이지', hex: '#F5F5DC' },
-  { name: '와인', hex: '#722F37' },
+  { name: '블랙', hex: '#000000' },
+  { name: '블루', hex: '#4169E1' },
   { name: '브라운', hex: '#8B4513' },
+  { name: '와인', hex: '#722F37' },
   { name: '카키', hex: '#8B8B00' },
   { name: '핑크', hex: '#FFC0CB' },
-  { name: '블루', hex: '#4169E1' },
+  { name: '화이트', hex: '#FFFFFF' },
 ];
 
 export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
@@ -54,6 +55,7 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
   // Color Options State
   const [colorOptions, setColorOptions] = useState<ColorOption[]>([]);
   const [newColorName, setNewColorName] = useState('');
+  const [isCustomColorMode, setIsCustomColorMode] = useState(false);  // 직접 입력 모드
   const [activeColorId, setActiveColorId] = useState<string | null>(null);
 
   // Model Settings State (선택 사항)
@@ -573,8 +575,16 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
                 {/* Add Color Input */}
                 <div className="flex gap-2">
                   <select
-                    value={newColorName}
-                    onChange={(e) => setNewColorName(e.target.value)}
+                    value={isCustomColorMode ? '__custom__' : newColorName}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomColorMode(true);
+                        setNewColorName('');
+                      } else {
+                        setIsCustomColorMode(false);
+                        setNewColorName(e.target.value);
+                      }
+                    }}
                     className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                   >
                     <option value="">색상 선택...</option>
@@ -583,17 +593,22 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
                     ))}
                     <option value="__custom__">직접 입력</option>
                   </select>
-                  {newColorName === '__custom__' && (
+                  {isCustomColorMode && (
                     <input
                       type="text"
                       placeholder="색상명 입력"
+                      value={newColorName}
                       onChange={(e) => setNewColorName(e.target.value)}
                       className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                      autoFocus
                     />
                   )}
                   <button
-                    onClick={addColorOption}
-                    disabled={!newColorName || newColorName === '__custom__'}
+                    onClick={() => {
+                      addColorOption();
+                      setIsCustomColorMode(false);
+                    }}
+                    disabled={!newColorName}
                     className="px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-1"
                   >
                     <Plus className="w-4 h-4" />

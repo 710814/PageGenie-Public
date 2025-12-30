@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
-import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType } from '../types';
+import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType, ProductInputData } from '../types';
 import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move, Check, LayoutGrid } from 'lucide-react';
-import { generateSectionImage } from '../services/geminiService';
+import { generateSectionImage, findMatchingColorOption } from '../services/geminiService';
 import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
 import { SectionMiniMap } from './SectionMiniMap';
@@ -13,9 +13,10 @@ interface Props {
   isLoading: boolean;
   uploadedFiles?: UploadedFile[];
   mode?: AppMode;
+  productInputData?: ProductInputData | null;  // ★ 컴러옵션 이미지 참조용
 }
 
-export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, onConfirm, isLoading, uploadedFiles = [], mode = AppMode.CREATION }) => {
+export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, onConfirm, isLoading, uploadedFiles = [], mode = AppMode.CREATION, productInputData }) => {
   // 섹션 리스트 컨테이너 참조 (스크롤 이동용)
   const sectionsContainerRef = useRef<HTMLDivElement>(null);
   const toast = useToastContext();
@@ -102,10 +103,18 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           toast.info(`이미지 ${i + 1}/${section.imageSlots!.length} 생성 중...`);
 
           try {
+            // ★ 프롬프트에서 컬러명을 추출하여 해당 컬러옵션 이미지를 참조
+            const slotPrompt = slot.prompt || section.imagePrompt || '';
+            const matchedColorOption = findMatchingColorOption(slotPrompt, productInputData?.colorOptions);
+            const colorOptionImage = matchedColorOption?.images?.[0];
+            const refImage = colorOptionImage || primaryFile;
+
+            console.log(`[StepAnalysis Preview] 슬롯 ${i + 1}: 컬러 매칭 = ${matchedColorOption?.colorName || 'N/A'}, 참조 이미지 = ${refImage?.base64 ? 'O' : 'X'}`);
+
             const imageUrl = await generateSectionImage(
-              slot.prompt || section.imagePrompt || '',
-              primaryFile?.base64,
-              primaryFile?.mimeType,
+              slotPrompt,
+              refImage?.base64,
+              refImage?.mimeType,
               mode
             );
             updatedSlots.push({ ...slot, imageUrl });
@@ -129,10 +138,17 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         const slot = section.imageSlots![slotIndex];
         const prompt = customPrompt || slot.prompt || section.imagePrompt || '';
 
+        // ★ 프롬프트에서 컬러명을 추출하여 해당 컬러옵션 이미지를 참조
+        const matchedColorOption = findMatchingColorOption(prompt, productInputData?.colorOptions);
+        const colorOptionImage = matchedColorOption?.images?.[0];
+        const refImage = colorOptionImage || primaryFile;
+
+        console.log(`[StepAnalysis Preview] 개별 슬롯 ${slotIndex + 1}: 컬러 매칭 = ${matchedColorOption?.colorName || 'N/A'}`);
+
         const imageUrl = await generateSectionImage(
           prompt,
-          primaryFile?.base64,
-          primaryFile?.mimeType,
+          refImage?.base64,
+          refImage?.mimeType,
           mode
         );
 
@@ -157,10 +173,17 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           return;
         }
 
+        // ★ 프롬프트에서 컬러명을 추출하여 해당 컬러옵션 이미지를 참조
+        const matchedColorOption = findMatchingColorOption(prompt, productInputData?.colorOptions);
+        const colorOptionImage = matchedColorOption?.images?.[0];
+        const refImage = colorOptionImage || primaryFile;
+
+        console.log(`[StepAnalysis Preview] 단일 섹션: 컬러 매칭 = ${matchedColorOption?.colorName || 'N/A'}`);
+
         const imageUrl = await generateSectionImage(
           prompt,
-          primaryFile?.base64,
-          primaryFile?.mimeType,
+          refImage?.base64,
+          refImage?.mimeType,
           mode
         );
 
