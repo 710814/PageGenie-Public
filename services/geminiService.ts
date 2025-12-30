@@ -1756,31 +1756,46 @@ High quality, professional product photography without any text overlay. Pixel-p
         // 모델 설정을 프롬프트에 추가
         const modelDescription = buildModelDescription(modelSettings);
 
+        // ★ Gemini 권장사항 적용: 시맨틱 네거티브 대신 긍정적 표현 사용
+        // "마네킹이 아니다" 대신 "실제 인간 모델이 착용" 형태로 강조
         fullPrompt = `
-CRITICAL INSTRUCTION: You MUST keep the EXACT same product from the reference image.
+## ⚠️ MOST CRITICAL REQUIREMENT - REAL HUMAN MODEL (READ FIRST):
+This is a FASHION LOOKBOOK photo. The scene MUST feature a REAL, LIVING HUMAN MODEL wearing the garment.
+- The model must have VISIBLE HUMAN SKIN with natural texture (not plastic, not fabric-like)
+- The model must have a NATURAL HUMAN POSTURE with realistic body proportions
+- The model's BODY must be clearly visible (arms, torso, legs as appropriate for the shot)
+- If shoulders/neck are visible, they must look like real human skin, not a display form
+- The garment must drape naturally on a real person's body, showing natural fabric movement
+
+What this image IS: A fashion editorial photo with a real person modeling clothes, like in a magazine lookbook.
+What this image is NOT: A product-only shot, a flat-lay, clothes on a hanger, or clothes on any kind of display form or mannequin.
+
+## PRODUCT CONSISTENCY REQUIREMENT:
+Keep the EXACT same product from the reference image.
 - The product's shape, color, design, texture, and all visual details must be IDENTICAL to the reference
 - Do NOT change, modify, or replace the product in any way
 - You may change: background, lighting, camera angle, props, scene composition${modelDescription ? ', and HUMAN MODEL appearance' : ''}
 - The product must be clearly recognizable as the SAME item from the reference
 
-CRITICAL FRAMING: The ENTIRE product must be fully visible. 
+## FRAMING REQUIREMENT:
+The ENTIRE product must be fully visible. 
 - DO NOT CROP any part of the product (sleeves, hem, neckline, sides).
 - Leave breathing room around the product.
-- If it's a full-body shot, show the full product.
-- If it's a detail shot, focus on details but keeping the context clear.
+- For full-body shots, show from head (or chin if anonymous) to feet.
+- For upper-body shots, show from chin down to waist/hip with full shoulders and arms.
 
-${modelDescription ? `## CRITICAL MODEL REQUIREMENTS (MUST FOLLOW):
-- REPLACE any model in the reference image with: ${modelDescription}
-- The product must be worn/held by this NEW model naturally
-- KEEP the product identical, but CHANGE the model as requested
+${modelDescription ? `## MODEL APPEARANCE:
+- The model should be: ${modelDescription}
+- The product must be worn by this model naturally
 ` : ''}
 
-
-Generate a professional product photo with these specifications:
+## PHOTO SPECIFICATIONS:
 ${prompt}
 
-REMEMBER: The product itself must remain EXACTLY as shown in the reference image.
-High quality, 4K resolution, professional e-commerce photography.
+## FINAL CHECK:
+Before generating, verify: Is there a REAL HUMAN BODY visible wearing this garment? If the answer is no, regenerate with a real human model.
+
+High quality, 4K resolution, professional fashion photography, editorial style.
         `.trim();
       }
     } else {

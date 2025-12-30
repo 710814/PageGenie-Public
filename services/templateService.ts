@@ -138,13 +138,15 @@ export const deleteTemplate = (id: string) => {
 
 /**
  * 모델컷 공통 스타일 프롬프트 (얼굴 완전 익명 + 실제 인간 모델 필수)
+ * ★ Gemini 권장사항 적용: 시맨틱 네거티브 대신 긍정적 표현 사용
  */
-const ANONYMOUS_MODEL_STYLE = 'MUST be a REAL HUMAN MODEL wearing the garment (NOT mannequin, NOT ghost mannequin, NOT flat-lay, NOT product only), face cropped only at NOSE level to show FULL NECKLINE and COLLAR, visible chin and lips but no eyes, human body posture and natural skin texture visible, fashion lookbook style photography';
+const ANONYMOUS_MODEL_STYLE = 'A REAL HUMAN MODEL with visible natural skin texture and realistic body proportions is wearing this garment. The model has a natural human posture with arms and torso clearly visible. Face is cropped at NOSE level showing FULL NECKLINE, COLLAR, visible chin, lips, and jawline. This is a fashion editorial photo featuring a living person, like a magazine lookbook shoot';
 
 /**
- * 네거티브 프롬프트 (생성하면 안되는 요소)
+ * 네거티브 프롬프트 -> 긍정적 설명으로 변경
+ * ★ "마네킹이 아니다" 대신 "이것은 실제 인간이 착용한 패션 사진이다" 형태로 강조
  */
-const NEGATIVE_ELEMENTS = 'NO mannequin, NO ghost mannequin, NO invisible model, NO floating clothes, NO flat-lay, NO product-only shot, NO headless dummy, NO cropped product, NO cut off product, NO incomplete product view';
+const NEGATIVE_ELEMENTS = 'This must be a photo of a REAL PERSON wearing the garment with visible human skin, natural body movement, and realistic fabric draping. The entire product must be fully visible without any cropping. Show the complete garment from neckline to hem';
 
 /**
  * 패션 룩북 템플릿 - 컬러별 3장씩 모델컷 (정면전신, 상반신포즈, 상반신뒷모습)
