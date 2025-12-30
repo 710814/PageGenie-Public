@@ -309,7 +309,16 @@ const AppContent: React.FC = () => {
             }
 
             // ★ 프롬프트에서 컬러명을 추출하여 해당 컬러옵션 이미지를 참조
-            const slotPrompt = slot.prompt || section.imagePrompt || '';
+            let slotPrompt = slot.prompt || section.imagePrompt || '';
+
+            // [Bugfix] 템플릿의 {{COLOR_N}} 플레이스홀더를 실제 컬러명으로 치환
+            if (productInputData?.colorOptions) {
+              productInputData.colorOptions.forEach((opt, idx) => {
+                const placeholder = `{{COLOR_${idx + 1}}}`;
+                slotPrompt = slotPrompt.replace(new RegExp(placeholder, 'gi'), opt.colorName);
+              });
+            }
+
             const matchedColorOption = findMatchingColorOption(slotPrompt, productInputData?.colorOptions);
             const colorOptionImage = matchedColorOption?.images?.[0];
             const refImage = colorOptionImage || primaryFile;
@@ -359,10 +368,21 @@ const AppContent: React.FC = () => {
           }));
 
           console.log(`[Generate] 섹션 "${section.title}": AI 이미지 생성 중...`);
+          // 프롬프트 치환 및 참조 이미지 선택
+          let sectionPrompt = section.imagePrompt;
+          if (productInputData?.colorOptions) {
+            productInputData.colorOptions.forEach((opt, idx) => {
+              const placeholder = `{{COLOR_${idx + 1}}}`;
+              sectionPrompt = sectionPrompt.replace(new RegExp(placeholder, 'gi'), opt.colorName);
+            });
+          }
+          const matchedColor = findMatchingColorOption(sectionPrompt, productInputData?.colorOptions);
+          const refImg = matchedColor?.images?.[0] || primaryFile;
+
           const imageUrl = await generateSectionImage(
-            section.imagePrompt,
-            primaryFile?.base64, // Use the first image as reference style
-            primaryFile?.mimeType,
+            sectionPrompt,
+            refImg?.base64, // Use matched color image or default
+            refImg?.mimeType,
             mode,
             productInputData?.modelSettings
           );

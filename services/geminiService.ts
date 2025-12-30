@@ -382,25 +382,10 @@ const replaceColorPlaceholders = (
     result = result.replace(new RegExp(placeholder, 'gi'), color.colorName);
   });
 
-  // 현재 슬롯에 해당하는 컬러로 대체 (슬롯 인덱스 기반)
-  if (colorOptions[slotIndex]) {
-    const colorName = colorOptions[slotIndex].colorName;
-
-    // 일반적인 색상 표현 패턴 대체
-    // "in wine color" -> "in {actualColor} color"
-    // "wine-colored" -> "{actualColor}-colored"
-    const colorPatterns = [
-      /in\s+(wine|beige|gray|grey|black|white|navy|brown|red|blue|green|pink|cream|ivory|khaki|olive|camel)\s+(color|colored)/gi,
-      /\b(wine|beige|gray|grey|black|white|navy|brown|red|blue|green|pink|cream|ivory|khaki|olive|camel)[- ]?color(ed)?\b/gi,
-    ];
-
-    colorPatterns.forEach(pattern => {
-      result = result.replace(pattern, (match) => {
-        // "in wine color" -> "in 네이비 color"
-        return match.replace(/\b(wine|beige|gray|grey|black|white|navy|brown|red|blue|green|pink|cream|ivory|khaki|olive|camel)\b/i, colorName);
-      });
-    });
-  }
+  // 현재 슬롯에 해당하는 컬러로 대체하는 로직 제거
+  // 3색상 템플릿처럼 한 섹션에 여러 슬롯(3개)이 있는 경우,
+  // slotIndex(0,1,2)가 colorOptions(0,1,2)와 잘못 매핑되어 색상이 섞이는 문제 발생.
+  // 명시적인 {{COLOR_N}} 플레이스홀더만 사용하도록 변경.
 
   return result;
 };
@@ -1815,7 +1800,15 @@ High quality, 4K resolution, professional e-commerce photography.
       const imageGenSafetySettings: GeminiSafetySettings[] = [
         {
           category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_ONLY_HIGH"  // 중간 정도의 노출이나 타이트한 핏 허용
+          threshold: "BLOCK_ONLY_HIGH"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_ONLY_HIGH"
+        },
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_ONLY_HIGH"
         },
         {
           category: "HARM_CATEGORY_DANGEROUS_CONTENT",

@@ -71,6 +71,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
       if (isGrid) {
         return `
             <section class="section">
+                <h2>${section.title}</h2>
+                <p>${section.content}</p>
                 <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
                     ${section.imageSlots?.map((slot, idx) => {
           const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
@@ -78,8 +80,6 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
           return slot.imageUrl ? `<div style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="images/section_${section.id}_slot_${idx}.png" alt="${section.title} - ${idx + 1}" style="max-width: 100%; max-height: 100%; object-fit: contain;" /></div></div>` : ''
         }).join('')}
                 </div>
-                <h2>${section.title}</h2>
-                <p>${section.content}</p>
             </section>
             `;
       }
@@ -89,9 +89,9 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
       const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px);` : '';
       return `
           <section class="section">
-              ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="images/section_${section.id}.png" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>` : ''}
               <h2>${section.title}</h2>
               <p>${section.content}</p>
+              ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="images/section_${section.id}.png" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>` : ''}
           </section>
           `;
     }).join('')}
@@ -234,6 +234,8 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
       if (isGridLayout && hasMultipleSlots) {
         return `
         <section class="section">
+            <h2>${section.title}</h2>
+            <p>${section.content}</p>
             <div style="display: grid; grid-template-columns: repeat(${gridCols}, 1fr); gap: 15px; margin-bottom: 30px;">
                 ${section.imageSlots?.map((slot, slotIdx) => {
           const hasCrop = (slot.cropZoom && slot.cropZoom !== 1) || slot.cropPanX || slot.cropPanY;
@@ -243,8 +245,6 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
             : `<div style="width: 100%; aspect-ratio: 1/1; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">이미지 ${slotIdx + 1}</div>`
         }).join('')}
             </div>
-            <h2>${section.title}</h2>
-            <p>${section.content}</p>
         </section>`;
       } else if (isTextOnly) {
         return `
@@ -258,9 +258,9 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
         const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px);` : '';
         return `
         <section class="section">
-            ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="${section.imageUrl}" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>` : ''}
             <h2>${section.title}</h2>
             <p>${section.content}</p>
+            ${section.imageUrl ? `<div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="${section.imageUrl}" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>` : ''}
         </section>`;
       }
     }).join('')}
@@ -685,6 +685,9 @@ ${data.marketingCopy}
                   return (
                     <div key={section.id} className="py-16 px-6 border-b border-gray-100 last:border-0 bg-white">
                       <div className="max-w-3xl mx-auto text-center">
+                        <h2 className="text-3xl font-bold text-gray-900 mb-6">{section.title}</h2>
+                        <p className="text-lg text-gray-600 whitespace-pre-line leading-relaxed mb-8">{section.content}</p>
+
                         {/* Grid Layout: 여러 이미지 표시 */}
                         {isGridLayout && hasMultipleSlots ? (
                           <div className={`grid gap-4 mb-8 ${gridCols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -781,8 +784,6 @@ ${data.marketingCopy}
                             </button>
                           </div>
                         ) : null}
-                        <h2 className="text-3xl font-bold text-gray-900 mb-6">{section.title}</h2>
-                        <p className="text-lg text-gray-600 whitespace-pre-line leading-relaxed">{section.content}</p>
                       </div>
                     </div>
                   );

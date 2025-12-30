@@ -11,7 +11,18 @@ interface SectionMiniMapProps {
 }
 
 // 레이아웃 배지 정보
-const getBadgeInfo = (layoutType: string) => {
+const getBadgeInfo = (section: SectionData) => {
+    const layoutType = section.layoutType || 'full-width';
+    // 이미지 슬롯 개수에 따라 배지 표시 (사용자 요청: 3개면 "3열"로 표기)
+    const slotCount = section.imageSlots?.length || 0;
+
+    if (slotCount >= 3) {
+        return { icon: LayoutGrid, label: '3열', color: 'bg-emerald-50 border-emerald-200 text-emerald-600' };
+    }
+    if (slotCount === 2) {
+        return { icon: LayoutGrid, label: '2열', color: 'bg-green-50 border-green-200 text-green-600' };
+    }
+
     switch (layoutType) {
         case 'text-only':
             return { icon: Type, label: '텍스트', color: 'bg-gray-100 border-gray-200 text-gray-600' };
@@ -68,7 +79,7 @@ export const SectionMiniMap: React.FC<SectionMiniMapProps> = ({
             <div className="p-3 space-y-2">
                 {sections.map((section, i) => {
                     const active = section.id === activeSectionId;
-                    const badge = getBadgeInfo(section.layoutType || 'full-width');
+                    const badge = getBadgeInfo(section);
                     const Icon = badge.icon;
 
                     return (

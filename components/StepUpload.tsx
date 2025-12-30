@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import {
   Upload, Link as LinkIcon, Image as ImageIcon, LayoutTemplate,
   Loader2, AlertCircle, ArrowRight, X, Layers, Plus, Palette, Tag,
-  DollarSign, Percent, Trash2, User
+  DollarSign, Percent, Trash2, User, ChevronDown, Check
 } from 'lucide-react';
 import { AppMode, UploadedFile, Template, ColorOption, ProductInputData, ModelSettings } from '../types';
 import { getTemplates } from '../services/templateService';
@@ -16,18 +16,19 @@ interface Props {
 
 // 기본 색상 프리셋 (가나다 순)
 const COLOR_PRESETS = [
-  { name: '그레이', hex: '#808080' },
-  { name: '그린', hex: '#008000' },
-  { name: '네이비', hex: '#000080' },
-  { name: '베이지', hex: '#F5F5DC' },
-  { name: '블랙', hex: '#000000' },
-  { name: '블루', hex: '#4169E1' },
-  { name: '브라운', hex: '#8B4513' },
-  { name: '와인', hex: '#722F37' },
-  { name: '카키', hex: '#8B8B00' },
-  { name: '핑크', hex: '#FFC0CB' },
-  { name: '화이트', hex: '#FFFFFF' },
-];
+  { name: 'Beige', hex: '#F5F5DC', textColor: '#000000' },
+  { name: 'Black', hex: '#000000', textColor: '#FFFFFF' },
+  { name: 'Blue', hex: '#4169E1', textColor: '#FFFFFF' },
+  { name: 'Brown', hex: '#8B4513', textColor: '#FFFFFF' },
+  { name: 'Gray', hex: '#808080', textColor: '#FFFFFF' },
+  { name: 'Green', hex: '#008000', textColor: '#FFFFFF' },
+  { name: 'Khaki', hex: '#8B8B00', textColor: '#FFFFFF' },
+  { name: 'Navy', hex: '#000080', textColor: '#FFFFFF' },
+  { name: 'Pink', hex: '#FFC0CB', textColor: '#000000' },
+  { name: 'Red', hex: '#FF0000', textColor: '#FFFFFF' },
+  { name: 'White', hex: '#FFFFFF', textColor: '#000000', border: '#DDDDDD' },
+  { name: 'Wine', hex: '#722F37', textColor: '#FFFFFF' },
+].sort((a, b) => a.name.localeCompare(b.name));
 
 export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +58,7 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
   const [newColorName, setNewColorName] = useState('');
   const [isCustomColorMode, setIsCustomColorMode] = useState(false);  // 직접 입력 모드
   const [activeColorId, setActiveColorId] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Model Settings State (선택 사항)
   const [modelEthnicity, setModelEthnicity] = useState<ModelSettings['ethnicity']>('any');
@@ -561,8 +563,8 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
 
           {/* Color Options (Mode A only) */}
           {mode === AppMode.CREATION && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm ">
+              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between rounded-t-2xl">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
                   <Palette className="w-5 h-5 text-purple-600" />
                   컬러 옵션 <span className="text-xs text-gray-400 font-normal">(선택)</span>
@@ -573,45 +575,142 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
               </div>
               <div className="p-4 space-y-3">
                 {/* Add Color Input */}
-                <div className="flex gap-2">
-                  <select
-                    value={isCustomColorMode ? '__custom__' : newColorName}
-                    onChange={(e) => {
-                      if (e.target.value === '__custom__') {
-                        setIsCustomColorMode(true);
-                        setNewColorName('');
-                      } else {
-                        setIsCustomColorMode(false);
-                        setNewColorName(e.target.value);
-                      }
-                    }}
-                    className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
-                  >
-                    <option value="">색상 선택...</option>
-                    {COLOR_PRESETS.filter(c => !colorOptions.some(opt => opt.colorName === c.name)).map(c => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
-                    ))}
-                    <option value="__custom__">직접 입력</option>
-                  </select>
-                  {isCustomColorMode && (
-                    <input
-                      type="text"
-                      placeholder="색상명 입력"
-                      value={newColorName}
-                      onChange={(e) => setNewColorName(e.target.value)}
-                      className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
-                      autoFocus
-                    />
+                {/* Color Selection Grid */}
+                {/* Color Selection Custom Dropdown */}
+                <div className="flex gap-2 relative z-10">
+                  {/* Dropdown Backdrop */}
+                  {isDropdownOpen && (
+                    <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>
                   )}
+
+                  {/* Input / Dropdown Trigger */}
+                  <div className="flex-1 relative z-50">
+                    {isCustomColorMode ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Enter color name..."
+                          value={newColorName}
+                          onChange={(e) => setNewColorName(e.target.value)}
+                          onKeyDown={(e) => {
+                             if (e.key === 'Enter' && newColorName) {
+                               e.preventDefault();
+                               addColorOption();
+                               setIsCustomColorMode(false);
+                               setNewColorName('');
+                             }
+                          }}
+                          className="w-full border border-gray-300 rounded-lg p-2.5 pr-8 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                        />
+                        <button 
+                          onClick={() => { setIsCustomColorMode(false); setNewColorName(''); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className={`w-full border rounded-lg p-2.5 flex items-center justify-between transition-all bg-white
+                          ${isDropdownOpen ? 'ring-2 ring-purple-500 border-purple-500' : 'border-gray-300 hover:border-gray-400'}
+                        `}
+                      >
+                         <div className="flex items-center gap-2">
+                           {newColorName ? (
+                             <>
+                               <div 
+                                 className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
+                                 style={{ backgroundColor: COLOR_PRESETS.find(c => c.name === newColorName)?.hex || 'transparent' }}
+                               />
+                               <span className="text-gray-900 font-medium">{newColorName}</span>
+                             </>
+                           ) : (
+                             <span className="text-gray-400">Select color...</span>
+                           )}
+                         </div>
+                         <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+
+                    {/* Dropdown Menu */}
+                    {isDropdownOpen && !isCustomColorMode && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[320px] overflow-y-auto transform origin-top animate-in fade-in slide-in-from-top-2 duration-200 p-1">
+                        <div className="space-y-0.5">
+                          {COLOR_PRESETS.map((preset) => {
+                            const isAdded = colorOptions.some(opt => opt.colorName === preset.name);
+                            const isSelected = newColorName === preset.name;
+                            
+                            return (
+                              <button
+                                key={preset.name}
+                                type="button"
+                                onClick={() => {
+                                  if (!isAdded) {
+                                    setNewColorName(preset.name);
+                                    setIsDropdownOpen(false);
+                                  }
+                                }}
+                                disabled={isAdded}
+                                className={`
+                                  w-full flex items-center justify-between p-2.5 rounded-lg transition-colors group
+                                  ${isAdded ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-purple-50 cursor-pointer'}
+                                  ${isSelected ? 'bg-purple-50 ring-1 ring-purple-100' : ''}
+                                `}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div 
+                                    className="w-6 h-6 rounded-full border border-gray-200 shadow-sm shrink-0 transition-transform group-hover:scale-110"
+                                    style={{ backgroundColor: preset.hex }}
+                                  />
+                                  <span className={`text-sm ${isAdded ? 'text-gray-400 decoration-line-through' : 'text-gray-700 font-medium'}`}>
+                                    {preset.name}
+                                  </span>
+                                </div>
+                                {isAdded ? (
+                                  <span className="text-xs text-gray-400 font-medium px-2 py-0.5 bg-gray-100 rounded">Added</span>
+                                ) : isSelected ? (
+                                  <Check className="w-4 h-4 text-purple-600" />
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                          
+                          <div className="border-t border-gray-100 my-1 mx-2"></div>
+                          
+                          <button
+                             type="button"
+                             onClick={() => {
+                               setIsCustomColorMode(true);
+                               setNewColorName('');
+                               setIsDropdownOpen(false);
+                             }}
+                             className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-100 text-left transition-colors"
+                          >
+                             <div className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 text-gray-400 group-hover:border-gray-400 group-hover:text-gray-500">
+                               <Plus className="w-3.5 h-3.5" />
+                             </div>
+                             <span className="text-sm font-medium text-gray-600 group-hover:text-gray-800">Direct Input (Custom)</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Button */}
                   <button
                     onClick={() => {
                       addColorOption();
                       setIsCustomColorMode(false);
+                      setNewColorName('');
                     }}
-                    disabled={!newColorName}
-                    className="px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-1"
+                    disabled={!newColorName || colorOptions.some(opt => opt.colorName === newColorName)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed shadow-sm shrink-0"
                   >
                     <Plus className="w-4 h-4" />
+                    <span>Add</span>
                   </button>
                 </div>
 
@@ -673,8 +772,8 @@ export const StepUpload: React.FC<Props> = ({ mode, onProductSubmit }) => {
 
           {/* Model Settings (Mode A only) - 컬러 옵션 아래 배치 */}
           {mode === AppMode.CREATION && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm ">
+              <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between rounded-t-2xl">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
                   <User className="w-5 h-5 text-teal-600" />
                   모델 설정 <span className="text-xs text-gray-400 font-normal">(이미지 생성 시 적용, 선택)</span>
