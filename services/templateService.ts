@@ -87,7 +87,7 @@ export const getTemplates = (): Template[] => {
   }
 
   // ★ 빌트인 템플릿 목록
-  const builtInTemplates = [FASHION_LOOKBOOK_TEMPLATE];
+  const builtInTemplates = [FASHION_LOOKBOOK_TEMPLATE, OUTDOOR_CLOTHING_TEMPLATE];
   const builtInIds = new Set(builtInTemplates.map(t => t.id));
 
   // localStorage에 빌트인 템플릿 ID가 있는지 확인 (사용자 수정 버전)
@@ -245,10 +245,102 @@ export const FASHION_LOOKBOOK_TEMPLATE: Template = {
 };
 
 /**
+ * 아웃도어 모델 스타일 프롬프트 (얼굴 전체 표현 + 활동적 분위기)
+ */
+const OUTDOOR_MODEL_STYLE = 'A REAL HUMAN MODEL with FULL FACE VISIBLE, natural athletic expression, healthy outdoor sun-kissed complexion, confident and energetic posture. The model has visible natural skin texture, realistic body proportions, and an active lifestyle appearance. This is a professional outdoor brand campaign photo featuring a real person';
+
+/**
+ * 아웃도어 배경 및 활동성 강조 프롬프트
+ */
+const OUTDOOR_SCENE_ELEMENTS = 'This must be a photo of a REAL PERSON wearing the outdoor garment in a natural outdoor environment with visible human skin, athletic body movement, and realistic fabric performance. The entire product must be fully visible. Show the complete garment with functional details';
+
+/**
+ * 아웃도어 의류 템플릿 - 심플 버전 (액티브 스타일링 각 1장)
+ */
+export const OUTDOOR_CLOTHING_TEMPLATE: Template = {
+  id: 'tpl-outdoor-clothing-preset',
+  name: '아웃도어 의류',
+  description: '아웃도어 브랜드 의류 상세페이지. 등산/캠핑/트레일 활동 배경의 모델컷 (총 6장). 모델 얼굴 전체 표현.',
+  category: 'fashion',
+  isBuiltin: true,
+  createdAt: 1735574400000, // 2024-12-30
+  sections: [
+    // 섹션 1: 메인 히어로
+    {
+      id: 'sec-outdoor-1',
+      title: '메인 비주얼',
+      content: '산악/자연 배경에서 아웃도어 의류의 기능성과 스타일을 보여주는 대표 이미지입니다.',
+      sectionType: 'hero' as SectionType,
+      layoutType: 'full-width' as LayoutType,
+      imagePrompt: `REAL HUMAN MODEL wearing the outdoor product, FULL BODY shot with FULL FACE VISIBLE, ${OUTDOOR_MODEL_STYLE}, standing on mountain summit or ridge overlooking scenic vista, dramatic golden hour lighting with sun rays, epic outdoor adventure mood, professional outdoor brand campaign quality, ${OUTDOOR_SCENE_ELEMENTS}, MUST maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`
+    },
+    // 섹션 2: 인트로 (text-only)
+    {
+      id: 'sec-outdoor-2',
+      title: '인트로',
+      content: '자연을 정복하는 것이 아닌, 자연과 함께하는 여정을 위해.\\\\n\\\\n극한의 환경에서도 최적의 퍼포먼스를 발휘할 수 있도록 설계된 기능성 아웃도어 의류입니다. 가벼움과 내구성의 완벽한 균형.',
+      sectionType: 'description' as SectionType,
+      layoutType: 'text-only' as LayoutType,
+      imagePrompt: ''
+    },
+    // 섹션 3: 등산/트레킹 스타일링 (1장)
+    {
+      id: 'sec-outdoor-3',
+      title: '등산/트레킹',
+      content: '산악 환경에서의 활동적인 착용 모습입니다.',
+      sectionType: 'styling' as SectionType,
+      layoutType: 'full-width' as LayoutType,
+      imagePrompt: `REAL HUMAN MODEL wearing the outdoor product, FULL BODY action shot with FULL FACE VISIBLE showing confident athletic expression, ${OUTDOOR_MODEL_STYLE}, hiking on a mountain trail or rocky terrain, wearing hiking boots and backpack, natural forest and mountain background, morning mist or clear blue sky, professional outdoor photography, ${OUTDOOR_SCENE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`
+    },
+    // 섹션 4: 캠핑/하이킹 스타일링 (1장)
+    {
+      id: 'sec-outdoor-4',
+      title: '캠핑/하이킹',
+      content: '캠핑장이나 숲속에서의 여유로운 착용 모습입니다.',
+      sectionType: 'styling' as SectionType,
+      layoutType: 'full-width' as LayoutType,
+      imagePrompt: `REAL HUMAN MODEL wearing the outdoor product, FULL BODY relaxed pose with FULL FACE VISIBLE showing warm friendly smile, ${OUTDOOR_MODEL_STYLE}, at a campsite near a tent or in a forest clearing, holding a coffee mug or adjusting gear, warm campfire glow or soft morning forest light, cozy outdoor lifestyle atmosphere, professional camping brand photography, ${OUTDOOR_SCENE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`
+    },
+    // 섹션 5: 러닝/트레일 스타일링 (1장)
+    {
+      id: 'sec-outdoor-5',
+      title: '러닝/트레일',
+      content: '트레일이나 해안가에서의 역동적인 착용 모습입니다.',
+      sectionType: 'styling' as SectionType,
+      layoutType: 'full-width' as LayoutType,
+      imagePrompt: `REAL HUMAN MODEL wearing the outdoor product, FULL BODY dynamic running or jogging pose with FULL FACE VISIBLE showing focused determined expression, ${OUTDOOR_MODEL_STYLE}, on a trail path or coastal beach at sunrise/sunset, athletic motion blur effect on limbs, dramatic sky colors, professional sports outdoor photography, ${OUTDOOR_SCENE_ELEMENTS}, CRITICAL: maintain exact product design from reference, Aspect Ratio 3:4, Vertical Portrait Mode`
+    },
+    // 섹션 6: 기능성 디테일 클로즈업 (2장)
+    {
+      id: 'sec-outdoor-6',
+      title: '기능성 디테일',
+      content: '방수 코팅, 지퍼, 통기구 등 기능성 디테일을 확대하여 보여줍니다.',
+      sectionType: 'material_detail' as SectionType,
+      layoutType: 'grid-2' as LayoutType,
+      imagePrompt: 'Outdoor product functional detail close-up shots, showing waterproof coating, zippers, ventilation',
+      imageSlots: [
+        { id: 'slot-outdoor-6-1', slotType: 'detail', prompt: 'Extreme close-up of waterproof DWR coating with water droplets beading on fabric surface, showing water-repellent technology, soft focus background, professional product macro photography, rain drops rolling off', photographyStyle: 'close-up' },
+        { id: 'slot-outdoor-6-2', slotType: 'detail', prompt: 'Close-up of functional details: YKK zipper, adjustable velcro straps, mesh ventilation panels, or elastic cuffs, showing premium craftsmanship and durability, studio lighting on outdoor gear', photographyStyle: 'close-up' }
+      ]
+    },
+    // 섹션 7: 제품 스펙 (text-only)
+    {
+      id: 'sec-outdoor-7',
+      title: '제품 스펙',
+      content: '기능성 스펙과 소재 정보를 안내합니다.\\\\n\\\\n**소재**: 나일론 100% (방수 코팅)\\\\n**안감**: 메쉬 100%\\\\n\\\\n**기능성**\\\\n- 방수지수: 10,000mm\\\\n- 투습성: 8,000g/m²/24hr\\\\n- UV 차단: UPF 50+\\\\n- 경량: 280g\\\\n\\\\n**사이즈 (cm)**\\\\n| 사이즈 | 어깨 | 가슴 | 소매 | 총장 |\\\\n|--------|------|------|------|------|\\\\n| S | 44 | 108 | 62 | 68 |\\\\n| M | 46 | 112 | 64 | 70 |\\\\n| L | 48 | 116 | 66 | 72 |\\\\n| XL | 50 | 120 | 68 | 74 |',
+      sectionType: 'spec' as SectionType,
+      layoutType: 'text-only' as LayoutType,
+      imagePrompt: ''
+    }
+  ]
+};
+
+/**
  * 빌트인 템플릿 ID 목록
  */
 const BUILT_IN_TEMPLATE_IDS = [
-  'tpl-fashion-lookbook-preset'
+  'tpl-fashion-lookbook-preset',
+  'tpl-outdoor-clothing-preset'
 ];
 
 /**
@@ -262,5 +354,11 @@ export const initializeBuiltInTemplates = () => {
   if (!existingIds.has(FASHION_LOOKBOOK_TEMPLATE.id)) {
     saveTemplate(FASHION_LOOKBOOK_TEMPLATE);
     console.log('[TemplateService] Built-in template added:', FASHION_LOOKBOOK_TEMPLATE.name);
+  }
+
+  // 아웃도어 의류 템플릿이 없으면 추가
+  if (!existingIds.has(OUTDOOR_CLOTHING_TEMPLATE.id)) {
+    saveTemplate(OUTDOOR_CLOTHING_TEMPLATE);
+    console.log('[TemplateService] Built-in template added:', OUTDOOR_CLOTHING_TEMPLATE.name);
   }
 };
