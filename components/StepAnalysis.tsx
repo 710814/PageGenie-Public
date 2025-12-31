@@ -751,8 +751,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                     handleFieldChange('showIntroSection', analysis.showIntroSection === false ? true : false);
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${analysis.showIntroSection !== false
-                      ? 'bg-blue-600'
-                      : 'bg-gray-300'
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300'
                     }`}
                   title={analysis.showIntroSection !== false ? '클릭하여 인트로 섹션 숨기기' : '클릭하여 인트로 섹션 표시'}
                 >
@@ -822,9 +822,9 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
             <h3 className="font-bold text-gray-800">섹션 구성 ({sectionCount})</h3>
             <button
               onClick={openAddSectionModal}
-              className="text-sm flex items-center text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 transition-colors"
+              className="flex items-center text-white bg-red-500 hover:bg-red-600 font-bold px-5 py-2.5 rounded-lg shadow-md transition-all hover:shadow-lg"
             >
-              <Plus className="w-4 h-4 mr-1" /> 섹션 추가
+              <Plus className="w-5 h-5 mr-1.5" /> 섹션 추가
             </button>
           </div>
 
