@@ -719,80 +719,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         <div className="lg:col-span-1 hidden lg:block">
           <div className="sticky top-6 space-y-4">
 
-
-            {/* 기본 정보 (접이식) - 인트로 섹션 */}
-            <details className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" open>
-              <summary className="px-4 py-3 bg-gray-50 cursor-pointer text-sm font-bold text-gray-700 flex items-center justify-between hover:bg-gray-100 transition-colors list-none">
-                <div className="flex items-center">
-                  <ChevronDown className="w-4 h-4 mr-2 text-gray-500" />
-                  인트로 섹션 (상품 기본정보)
-                </div>
-                {/* 표시/숨김 토글 */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleFieldChange('showIntroSection', analysis.showIntroSection === false ? true : false);
-                  }}
-                  className={`px-2 py-1 text-xs rounded-full font-medium transition-colors ${analysis.showIntroSection !== false
-                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-                    }`}
-                  title={analysis.showIntroSection !== false ? '클릭하여 인트로 섹션 숨기기' : '클릭하여 인트로 섹션 표시'}
-                >
-                  {analysis.showIntroSection !== false ? '✓ 표시됨' : '숨김'}
-                </button>
-              </summary>
-              <div className="p-4 space-y-3 text-sm">
-                <div>
-                  <label className="text-xs text-gray-500">상품명</label>
-                  <input
-                    type="text"
-                    value={analysis.productName}
-                    onChange={(e) => handleFieldChange('productName', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">카테고리</label>
-                  <input
-                    type="text"
-                    value={analysis.detectedCategory || ''}
-                    onChange={(e) => handleFieldChange('detectedCategory', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">마케팅 문구</label>
-                  <textarea
-                    value={analysis.marketingCopy}
-                    onChange={(e) => handleFieldChange('marketingCopy', e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-200 rounded-lg p-2 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">주요 특징</label>
-                  <div className="space-y-1 mt-1">
-                    {analysis.mainFeatures.map((feature, i) => (
-                      <input
-                        key={i}
-                        type="text"
-                        value={feature}
-                        onChange={(e) => {
-                          const newFeatures = [...analysis.mainFeatures];
-                          newFeatures[i] = e.target.value;
-                          handleFieldChange('mainFeatures', newFeatures);
-                        }}
-                        className="w-full border border-gray-200 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </details>
-
+            {/* 섹션 미니맵만 유지 */}
             <SectionMiniMap
               sections={analysis.sections}
               activeSectionId={activeSectionId || undefined}
@@ -805,6 +732,92 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
 
         {/* Right Col: Sections */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* ★ 인트로 섹션 (상품 기본정보) - 최상단 배치 */}
+          <details className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
+            <summary className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 cursor-pointer text-sm font-bold text-gray-800 flex items-center justify-between hover:from-blue-100 hover:to-indigo-100 transition-colors list-none">
+              <div className="flex items-center">
+                <ChevronDown className="w-4 h-4 mr-2 text-indigo-500 group-open:rotate-180 transition-transform" />
+                📦 상품 기본정보
+                <span className="ml-2 text-xs font-normal text-gray-500">(클릭하여 펼치기/접기)</span>
+              </div>
+              {/* 표시/숨김 토글 스위치 */}
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <span className="text-xs text-gray-500">상세페이지 표시</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleFieldChange('showIntroSection', analysis.showIntroSection === false ? true : false);
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${analysis.showIntroSection !== false
+                      ? 'bg-blue-600'
+                      : 'bg-gray-300'
+                    }`}
+                  title={analysis.showIntroSection !== false ? '클릭하여 인트로 섹션 숨기기' : '클릭하여 인트로 섹션 표시'}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${analysis.showIntroSection !== false ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                  />
+                </button>
+              </div>
+            </summary>
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm border-t border-gray-100">
+              {/* 왼쪽 컬럼 */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase">상품명</label>
+                  <input
+                    type="text"
+                    value={analysis.productName}
+                    onChange={(e) => handleFieldChange('productName', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase">카테고리</label>
+                  <input
+                    type="text"
+                    value={analysis.detectedCategory || ''}
+                    onChange={(e) => handleFieldChange('detectedCategory', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase">마케팅 문구</label>
+                  <textarea
+                    value={analysis.marketingCopy}
+                    onChange={(e) => handleFieldChange('marketingCopy', e.target.value)}
+                    rows={3}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 mt-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+              {/* 오른쪽 컬럼 */}
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase">주요 특징</label>
+                <div className="space-y-2 mt-1">
+                  {analysis.mainFeatures.map((feature, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 w-4">{i + 1}.</span>
+                      <input
+                        type="text"
+                        value={feature}
+                        onChange={(e) => {
+                          const newFeatures = [...analysis.mainFeatures];
+                          newFeatures[i] = e.target.value;
+                          handleFieldChange('mainFeatures', newFeatures);
+                        }}
+                        className="flex-1 border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
+
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-gray-800">섹션 구성 ({sectionCount})</h3>
             <button
