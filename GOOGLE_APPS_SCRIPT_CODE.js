@@ -151,15 +151,28 @@ function doPost(e) {
     // 2. 드라이브 폴더 생성 및 이미지 저장
     if (data.saveImagesToDrive && data.folderName) {
       try {
-        // 폴더 생성 (중복 방지: 같은 이름의 폴더가 있으면 기존 폴더 사용)
-        var folders = DriveApp.getFoldersByName(data.folderName);
-        var folder;
-        if (folders.hasNext()) {
-          folder = folders.next();
-          Logger.log('기존 폴더 사용: ' + data.folderName);
+        // [수정] 메인 프로젝트 폴더 생성/확인 로직 추가
+        // 프론트엔드에서 projectFolderName을 보내주거나, 없으면 기본값 사용
+        var mainFolderName = data.projectFolderName || 'PageGenie_Data';
+        var mainFolders = DriveApp.getFoldersByName(mainFolderName);
+        var mainFolder;
+
+        if (mainFolders.hasNext()) {
+          mainFolder = mainFolders.next();
         } else {
-          folder = DriveApp.createFolder(data.folderName);
-          Logger.log('새 폴더 생성: ' + data.folderName);
+          mainFolder = DriveApp.createFolder(mainFolderName);
+          Logger.log('새 메인 프로젝트 폴더 생성: ' + mainFolderName);
+        }
+
+        // [수정] 메인 폴더 안에 서브 폴더(상품별 폴더) 생성
+        var subFolders = mainFolder.getFoldersByName(data.folderName);
+        var folder;
+        if (subFolders.hasNext()) {
+          folder = subFolders.next();
+          Logger.log('기존 서브 폴더 사용: ' + data.folderName);
+        } else {
+          folder = mainFolder.createFolder(data.folderName); // Root가 아닌 mainFolder 안에 생성
+          Logger.log('새 서브 폴더 생성: ' + data.folderName);
         }
 
         folderUrl = folder.getUrl();
