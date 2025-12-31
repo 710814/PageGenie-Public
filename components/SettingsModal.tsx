@@ -1141,12 +1141,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     섹션 구성
                     <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">{editingTemplate.sections.length}</span>
                   </h3>
-                  <button
-                    onClick={addSection}
-                    className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center transition-all shadow-sm hover:shadow"
-                  >
-                    <Plus className="w-4 h-4 mr-1" /> 섹션 추가
-                  </button>
+
                 </div>
 
                 {editingTemplate.sections.map((section, idx) => (
@@ -1442,12 +1437,20 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" /> 취소
                 </button>
-                <button
-                  onClick={saveEditing}
-                  className="px-8 py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg font-bold shadow-lg hover:shadow-xl transition-all flex items-center transform hover:-translate-y-0.5"
-                >
-                  <Save className="w-4 h-4 mr-2" /> 변경사항 저장
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={addSection}
+                    className="px-5 py-2.5 bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg font-bold shadow-sm hover:shadow transition-all flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> 섹션 추가
+                  </button>
+                  <button
+                    onClick={saveEditing}
+                    className="px-8 py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg font-bold shadow-lg hover:shadow-xl transition-all flex items-center transform hover:-translate-y-0.5"
+                  >
+                    <Save className="w-4 h-4 mr-2" /> 변경사항 저장
+                  </button>
+                </div>
               </div>
             </div>
           )}
