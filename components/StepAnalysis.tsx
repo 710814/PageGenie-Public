@@ -818,14 +818,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
             </div>
           </details>
 
-          <div className="flex justify-between items-center">
+          <div className="flex items-center mb-4">
             <h3 className="font-bold text-gray-800">섹션 구성 ({sectionCount})</h3>
-            <button
-              onClick={openAddSectionModal}
-              className="flex items-center text-white bg-red-500 hover:bg-red-600 font-bold px-5 py-2.5 rounded-lg shadow-md transition-all hover:shadow-lg"
-            >
-              <Plus className="w-5 h-5 mr-1.5" /> 섹션 추가
-            </button>
           </div>
 
           <div className="space-y-4" ref={sectionsContainerRef}>
@@ -1986,13 +1980,23 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* 섹션/이미지 상태 정보 */}
           <div className="flex items-center gap-4">
+            <button
+              onClick={openAddSectionModal}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 hover:-translate-y-0.5"
+            >
+              <Plus className="w-4 h-4" />
+              섹션 추가
+            </button>
+
+            <div className="h-8 w-px bg-gray-200"></div>
+
             <div className="flex items-center gap-2">
               <div className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full flex items-center gap-2">
                 <LayoutGrid className="w-4 h-4" />
                 <span className="font-bold text-sm">{analysis.sections.length}개 섹션</span>
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 hidden sm:block">
               이미지: {analysis.sections.filter(s => s.imageUrl || s.imageSlots?.some(slot => slot.imageUrl) || s.layoutType === 'text-only').length}/{analysis.sections.length} 완료
             </div>
           </div>
