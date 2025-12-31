@@ -9,7 +9,7 @@ import { StepResult } from './components/StepResult';
 import { StepImageEditResult } from './components/StepImageEditResult';
 import { SettingsModal } from './components/SettingsModal';
 import { GeneratingProgress, GenerationProgress } from './components/GeneratingProgress';
-import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress, findMatchingColorOption } from './services/geminiService';
+import { analyzeProductImage, generateSectionImage, editSingleImageWithProgress, findMatchingColorOption, buildCollagePrompt } from './services/geminiService';
 import { getTemplates, initializeBuiltInTemplates } from './services/templateService';
 import {
   isAutoBackupEnabled,
@@ -288,6 +288,47 @@ const AppContent: React.FC = () => {
             completedSectionIds: [...prev.completedSectionIds, section.id]
           }));
         }
+        // ★ 콜라주 레이아웃 처리 (AI가 1장의 콜라주 이미지 생성)
+        else if (section.layoutType?.startsWith('collage-')) {
+          console.log(`[Generate] 섹션 "${section.title}": 콜라주 레이아웃 (${section.layoutType}) - 단일 이미지 생성`);
+
+          setGenerationProgress(prev => ({
+            ...prev,
+            currentSectionId: section.id,
+            currentSectionTitle: `${section.title} (콜라주)`
+          }));
+
+          // 상품 설명 추출 (analysisResult에서)
+          const productDescription = analysisResult?.productVisualDescription || analysisResult?.productName || 'the product';
+
+          // 콜라주 프롬프트 생성
+          const collagePrompt = buildCollagePrompt(
+            section.layoutType,
+            productDescription,
+            section.imagePrompt
+          );
+
+          console.log(`[Generate] 콜라주 프롬프트: ${collagePrompt.slice(0, 100)}...`);
+
+          const imageUrl = await generateSectionImage(
+            collagePrompt,
+            primaryFile?.base64,
+            primaryFile?.mimeType,
+            mode,
+            productInputData?.modelSettings
+          );
+
+          newSections.push({ ...section, imageUrl });
+          completedCount++;
+
+          setGenerationProgress(prev => ({
+            ...prev,
+            current: completedCount,
+            completedSectionIds: [...prev.completedSectionIds, section.id],
+            currentSectionId: '',
+            currentSectionTitle: ''
+          }));
+        }
         // ★ 다중 이미지 슬롯 처리 (grid-2, grid-3 레이아웃)
         else if (section.imageSlots && section.imageSlots.length > 0) {
           console.log(`[Generate] 섹션 "${section.title}": ${section.imageSlots.length}개 이미지 슬롯 생성 시작`);
@@ -530,10 +571,61 @@ const AppContent: React.FC = () => {
         )}
 
         {isLoading && step !== Step.GENERATING ? (
-          <div className="flex flex-col items-center justify-center h-[60vh]">
-            <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">전자상거래 전문 AI가 작업 중입니다</h3>
-            <p className="text-gray-500 animate-pulse">{loadingMessage}</p>
+          <div className="flex flex-col items-center justify-center h-[70vh] px-4">
+            {/* 메인 로딩 애니메이션 */}
+            <div className="relative mb-8">
+              <div className="w-20 h-20 border-4 border-blue-200 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-20 h-20 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                <span className="text-2xl">🤖</span>
+              </div>
+            </div>
+
+            {/* 메인 제목 */}
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">전자상거래 전문 AI가 작업 중입니다</h3>
+
+            {/* 현재 진행 상태 */}
+            <p className="text-lg text-blue-600 font-medium mb-6 text-center animate-pulse">{loadingMessage}</p>
+
+            {/* 진행 정보 카드 */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 max-w-md w-full mb-6">
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">~15-30초</div>
+                  <div className="text-xs text-gray-500 mt-1">예상 분석 시간</div>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">6개</div>
+                  <div className="text-xs text-gray-500 mt-1">생성될 섹션 수</div>
+                </div>
+              </div>
+
+              {/* 진행 단계 */}
+              <div className="mt-5 space-y-2">
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs mr-3">✓</div>
+                  <span className="text-gray-700">이미지 분석 중...</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs mr-3 animate-pulse">2</div>
+                  <span className="text-gray-500">상품 정보 추출 및 구조화</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs mr-3">3</div>
+                  <span className="text-gray-400">섹션별 콘텐츠 생성</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 팁 */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 max-w-md w-full">
+              <div className="flex items-start">
+                <span className="mr-2">💡</span>
+                <p className="text-sm text-amber-800">
+                  <strong>Tip:</strong> 분석 완료 후 섹션별로 내용을 수정하고 레이아웃을 변경할 수 있습니다.
+                </p>
+              </div>
+            </div>
           </div>
         ) : (
           <>

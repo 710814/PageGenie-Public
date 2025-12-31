@@ -56,7 +56,12 @@ export type LayoutType =
   | 'grid-2'          // 2열 그리드
   | 'grid-3'          // 3열 그리드
   | 'text-only'       // 텍스트만
-  | 'image-only';     // 이미지만
+  | 'image-only'      // 이미지만
+  // ★ 콜라주 레이아웃 (AI가 1장의 이미지로 생성)
+  | 'collage-1-2'     // 위 1장 + 아래 2장
+  | 'collage-2-1'     // 위 2장 + 아래 1장
+  | 'collage-1-3'     // 위 1장 + 아래 3장
+  | 'collage-2x2';    // 2×2 그리드 콜라주
 
 /**
  * 이미지 슬롯 - 섹션 내 개별 이미지 정보
@@ -116,6 +121,7 @@ export interface ProductAnalysis {
   marketingCopy: string;
   sections: SectionData[];
   detectedCategory?: string;
+  showIntroSection?: boolean;         // 인트로 섹션(상품명, 마케팅카피, 특징) 표시 여부 (기본값: true)
 }
 
 /**

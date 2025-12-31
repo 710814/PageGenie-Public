@@ -57,6 +57,98 @@ If someone compared the product in your generated image with the reference, it s
 `;
 
 /**
+ * 콜라주 레이아웃 정의
+ * AI에게 단일 이미지 내에 여러 구도를 배치하도록 지시
+ */
+export const COLLAGE_LAYOUT_CONFIGS: Record<string, {
+  structure: string;
+  sections: { position: string; size: string; description: string }[];
+}> = {
+  'collage-1-2': {
+    structure: 'TOP: 1 large image (60% height), BOTTOM: 2 equal images side by side (40% height)',
+    sections: [
+      { position: 'TOP', size: '60%', description: 'Full body hero shot, centered composition' },
+      { position: 'BOTTOM LEFT', size: '20%', description: 'Side profile or alternative angle' },
+      { position: 'BOTTOM RIGHT', size: '20%', description: 'Detail shot or action pose' }
+    ]
+  },
+  'collage-2-1': {
+    structure: 'TOP: 2 equal images side by side (40% height), BOTTOM: 1 large image (60% height)',
+    sections: [
+      { position: 'TOP LEFT', size: '20%', description: 'Front view or main angle' },
+      { position: 'TOP RIGHT', size: '20%', description: 'Back view or alternative angle' },
+      { position: 'BOTTOM', size: '60%', description: 'Full body lifestyle shot, dynamic pose' }
+    ]
+  },
+  'collage-1-3': {
+    structure: 'TOP: 1 large image (60% height), BOTTOM: 3 equal images (40% height)',
+    sections: [
+      { position: 'TOP', size: '60%', description: 'Full body hero shot' },
+      { position: 'BOTTOM LEFT', size: '13%', description: 'Front detail' },
+      { position: 'BOTTOM CENTER', size: '13%', description: 'Side view' },
+      { position: 'BOTTOM RIGHT', size: '13%', description: 'Back detail' }
+    ]
+  },
+  'collage-2x2': {
+    structure: '2x2 grid of 4 equal images',
+    sections: [
+      { position: 'TOP LEFT', size: '25%', description: 'Front full body' },
+      { position: 'TOP RIGHT', size: '25%', description: 'Side profile' },
+      { position: 'BOTTOM LEFT', size: '25%', description: 'Back view' },
+      { position: 'BOTTOM RIGHT', size: '25%', description: 'Detail close-up' }
+    ]
+  }
+};
+
+/**
+ * 콜라주 레이아웃용 프롬프트 생성
+ * @param layoutType 콜라주 레이아웃 타입 (collage-1-2, collage-2-1 등)
+ * @param productDescription 상품 설명 (AI 프롬프트용)
+ * @param contextPrompt 추가 컨텍스트 (섹션 imagePrompt)
+ * @returns 완성된 콜라주 프롬프트
+ */
+export const buildCollagePrompt = (
+  layoutType: string,
+  productDescription: string,
+  contextPrompt?: string
+): string => {
+  const config = COLLAGE_LAYOUT_CONFIGS[layoutType];
+
+  if (!config) {
+    // 알 수 없는 레이아웃은 기본 프롬프트 반환
+    return contextPrompt || `Professional product photography of ${productDescription}`;
+  }
+
+  const sectionDescriptions = config.sections
+    .map(s => `- ${s.position} (${s.size}): ${s.description}`)
+    .join('\n');
+
+  return `Create a fashion product collage image with the following EXACT layout:
+
+## LAYOUT STRUCTURE:
+${config.structure}
+
+## SECTION DETAILS:
+${sectionDescriptions}
+
+## PRODUCT TO FEATURE:
+${productDescription}
+
+## CRITICAL REQUIREMENTS:
+- All images within this collage must show the EXACT SAME product from the reference
+- Create a SINGLE cohesive collage image, NOT separate images
+- Use very thin borders (2-4px) between sections, dark gray color (#333)
+- Maintain consistent lighting and color grading across ALL sections
+- Professional outdoor/lifestyle brand campaign photography style
+- The model's face should be fully visible with natural athletic expression
+- Aspect ratio 3:4 (portrait orientation)
+
+${contextPrompt ? `## ADDITIONAL CONTEXT:\n${contextPrompt}` : ''}
+
+High quality, 4K resolution, professional e-commerce photography.`;
+};
+
+/**
  * URL 정규화 함수 - 비교를 위해 모든 공백, 언더스코어, 하이픈 제거
  */
 function normalizeUrlForComparison(url: string): string {
@@ -1026,12 +1118,13 @@ export const analyzeProductImage = async (
       - Use the EXACT 'id' provided - do not change it
       - Write a compelling 'title' in Korean that fits the section's purpose
       - Write detailed 'content' in Korean based on the 'content_guideline'
-      ${productData?.productFeatures ? '- Incorporate the provided key features into relevant sections' : ''}
+      ${productData?.productFeatures ? `- KEY REQUIREMENT: Incorporate these user-provided features: "${productData.productFeatures}"` : ''}
       ${productData?.colorOptions?.length ? '- Mention available colors in color-related sections' : ''}
       
       ## STEP 3: Create Section-Specific imagePrompts (CRITICAL)
       For each section, create an 'imagePrompt' that:
       1. ALWAYS starts with the EXACT product visual description from Step 1
+      ${productData?.productFeatures ? `- VISUAL REQUIREMENT: Reflect these product features in the visual details: "${productData.productFeatures}"` : ''}
       2. Adapts the photography style based on section type:
          - hero/title: Full product shot, clean studio background, centered composition
          - description: Lifestyle context shot showing product in natural setting
@@ -1066,6 +1159,11 @@ export const analyzeProductImage = async (
     prompt = `
       You are an expert e-commerce merchandiser specializing in the Korean market.
       
+      ## INPUT DATA FROM USER:
+      ${productData?.productName ? `- Product Name: "${productData.productName}"` : ''}
+      ${productData?.productFeatures ? `- Key Features to Emphasize: "${productData.productFeatures}"` : ''}
+      ${productData?.price ? `- Price: ${productData.price}` : ''}
+      
       ## STEP 1: Analyze Product & Detect Category
       Analyze the provided product image(s) and determine the product category:
       - Fashion/Apparel (패션/의류): clothing, shoes, bags, accessories
@@ -1078,8 +1176,8 @@ export const analyzeProductImage = async (
       - Pet Supplies (반려동물용품): pet food, pet accessories
       
       ## STEP 2: Create Product Information
-      1. Create a catchy Product Name in Korean
-      2. List 4-5 key features visible or implied
+      1. Create a catchy Product Name in Korean ${productData?.productName ? '(Base it on the provided Product Name)' : ''}
+      2. List 4-5 key features visible or implied ${productData?.productFeatures ? '(MUST include the user-provided features)' : ''}
       3. Write a short, persuasive marketing copy in Korean (2-3 sentences)
       4. Set 'detectedCategory' to the detected category ID (fashion, beauty, furniture, living, food, electronics, kids, pet)
       
@@ -1099,6 +1197,7 @@ export const analyzeProductImage = async (
       
       ## CRITICAL - imagePrompt Guidelines:
       When creating 'imagePrompt' for each section, you MUST:
+      ${productData?.productFeatures ? `- Reflect the user-provided features in the visual details: "${productData.productFeatures}"` : ''}
       - Always describe the SAME EXACT product from the uploaded images
       - Focus on changing ONLY: background, lighting, angle, props, scene, styling
       - NEVER describe a different or modified product

@@ -53,6 +53,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
 </head>
 <body>
     <div class="container">
+        ${data.showIntroSection !== false ? `
         <header class="hero">
             <h1>${data.productName}</h1>
             <p>${data.marketingCopy}</p>
@@ -63,10 +64,25 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
                 ${data.mainFeatures.map(f => `<li>${f}</li>`).join('')}
             </ul>
         </section>
+        ` : ''}
 
         ${data.sections.map(section => {
+      const isCollage = section.layoutType?.startsWith('collage-');
       const isGrid = (section.layoutType === 'grid-1' || section.layoutType === 'grid-2' || section.layoutType === 'grid-3') && section.imageSlots && section.imageSlots.length > 0;
       const gridCols = section.layoutType === 'grid-3' ? 3 : section.layoutType === 'grid-2' ? 2 : 1;
+
+      // 콜라주는 단일 이미지로 렌더링 (full-width와 동일)
+      if (isCollage && section.imageUrl) {
+        const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
+        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px);` : '';
+        return `
+            <section class="section">
+                <h2>${section.title}</h2>
+                <p>${section.content}</p>
+                <div style="overflow: hidden; border-radius: 8px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="images/section_${section.id}.png" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>
+            </section>
+            `;
+      }
 
       if (isGrid) {
         return `
@@ -212,6 +228,7 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
 <body>
     <div class="preview-badge">🔍 미리보기</div>
     <div class="container">
+        ${data.showIntroSection !== false ? `
         <header class="hero">
             <h1>${data.productName}</h1>
             <p>${data.marketingCopy}</p>
@@ -223,13 +240,27 @@ export const StepResult: React.FC<Props> = ({ data, onRestart, onGoBack, mode, u
                 ${data.mainFeatures.map(f => `<li>${f}</li>`).join('')}
             </ul>
         </section>
+        ` : ''}
 
         ${data.sections.map((section, index) => {
       const layoutType = section.layoutType || 'full-width';
+      const isCollageLayout = layoutType.startsWith('collage-');
       const isGridLayout = layoutType === 'grid-1' || layoutType === 'grid-2' || layoutType === 'grid-3';
       const isTextOnly = layoutType === 'text-only';
       const gridCols = layoutType === 'grid-3' ? 3 : layoutType === 'grid-2' ? 2 : 1;
       const hasMultipleSlots = section.imageSlots && section.imageSlots.length > 1;
+
+      // 콜라주는 단일 이미지로 렌더링
+      if (isCollageLayout && section.imageUrl) {
+        const hasCrop = (section.cropZoom && section.cropZoom !== 1) || section.cropPanX || section.cropPanY;
+        const cropStyle = hasCrop ? `transform: scale(${section.cropZoom || 1}) translate(${(section.cropPanX || 0) / (section.cropZoom || 1)}px, ${(section.cropPanY || 0) / (section.cropZoom || 1)}px);` : '';
+        return `
+        <section class="section">
+            <h2>${section.title}</h2>
+            <p>${section.content}</p>
+            <div style="overflow: hidden; border-radius: 12px; margin-bottom: 35px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;"><div style="${cropStyle}"><img src="${section.imageUrl}" alt="${section.title}" style="max-width: 100%; height: auto; object-fit: contain;" /></div></div>
+        </section>`;
+      }
 
       if (isGridLayout && hasMultipleSlots) {
         return `
@@ -654,24 +685,28 @@ ${data.marketingCopy}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-0 bg-white">
             {/* Actual rendered preview */}
             <div className="max-w-[800px] mx-auto bg-white min-h-full">
-              {/* Hero */}
-              <div className="text-center py-16 px-6 bg-white">
-                <h1 className="text-4xl font-bold text-gray-900 mb-6">{data.productName}</h1>
-                <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">{data.marketingCopy}</p>
-              </div>
+              {/* Hero - 조건부 렌더링 */}
+              {data.showIntroSection !== false && (
+                <>
+                  <div className="text-center py-16 px-6 bg-white">
+                    <h1 className="text-4xl font-bold text-gray-900 mb-6">{data.productName}</h1>
+                    <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">{data.marketingCopy}</p>
+                  </div>
 
-              {/* Features */}
-              <div className="py-12 px-6">
-                <h3 className="text-xl font-bold text-center mb-8 text-gray-900">✨ 주요 특징 (Key Features)</h3>
-                <ul className="max-w-2xl mx-auto space-y-2">
-                  {data.mainFeatures.map((feat, i) => (
-                    <li key={i} className="flex items-start text-lg text-gray-700 py-2 border-b border-gray-100 last:border-0">
-                      <span className="mr-3 text-blue-600 font-bold">✓</span>
-                      {feat}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  {/* Features */}
+                  <div className="py-12 px-6">
+                    <h3 className="text-xl font-bold text-center mb-8 text-gray-900">✨ 주요 특징 (Key Features)</h3>
+                    <ul className="max-w-2xl mx-auto space-y-2">
+                      {data.mainFeatures.map((feat, i) => (
+                        <li key={i} className="flex items-start text-lg text-gray-700 py-2 border-b border-gray-100 last:border-0">
+                          <span className="mr-3 text-blue-600 font-bold">✓</span>
+                          {feat}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
 
               {/* Sections */}
               <div className="space-y-0">
