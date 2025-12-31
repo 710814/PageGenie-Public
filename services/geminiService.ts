@@ -63,14 +63,16 @@ If someone compared the product in your generated image with the reference, it s
 export const COLLAGE_LAYOUT_CONFIGS: Record<string, {
   structure: string;
   sections: { position: string; size: string; description: string }[];
+  recommendedAspectRatio?: string;
 }> = {
   'collage-1-2': {
-    structure: 'TOP: 1 large image (60% height), BOTTOM: 2 equal images side by side (40% height)',
+    structure: 'TOP: 1 large image (Full Width 100%, 60% height), BOTTOM: 2 equal images side by side (50% Width each, 40% height)',
     sections: [
-      { position: 'TOP', size: '60%', description: 'Full body hero shot, centered composition' },
-      { position: 'BOTTOM LEFT', size: '20%', description: 'Side profile or alternative angle' },
-      { position: 'BOTTOM RIGHT', size: '20%', description: 'Detail shot or action pose' }
-    ]
+      { position: 'TOP', size: '100% width x 60% height', description: 'Full body hero shot, spanning entire width, edge-to-edge' },
+      { position: 'BOTTOM LEFT', size: '50% width x 40% height', description: 'Side profile or alternative angle' },
+      { position: 'BOTTOM RIGHT', size: '50% width x 40% height', description: 'Detail shot or action pose' }
+    ],
+    recommendedAspectRatio: '1:1 (Square, balanced grid)'
   },
   'collage-2-1': {
     structure: 'TOP: 2 equal images side by side (40% height), BOTTOM: 1 large image (60% height)',
@@ -78,7 +80,8 @@ export const COLLAGE_LAYOUT_CONFIGS: Record<string, {
       { position: 'TOP LEFT', size: '20%', description: 'Front view or main angle' },
       { position: 'TOP RIGHT', size: '20%', description: 'Back view or alternative angle' },
       { position: 'BOTTOM', size: '60%', description: 'Full body lifestyle shot, dynamic pose' }
-    ]
+    ],
+    recommendedAspectRatio: '1:1 (Square, balanced grid)'
   },
   'collage-1-3': {
     structure: 'TOP: 1 large image (60% height), BOTTOM: 3 equal images (40% height)',
@@ -87,7 +90,8 @@ export const COLLAGE_LAYOUT_CONFIGS: Record<string, {
       { position: 'BOTTOM LEFT', size: '13%', description: 'Front detail' },
       { position: 'BOTTOM CENTER', size: '13%', description: 'Side view' },
       { position: 'BOTTOM RIGHT', size: '13%', description: 'Back detail' }
-    ]
+    ],
+    recommendedAspectRatio: '1:1 (Square)'
   },
   'collage-2x2': {
     structure: '2x2 grid of 4 equal images',
@@ -96,7 +100,8 @@ export const COLLAGE_LAYOUT_CONFIGS: Record<string, {
       { position: 'TOP RIGHT', size: '25%', description: 'Side profile' },
       { position: 'BOTTOM LEFT', size: '25%', description: 'Back view' },
       { position: 'BOTTOM RIGHT', size: '25%', description: 'Detail close-up' }
-    ]
+    ],
+    recommendedAspectRatio: '1:1 (Square, perfect grid)'
   }
 };
 
@@ -137,11 +142,15 @@ ${productDescription}
 ## CRITICAL REQUIREMENTS:
 - All images within this collage must show the EXACT SAME product from the reference
 - Create a SINGLE cohesive collage image, NOT separate images
+- The top image MUST span the FULL WIDTH of the collage (edge-to-edge)
+- The bottom images MUST divide the width equally (50% each) with NO gap
+- Ensure the layout fills the entire canvas with NO whitespace or padding around the edges
+- Create a solid rectangular block of images
 - Use MINIMAL borders (1-2px maximum) between sections, nearly invisible, seamless transition
 - Maintain consistent lighting and color grading across ALL sections
 - Professional outdoor/lifestyle brand campaign photography style
 - The model's face should be fully visible with natural athletic expression
-- Aspect ratio 3:4 (portrait orientation)
+- Aspect ratio ${config.recommendedAspectRatio || '3:4 (portrait orientation)'}, ensure the final output is a perfect filled rectangle
 
 ${contextPrompt ? `## ADDITIONAL CONTEXT:\n${contextPrompt}` : ''}
 
