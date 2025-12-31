@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
 import { ProductAnalysis, SectionData, UploadedFile, AppMode, ImageSlot, SectionPreset, SectionType, LayoutType, ProductInputData } from '../types';
 import { Save, Plus, Trash2, RefreshCw, ArrowUp, ArrowDown, Sparkles, Lock, Image as ImageIcon, Type, Eye, X, Loader2, Edit3, Upload, Bookmark, ChevronDown, ChevronUp, ZoomIn, ZoomOut, RotateCcw, Move, Check, LayoutGrid } from 'lucide-react';
-import { generateSectionImage, findMatchingColorOption } from '../services/geminiService';
+import { generateSectionImage, findMatchingColorOption, buildCollagePrompt } from '../services/geminiService';
 import { getSectionPresets, saveSectionPreset, deleteSectionPreset } from '../services/sectionPresetService';
 import { useToastContext } from '../contexts/ToastContext';
 import { SectionMiniMap } from './SectionMiniMap';
@@ -86,6 +86,39 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
 
     try {
       const primaryFile = uploadedFiles.length > 0 ? uploadedFiles[0] : null;
+
+      // ★ 콜라주 레이아웃인 경우: buildCollagePrompt로 단일 콜라주 이미지 생성
+      const isCollageLayout = section.layoutType?.startsWith('collage-');
+      if (isCollageLayout) {
+        // 상품 설명 추출
+        const productDescription = analysis.productVisualDescription || analysis.productName || 'the product';
+
+        // 콜라주 프롬프트 생성
+        const collagePrompt = buildCollagePrompt(
+          section.layoutType!,
+          productDescription,
+          customPrompt || section.imagePrompt
+        );
+
+        console.log(`[StepAnalysis Preview] 콜라주 레이아웃 (${section.layoutType}): 프롬프트 생성됨`);
+        toast.info('콜라주 이미지 생성 중... (약 15-30초 소요)');
+
+        const imageUrl = await generateSectionImage(
+          collagePrompt,
+          primaryFile?.base64,
+          primaryFile?.mimeType,
+          mode
+        );
+
+        const updatedSections = analysis.sections.map(s =>
+          s.id === sectionId
+            ? { ...s, imageUrl, isPreview: true }
+            : s
+        );
+        onUpdate({ ...analysis, sections: updatedSections });
+        toast.success('콜라주 이미지가 생성되었습니다!');
+        return;
+      }
 
       // ★ 다중 슬롯인 경우: 각 슬롯별로 이미지 생성
       if (hasMultipleSlots && slotIndex === undefined) {
@@ -657,8 +690,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                     handleFieldChange('showIntroSection', analysis.showIntroSection === false ? true : false);
                   }}
                   className={`px-2 py-1 text-xs rounded-full font-medium transition-colors ${analysis.showIntroSection !== false
-                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                      : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
                     }`}
                   title={analysis.showIntroSection !== false ? '클릭하여 인트로 섹션 숨기기' : '클릭하여 인트로 섹션 표시'}
                 >
