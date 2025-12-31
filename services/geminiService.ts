@@ -142,10 +142,15 @@ ${productDescription}
 ## CRITICAL REQUIREMENTS:
 - All images within this collage must show the EXACT SAME product from the reference
 - Create a SINGLE cohesive collage image, NOT separate images
-- The top image MUST span the FULL WIDTH of the collage (edge-to-edge)
-- The bottom images MUST divide the width equally (50% each) with NO gap
-- Ensure the layout fills the entire canvas with NO whitespace or padding around the edges
-- Create a solid rectangular block of images
+- The layout MUST strictly follow the structure defined above
+${layoutType === 'collage-1-2' ? `    - The top image MUST span the FULL WIDTH of the collage (edge-to-edge)
+    - The bottom images MUST divide the width equally (50% each) with NO gap` : ''}
+${layoutType === 'collage-2x2' ? `    - Create a perfect 2x2 GRID layout with 4 EQUAL sized quadrants
+    - All 4 images must be the SAME SIZE` : ''}
+${layoutType === 'collage-2-1' ? `    - The top section MUST be split into 2 equal images
+    - The bottom image MUST span the FULL WIDTH` : ''}
+    - Ensure the layout fills the entire canvas with NO whitespace or padding around the edges
+    - Create a solid rectangular block of images
 - Use MINIMAL borders (1-2px maximum) between sections, nearly invisible, seamless transition
 - Maintain consistent lighting and color grading across ALL sections
 - Professional outdoor/lifestyle brand campaign photography style
