@@ -122,6 +122,53 @@ const LAYOUT_OPTIONS: { value: LayoutType; label: string; icon: React.FC<{ class
       </svg>
     )
   },
+  // 콜라주 레이아웃
+  {
+    value: 'collage-1-2',
+    label: '콜라주 1+2',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className}>
+        <rect x="2" y="3" width="20" height="9" rx="1" fill="currentColor" opacity="0.4" />
+        <rect x="2" y="13" width="9.5" height="8" rx="1" fill="currentColor" opacity="0.3" />
+        <rect x="12.5" y="13" width="9.5" height="8" rx="1" fill="currentColor" opacity="0.3" />
+      </svg>
+    )
+  },
+  {
+    value: 'collage-2-1',
+    label: '콜라주 2+1',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className}>
+        <rect x="2" y="3" width="9.5" height="8" rx="1" fill="currentColor" opacity="0.3" />
+        <rect x="12.5" y="3" width="9.5" height="8" rx="1" fill="currentColor" opacity="0.3" />
+        <rect x="2" y="12" width="20" height="9" rx="1" fill="currentColor" opacity="0.4" />
+      </svg>
+    )
+  },
+  {
+    value: 'collage-1-3',
+    label: '콜라주 1+3',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className}>
+        <rect x="2" y="3" width="20" height="9" rx="1" fill="currentColor" opacity="0.4" />
+        <rect x="2" y="13" width="6" height="8" rx="1" fill="currentColor" opacity="0.25" />
+        <rect x="9" y="13" width="6" height="8" rx="1" fill="currentColor" opacity="0.3" />
+        <rect x="16" y="13" width="6" height="8" rx="1" fill="currentColor" opacity="0.25" />
+      </svg>
+    )
+  },
+  {
+    value: 'collage-2x2',
+    label: '콜라주 2×2',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" className={className}>
+        <rect x="2" y="3" width="9.5" height="8.5" rx="1" fill="currentColor" opacity="0.35" />
+        <rect x="12.5" y="3" width="9.5" height="8.5" rx="1" fill="currentColor" opacity="0.4" />
+        <rect x="2" y="12.5" width="9.5" height="8.5" rx="1" fill="currentColor" opacity="0.4" />
+        <rect x="12.5" y="12.5" width="9.5" height="8.5" rx="1" fill="currentColor" opacity="0.35" />
+      </svg>
+    )
+  },
 ];
 
 interface Props {

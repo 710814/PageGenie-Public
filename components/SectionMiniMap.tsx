@@ -16,6 +16,21 @@ const getBadgeInfo = (section: SectionData) => {
     // 이미지 슬롯 개수에 따라 배지 표시 (사용자 요청: 3개면 "3열"로 표기)
     const slotCount = section.imageSlots?.length || 0;
 
+    // 콜라주 레이아웃을 먼저 체크 (슬롯 개수보다 우선)
+    if (layoutType.startsWith('collage-')) {
+        const collageLabels: { [key: string]: string } = {
+            'collage-1-2': '콜라주 1+2',
+            'collage-2-1': '콜라주 2+1',
+            'collage-1-3': '콜라주 1+3',
+            'collage-2x2': '콜라주 2×2',
+        };
+        return {
+            icon: LayoutGrid,
+            label: collageLabels[layoutType] || '콜라주',
+            color: 'bg-violet-50 border-violet-200 text-violet-600'
+        };
+    }
+
     if (slotCount >= 3) {
         return { icon: LayoutGrid, label: '3열', color: 'bg-emerald-50 border-emerald-200 text-emerald-600' };
     }
@@ -27,16 +42,19 @@ const getBadgeInfo = (section: SectionData) => {
         case 'text-only':
             return { icon: Type, label: '텍스트', color: 'bg-gray-100 border-gray-200 text-gray-600' };
         case 'full-width':
-            return { icon: Image, label: '전체', color: 'bg-blue-50 border-blue-200 text-blue-600' };
+            return { icon: Image, label: '전체 너비', color: 'bg-blue-50 border-blue-200 text-blue-600' };
+        case 'image-only':
+            return { icon: Image, label: '이미지만', color: 'bg-sky-50 border-sky-200 text-sky-600' };
         case 'split-left':
+            return { icon: Columns, label: '좌측 이미지', color: 'bg-purple-50 border-purple-200 text-purple-600' };
         case 'split-right':
-            return { icon: Columns, label: '분할', color: 'bg-purple-50 border-purple-200 text-purple-600' };
+            return { icon: Columns, label: '우측 이미지', color: 'bg-purple-50 border-purple-200 text-purple-600' };
         case 'grid-2':
-            return { icon: LayoutGrid, label: '2열', color: 'bg-green-50 border-green-200 text-green-600' };
+            return { icon: LayoutGrid, label: '2열 그리드', color: 'bg-green-50 border-green-200 text-green-600' };
         case 'grid-3':
-            return { icon: LayoutGrid, label: '3열', color: 'bg-emerald-50 border-emerald-200 text-emerald-600' };
+            return { icon: LayoutGrid, label: '3열 그리드', color: 'bg-emerald-50 border-emerald-200 text-emerald-600' };
         default:
-            return { icon: Image, label: '전체', color: 'bg-blue-50 border-blue-200 text-blue-600' };
+            return { icon: Image, label: '전체 너비', color: 'bg-blue-50 border-blue-200 text-blue-600' };
     }
 };
 
