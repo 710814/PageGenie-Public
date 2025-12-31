@@ -1,6 +1,6 @@
 import React from 'react';
 import { Template, SectionData, LayoutType } from '../types';
-import { Image as ImageIcon, Type, Layers } from 'lucide-react';
+import { Image as ImageIcon, Type, Layers, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 
 interface TemplatePreviewProps {
     template: Template;
@@ -9,6 +9,8 @@ interface TemplatePreviewProps {
     className?: string;
     onSectionClick?: (sectionIndex: number) => void;  // 섹션 클릭 시 콜백
     interactive?: boolean;  // 클릭 가능 여부
+    onMoveSection?: (index: number, direction: 'up' | 'down') => void;
+    onRemoveSection?: (index: number) => void;
 }
 
 /**
@@ -21,13 +23,15 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({
     showInfo = true,
     className = '',
     onSectionClick,
-    interactive = false
+    interactive = false,
+    onMoveSection,
+    onRemoveSection
 }) => {
     // 크기별 스타일 설정
     const sizeStyles = {
-        sm: { sectionHeight: 'h-6', gap: 'gap-1', padding: 'p-2', fontSize: 'text-[8px]' },
-        md: { sectionHeight: 'h-10', gap: 'gap-1.5', padding: 'p-3', fontSize: 'text-[10px]' },
-        lg: { sectionHeight: 'h-14', gap: 'gap-2', padding: 'p-4', fontSize: 'text-xs' }
+        sm: { sectionHeight: 'h-6', gap: 'gap-1', padding: 'p-2', fontSize: 'text-[8px]', iconSize: 'w-3 h-3' },
+        md: { sectionHeight: 'h-10', gap: 'gap-1.5', padding: 'p-3', fontSize: 'text-[10px]', iconSize: 'w-3.5 h-3.5' },
+        lg: { sectionHeight: 'h-14', gap: 'gap-2', padding: 'p-4', fontSize: 'text-xs', iconSize: 'w-4 h-4' }
     };
 
     const styles = sizeStyles[size];
@@ -37,7 +41,10 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({
         return acc + (section.imageSlots?.length || (section.imagePrompt ? 1 : 0));
     }, 0);
 
-    const handleSectionClick = (index: number) => {
+    const handleSectionClick = (index: number, e: React.MouseEvent) => {
+        // 이미 버튼 클릭 등이 처리되었으면 무시
+        if (e.defaultPrevented) return;
+
         if (interactive && onSectionClick) {
             onSectionClick(index);
         }
@@ -52,10 +59,14 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({
                         key={section.id || idx}
                         section={section}
                         index={idx}
+                        totalSections={template.sections.length}
                         sectionHeight={styles.sectionHeight}
                         fontSize={styles.fontSize}
-                        onClick={() => handleSectionClick(idx)}
+                        iconSize={styles.iconSize}
+                        onClick={(e) => handleSectionClick(idx, e)}
                         interactive={interactive}
+                        onMove={(dir) => onMoveSection?.(idx, dir)}
+                        onRemove={() => onRemoveSection?.(idx)}
                     />
                 ))}
             </div>
@@ -86,11 +97,15 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({
 const SectionPreview: React.FC<{
     section: SectionData;
     index: number;
+    totalSections: number;
     sectionHeight: string;
     fontSize: string;
-    onClick?: () => void;
+    iconSize: string;
+    onClick?: (e: React.MouseEvent) => void;
     interactive?: boolean;
-}> = ({ section, index, sectionHeight, fontSize, onClick, interactive }) => {
+    onMove?: (direction: 'up' | 'down') => void;
+    onRemove?: () => void;
+}> = ({ section, index, totalSections, sectionHeight, fontSize, iconSize, onClick, interactive, onMove, onRemove }) => {
     const layoutType = section.layoutType || 'full-width';
     const imageSlotCount = section.imageSlots?.length || (section.imagePrompt ? 1 : 0);
 
@@ -152,6 +167,13 @@ const SectionPreview: React.FC<{
                 );
 
             default:
+                if (layoutType.startsWith('collage-')) {
+                    return (
+                        <div className="flex gap-1 h-full">
+                            <ImageSlotBar count={imageSlotCount} className="flex-1" filled icon="collage" />
+                        </div>
+                    );
+                }
                 return (
                     <div className="flex gap-1 h-full">
                         <ImageSlotBar count={imageSlotCount} className="flex-1" />
@@ -173,16 +195,45 @@ const SectionPreview: React.FC<{
             title={`${section.title || `Section ${index + 1}`} (${layoutType})${interactive ? ' - 클릭하여 편집' : ''}`}
         >
             {renderLayout()}
-            {/* 호버 시 섹션 정보 표시 */}
+
+            {/* 호버 시 섹션 정보 및 컨트롤 표시 */}
             <div className={`
-        absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded 
-        flex items-center justify-center ${fontSize} text-white font-medium
-      `}>
-                <span className="flex items-center gap-1">
-                    {interactive && <span className="text-blue-300">#{index + 1}</span>}
-                    {section.sectionType || 'custom'}
-                    {interactive && <span className="ml-1 text-blue-200">→</span>}
+                absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity rounded 
+                flex items-center justify-between px-3
+                ${interactive ? 'backdrop-blur-[1px]' : ''}
+            `}>
+                <span className={`font-bold text-gray-700 ${fontSize}`}>
+                    #{index + 1} {section.sectionType}
                 </span>
+
+                {interactive && (
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onMove?.('up'); }}
+                            disabled={index === 0}
+                            className="p-1 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-30 transition-colors"
+                            title="위로"
+                        >
+                            <ArrowUp className={iconSize} />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onMove?.('down'); }}
+                            disabled={index === totalSections - 1}
+                            className="p-1 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-30 transition-colors"
+                            title="아래로"
+                        >
+                            <ArrowDown className={iconSize} />
+                        </button>
+                        <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+                            className="p-1 hover:bg-red-100 hover:text-red-500 rounded text-gray-400 transition-colors"
+                            title="삭제"
+                        >
+                            <Trash2 className={iconSize} />
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -195,22 +246,24 @@ const ImageSlotBar: React.FC<{
     count: number;
     className?: string;
     filled?: boolean;
-}> = ({ count, className = '', filled = false }) => (
+    icon?: 'image' | 'collage';
+}> = ({ count, className = '', filled = false, icon = 'image' }) => (
     <div
         className={`
       ${className} rounded
       ${filled
-                ? 'bg-blue-400/60'
-                : 'bg-blue-100 border border-blue-200'
+                ? 'bg-blue-400/20 border border-blue-200'
+                : 'bg-blue-50 border border-blue-100'
             }
       flex items-center justify-center
     `}
     >
-        {count > 1 && (
+        {icon === 'collage' ? (
+            <Layers className="w-3 h-3 text-blue-500" />
+        ) : count > 1 ? (
             <span className="text-[8px] text-blue-600 font-medium">×{count}</span>
-        )}
-        {count === 1 && (
-            <ImageIcon className="w-3 h-3 text-blue-400" />
+        ) : (
+            <ImageIcon className="w-3 h-3 text-blue-300" />
         )}
     </div>
 );
@@ -221,14 +274,13 @@ const ImageSlotBar: React.FC<{
 const TextBar: React.FC<{ className?: string }> = ({ className = '' }) => (
     <div
         className={`
-      ${className} rounded bg-gray-100 border border-gray-200
+      ${className} rounded bg-gray-50 border border-gray-100
       flex items-center justify-center
     `}
     >
-        <div className="space-y-0.5 w-3/4">
+        <div className="space-y-0.5 w-3/4 opacity-50">
             <div className="h-0.5 bg-gray-300 rounded-full w-2/3 mx-auto" />
             <div className="h-0.5 bg-gray-200 rounded-full w-full" />
-            <div className="h-0.5 bg-gray-200 rounded-full w-4/5 mx-auto" />
         </div>
     </div>
 );

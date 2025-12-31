@@ -3,7 +3,7 @@ import { X, Table, LayoutTemplate, Plus, Trash2, Loader2, Save, Check, Info, Edi
 import { getGasUrl, setGasUrl as saveGasUrl, getSheetId, setSheetId as saveSheetId, DEFAULT_GAS_URL } from '../services/googleSheetService';
 import { getTemplates, saveTemplate, deleteTemplate, createNewTemplate as createNewTemplateService } from '../services/templateService';
 import { CATEGORY_OPTIONS } from '../services/categoryPresets';
-import { extractTemplateFromImage, fileToGenerativePart } from '../services/geminiService';
+import { extractTemplateFromImage, fileToGenerativePart, getImageSlotCountForLayout } from '../services/geminiService';
 import {
   isAutoBackupEnabled,
   setAutoBackupEnabled,
@@ -520,14 +520,53 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     setEditingTemplate({ ...editingTemplate, sections: newSections });
   };
 
+
+
   // 레이아웃 타입 변경
   const updateLayoutType = (sectionIndex: number, layoutType: LayoutType) => {
     if (!editingTemplate) return;
 
     const newSections = [...editingTemplate.sections];
+    const currentSection = newSections[sectionIndex];
+
+    // 레이아웃에 필요한 슬롯 수 계산
+    const requiredSlots = getImageSlotCountForLayout(layoutType);
+    let newImageSlots = [...(currentSection.imageSlots || [])];
+
+    // 슬롯 수가 지정된 경우 (-1은 가변, 0은 없음)
+    if (requiredSlots >= 0) {
+      if (layoutType.startsWith('collage-')) {
+        // 콜라주는 1개의 슬롯만 사용 (합성된 이미지) - 기존 프롬프트 보존 노력
+        if (newImageSlots.length === 0) {
+          newImageSlots = [{ id: Date.now().toString(), slotType: 'main', prompt: currentSection.imagePrompt || '' }];
+        } else if (newImageSlots.length > 1) {
+          newImageSlots = [newImageSlots[0]]; // 첫 번째 슬롯만 유지
+        }
+      } else if (requiredSlots === 0) {
+        // 텍스트 전용 등: 슬롯 제거
+        newImageSlots = [];
+      } else {
+        // 필요한 수만큼 맞춤
+        if (newImageSlots.length < requiredSlots) {
+          // 부족하면 추가
+          while (newImageSlots.length < requiredSlots) {
+            newImageSlots.push({
+              id: Date.now().toString() + Math.random().toString().slice(2, 5),
+              slotType: 'detail',
+              prompt: ''
+            });
+          }
+        } else if (newImageSlots.length > requiredSlots) {
+          // 많으면 제거 (뒤에서부터)
+          newImageSlots = newImageSlots.slice(0, requiredSlots);
+        }
+      }
+    }
+
     newSections[sectionIndex] = {
-      ...newSections[sectionIndex],
-      layoutType
+      ...currentSection,
+      layoutType,
+      imageSlots: newImageSlots
     };
     setEditingTemplate({ ...editingTemplate, sections: newSections });
   };
@@ -1085,6 +1124,8 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     className="border border-slate-200 shadow-inner"
                     interactive={true}
                     onSectionClick={scrollToSection}
+                    onMoveSection={moveSection}
+                    onRemoveSection={removeSection}
                   />
                   <p className="text-xs text-gray-400 text-center mt-2">
                     💡 섹션을 클릭하면 해당 편집 영역으로 이동합니다

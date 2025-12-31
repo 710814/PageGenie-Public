@@ -359,9 +359,11 @@ High quality, 4K resolution, professional e-commerce photography.`;
 /**
  * 레이아웃 타입에 따른 필요 이미지 슬롯 수 계산
  */
-const getImageSlotCountForLayout = (layoutType: string): number => {
+export const getImageSlotCountForLayout = (layoutType: string): number => {
+  if (layoutType.startsWith('collage-')) return 1; // 콜라주는 1개의 이미지(합성된 결과물)를 사용
+
   switch (layoutType) {
-    case 'grid-1': return -1; // 특수값: 기존 슬롯 개수 유지
+    case 'grid-1': return -1; // 특수값: 기존 슬롯 개수 유지 (사용자가 직접 추가/삭제 가능)
     case 'grid-2': return 2;
     case 'grid-3': return 3;
     case 'split-left':
