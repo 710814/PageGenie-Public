@@ -137,7 +137,7 @@ ${productDescription}
 ## CRITICAL REQUIREMENTS:
 - All images within this collage must show the EXACT SAME product from the reference
 - Create a SINGLE cohesive collage image, NOT separate images
-- Use thin white borders (3-5px) between sections for clean separation
+- Use MINIMAL borders (1-2px maximum) between sections, nearly invisible, seamless transition
 - Maintain consistent lighting and color grading across ALL sections
 - Professional outdoor/lifestyle brand campaign photography style
 - The model's face should be fully visible with natural athletic expression
