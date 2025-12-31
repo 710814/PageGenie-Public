@@ -264,6 +264,52 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
     onUpdate({ ...analysis, sections: updatedSections });
   }, [analysis, onUpdate]);
 
+  // ★ AI 프롬프트 추천 함수
+  const generateAIPrompt = useCallback((sectionId: string) => {
+    const section = analysis.sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    // 상품 정보 추출
+    const productName = analysis.productName || 'the product';
+    const productDesc = analysis.productVisualDescription || '';
+    const sectionTitle = section.title || '';
+    const sectionType = section.sectionType || 'description';
+    const layoutType = section.layoutType || 'full-width';
+
+    // 섹션 타입에 따른 촬영 스타일 힌트
+    const styleHints: { [key: string]: string } = {
+      'hero': 'full body hero shot, clean studio background, centered composition, professional lighting',
+      'title': 'product shot, simple elegant background, centered layout, premium feel',
+      'description': 'lifestyle context shot, product in natural setting, warm lighting',
+      'colors': 'color variants display, same angle, side by side comparison',
+      'material_detail': 'extreme close-up macro shot, texture detail, sharp focus on fabric/material',
+      'styling': 'styled coordination shot, fashion lookbook style, complementary accessories',
+      'fit': 'full body shot showing fit and silhouette, model wearing the product',
+      'spec': 'technical detail shot, measurements visible, clean background',
+      'notice': 'informational layout, clean and readable, minimalist design',
+      'custom': 'professional product photography, high quality, studio lighting'
+    };
+
+    const styleHint = styleHints[sectionType] || styleHints['custom'];
+
+    // 콜라주 레이아웃인 경우 콜라주 전용 프롬프트 생성
+    let generatedPrompt = '';
+    if (layoutType.startsWith('collage-')) {
+      generatedPrompt = `${productName}${productDesc ? ` - ${productDesc}` : ''}, fashion collage layout, multiple angles and poses, ${styleHint}, professional outdoor/lifestyle photography`;
+    } else {
+      generatedPrompt = `${productName}${productDesc ? ` (${productDesc})` : ''}, ${sectionTitle ? `for "${sectionTitle}" section, ` : ''}${styleHint}`;
+    }
+
+    // 프롬프트 업데이트
+    const updatedSections = analysis.sections.map(s =>
+      s.id === sectionId
+        ? { ...s, imagePrompt: generatedPrompt }
+        : s
+    );
+    onUpdate({ ...analysis, sections: updatedSections });
+    toast.success('AI 추천 프롬프트가 생성되었습니다!');
+  }, [analysis, onUpdate, toast]);
+
   // 사용자 이미지 업로드 핸들러 (섹션 또는 슬롯)
   const handleUploadImage = useCallback((sectionId: string, file: File, slotIndex?: number) => {
     const reader = new FileReader();
@@ -1187,10 +1233,22 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                       {/* 이미지 생성 프롬프트 (좌측 하단) */}
                       {section.layoutType !== 'text-only' && (
                         <div className={`bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300 ${section.useFixedImage ? 'opacity-50' : ''}`}>
-                          <label className="text-xs font-semibold text-indigo-600 uppercase mb-2 block flex items-center">
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            이미지 생성 프롬프트
-                          </label>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-semibold text-indigo-600 uppercase flex items-center">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              이미지 생성 프롬프트
+                            </label>
+                            {/* AI 추천 버튼 */}
+                            <button
+                              onClick={() => generateAIPrompt(section.id)}
+                              disabled={section.useFixedImage}
+                              className="px-2 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded text-xs font-medium flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                              title="상품 정보를 기반으로 프롬프트 자동 생성"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              AI 추천
+                            </button>
+                          </div>
                           <p className="text-xs text-gray-500 mb-2">
                             {section.useFixedImage
                               ? '⚠️ 고정 이미지를 사용하므로 이 프롬프트는 무시됩니다.'
