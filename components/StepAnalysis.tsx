@@ -1980,15 +1980,7 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* 섹션/이미지 상태 정보 */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={openAddSectionModal}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 hover:-translate-y-0.5"
-            >
-              <Plus className="w-4 h-4" />
-              섹션 추가
-            </button>
 
-            <div className="h-8 w-px bg-gray-200"></div>
 
             <div className="flex items-center gap-2">
               <div className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full flex items-center gap-2">
@@ -2002,23 +1994,33 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
           </div>
 
           {/* 상세페이지 생성 버튼 */}
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                생성 중...
-              </>
-            ) : (
-              <>
-                <Save className="w-5 h-5" />
-                상세페이지 생성 시작
-              </>
-            )}
-          </button>
+          {/* 버튼 그룹 */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={openAddSectionModal}
+              className="px-5 py-3 bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl font-bold text-sm shadow-sm hover:shadow transition-all flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              섹션 추가
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isLoading}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  생성 중...
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  상세페이지 생성 시작
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
