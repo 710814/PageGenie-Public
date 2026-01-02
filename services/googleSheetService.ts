@@ -1,7 +1,7 @@
 import { ProductAnalysis, AppMode } from "../types";
 
 // 기본 데모 시트 ID (사용자 설정이 없을 경우 Fallback용)
-export const DEMO_SHEET_ID = '1AmD-6NBjgfRdwYRZlArkbhA3q-RpMxnx4u5FavQk9o0';
+export const DEMO_SHEET_ID = '';
 
 // 제공된 기본 GAS Web App URL (데모용)
 export const DEFAULT_GAS_URL = import.meta.env.VITE_DEFAULT_GAS_URL || 'https://script.google.com/macros/s/AKfycbwaOL3xBQiE7uLhbRHLbrlitf5xMYTA-Lmo5p2XB9HkGNkKYYvy_4nK_ee2JtYUY_Fddw/exec';
@@ -48,9 +48,9 @@ export const setGasUrl = (url: string) => {
  */
 export const getSheetId = (): string => {
   const stored = localStorage.getItem(SHEET_ID_KEY);
-  // 빈 문자열이 저장되어 있다면(사용자가 지운 경우) 데모 ID 반환
+  // 빈 문자열이 저장되어 있다면(사용자가 지운 경우) 빈 값 반환
   if (!stored || stored.trim() === '') {
-    return DEMO_SHEET_ID;
+    return '';
   }
   return stored;
 };

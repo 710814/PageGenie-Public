@@ -1340,8 +1340,8 @@ export const StepAnalysis: React.FC<Props> = React.memo(({ analysis, onUpdate, o
                               />
                             </div>
                           </div>
-                        ) : section.imageSlots && section.imageSlots.length > 0 ? (
-                          /* 슬롯 이미지 미리보기 (그리드/콜라주 레이아웃) */
+                        ) : section.imageSlots && section.imageSlots.length > 0 && !section.layoutType?.startsWith('collage-') && section.imageSlots.some(slot => slot.imageUrl) ? (
+                          /* 슬롯 이미지 미리보기 (그리드 레이아웃 - 콜라주 제외, 실제 이미지 있는 경우만) */
                           <div className="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
                             <label className="text-xs font-semibold text-indigo-600 uppercase flex items-center mb-3">
                               <ImageIcon className="w-3 h-3 mr-1" />

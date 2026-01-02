@@ -45,12 +45,23 @@ export const PRODUCT_CONSISTENCY_PROMPT = `
 2. Do NOT modify, alter, or stylize the product itself in any way
 3. The product must be clearly recognizable as the EXACT same item from the reference
 
+### SPECIFIC DETAILS TO PRESERVE:
+- Stitch lines, seam positions, and construction details
+- Button/zipper count, placement, and style
+- Pattern alignment, scale, and orientation
+- Logo position, size, and design (if any)
+- Material texture and surface finish
+- Exact color shade (not just "black" but THE black from reference)
+- Pocket placement and dimensions
+- Collar/neckline shape
+- Sleeve length and cuff style
+
 ### WHAT YOU CAN CHANGE:
 - Background setting and environment
 - Lighting style and direction
 - Camera angle and composition
 - Props and context elements
-- Model/mannequin for wearable items
+- Human model for wearable items
 
 ### FINAL CHECK:
 If someone compared the product in your generated image with the reference, it should be indistinguishable - only the setting changes.
@@ -129,6 +140,12 @@ export const buildCollagePrompt = (
     .join('\n');
 
   return `Create a fashion product collage image with the following EXACT layout:
+
+## ⚠️ PRODUCT IDENTITY (CRITICAL)
+ALL images in this collage must show the EXACT SAME product from the reference image.
+This is ONE garment photographed from different angles - NOT variations or similar items.
+Every detail (stitching, buttons, pattern, texture, color) must be identical across all frames.
+The product must be recognizable as the EXACT same item in every section of the collage.
 
 ## LAYOUT STRUCTURE:
 ${config.structure}
@@ -1871,44 +1888,56 @@ High quality, professional product photography without any text overlay. Pixel-p
         // 모델 설정을 프롬프트에 추가
         const modelDescription = buildModelDescription(modelSettings);
 
-        // ★ Gemini 권장사항 적용: 시맨틱 네거티브 대신 긍정적 표현 사용
-        // "마네킹이 아니다" 대신 "실제 인간 모델이 착용" 형태로 강조
+        // ★ 두 가지 요구사항을 동등하게 병렬 배치
         fullPrompt = `
-## ⚠️ MOST CRITICAL REQUIREMENT - REAL HUMAN MODEL (READ FIRST):
-This is a FASHION LOOKBOOK photo. The scene MUST feature a REAL, LIVING HUMAN MODEL wearing the garment.
-- The model must have VISIBLE HUMAN SKIN with natural texture (not plastic, not fabric-like)
-- The model must have a NATURAL HUMAN POSTURE with realistic body proportions
-- The model's BODY must be clearly visible (arms, torso, legs as appropriate for the shot)
-- If shoulders/neck are visible, they must look like real human skin, not a display form
-- The garment must drape naturally on a real person's body, showing natural fabric movement
+## ⚠️ TWO EQUALLY CRITICAL REQUIREMENTS - MUST SATISFY BOTH:
 
-What this image IS: A fashion editorial photo with a real person modeling clothes, like in a magazine lookbook.
-What this image is NOT: A product-only shot, a flat-lay, clothes on a hanger, or clothes on any kind of display form or mannequin.
+### REQUIREMENT A: REAL HUMAN MODEL (NOT MANNEQUIN)
+This is a FASHION LOOKBOOK photo featuring a REAL, LIVING HUMAN MODEL.
+- VISIBLE HUMAN SKIN with natural texture (not plastic, not fabric-like)
+- NATURAL HUMAN POSTURE with realistic body proportions
+- The model's BODY must be clearly visible (arms, torso, legs as appropriate)
+- The garment must drape naturally on a real person's body
+- This is NOT: a mannequin, display form, headless figure, or clothes on a hanger
 
-## PRODUCT CONSISTENCY REQUIREMENT:
-Keep the EXACT same product from the reference image.
-- The product's shape, color, design, texture, and all visual details must be IDENTICAL to the reference
-- Do NOT change, modify, or replace the product in any way
-- You may change: background, lighting, camera angle, props, scene composition${modelDescription ? ', and HUMAN MODEL appearance' : ''}
-- The product must be clearly recognizable as the SAME item from the reference
+### REQUIREMENT B: EXACT PRODUCT REPLICATION (CRITICAL)
+The product MUST be VISUALLY IDENTICAL to the reference image.
+- Copy every stitch line, seam position, and construction detail exactly
+- Button/zipper count, placement, and style must match
+- Pattern alignment, scale, and orientation must be preserved
+- Material texture and color shade must be identical (not just "black" but THE black)
+- Logo position, size, and design must match if present
+- Pocket placement, collar/neckline shape, sleeve length must be exact
+- The product must be recognizable as the EXACT SAME item, not a similar one
+
+⚠️ BOTH requirements are equally critical. Do NOT sacrifice product accuracy for model quality or vice versa.
 
 ## FRAMING REQUIREMENT:
 The ENTIRE product must be fully visible. 
-- DO NOT CROP any part of the product (sleeves, hem, neckline, sides).
-- Leave breathing room around the product.
-- For full-body shots, show from head (or chin if anonymous) to feet.
-- For upper-body shots, show from chin down to waist/hip with full shoulders and arms.
+- DO NOT CROP any part of the product (sleeves, hem, neckline, sides)
+- Leave breathing room around the product
+- For full-body shots, show from head (or chin if anonymous) to feet
+- For upper-body shots, show from chin down to waist/hip with full shoulders and arms
 
 ${modelDescription ? `## MODEL APPEARANCE:
 - The model should be: ${modelDescription}
 - The product must be worn by this model naturally
 ` : ''}
 
+## WHAT YOU CAN CHANGE:
+- Background setting and environment
+- Lighting style and direction
+- Camera angle and composition
+- Props and context elements
+${modelDescription ? '- Model appearance as specified above' : ''}
+
 ## PHOTO SPECIFICATIONS:
 ${prompt}
 
 ## FINAL CHECK:
-Before generating, verify: Is there a REAL HUMAN BODY visible wearing this garment? If the answer is no, regenerate with a real human model.
+Before generating, verify BOTH:
+1. Is there a REAL HUMAN BODY visible wearing this garment?
+2. Is the product VISUALLY IDENTICAL to the reference (every detail matches)?
 
 High quality, 4K resolution, professional fashion photography, editorial style.
         `.trim();
