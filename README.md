@@ -6,7 +6,15 @@
 
 ## 1. 프로젝트 개요
 
-이 프로젝트는 React 기반의 단일 페이지 애플리케이션(SPA)으로, 별도의 백엔드 서버 없이 **Google Apps Script (GAS)**를 활용하여 Serverless 환경에서 동작합니다.
+**PageGenie**는 별도의 복잡한 백엔드 서버 구축 없이, **Google Apps Script (GAS)**와 **Google Sheets**를 활용하여 완전한 Serverless 환경에서 동작하는 이커머스 상세페이지 자동화 솔루션입니다.
+
+### 💡 왜 Google Apps Script(GAS)와 Google Sheets인가요?
+이 프로젝트는 **"유지보수 비용 0원"**과 **"관리의 편의성"**에 초점을 맞추었습니다.
+
+- **Serverless Architecture**: EC2나 Vercel DB 같은 별도의 백엔드 인프라를 구축할 필요가 없어 서버 유지보수 부담이 완전히 사라집니다.
+- **Database as a Service**: 친숙한 **Google Sheets**를 데이터베이스로 사용합니다. 개발자가 아니더라도 엑셀처럼 쉽게 데이터를 조회, 수정, 관리할 수 있습니다.
+- **Smart Ops**: 생성된 이미지 파일은 **Google Drive**에 자동 체계적으로 분류되어 저장되며, 이 모든 과정이 무료(Google 개인 계정 할당량 내)로 제공됩니다.
+- **Secure & Simple**: 별도의 인증 시스템 구현 없이 프론트엔드에서 개인의 GAS URL만 설정하면 즉시 나만의 프라이빗한 앱 환경이 완성됩니다.
 
 ### 🎯 핵심 기능 상세 (Key Features)
 
