@@ -635,7 +635,8 @@ function setDefaultSheetId(sheetId) {
  */
 function setupSheetPermission() {
   // 여기에 Sheet ID를 입력하세요
-  var sheetId = '1AmD-6NBjgfRdwYRZlArkbhA3q-RpMxnx4u5FavQk9o0';
+  // 예시: var sheetId = 'YOUR_SHEET_ID_HERE';
+  var sheetId = 'YOUR_SHEET_ID_HERE';
 
   Logger.log('🚀 Sheet ID 설정 및 권한 요청 시작...');
   Logger.log('📋 Sheet ID: ' + sheetId);

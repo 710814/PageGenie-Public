@@ -2,13 +2,13 @@
 
 ## Google Apps Script 프로젝트
 
-- **프로젝트 ID**: `1VHXYiw-E2Hk_ZimZzfnzsziQ_YjeToVjtrCB_qpuUwRyQOlseUDY4CGs`
-- **프로젝트 편집 URL**: https://script.google.com/home/projects/1VHXYiw-E2Hk_ZimZzfnzsziQ_YjeToVjtrCB_qpuUwRyQOlseUDY4CGs/edit
+- **프로젝트 ID**: `YOUR_PROJECT_ID_HERE`
+- **프로젝트 편집 URL**: https://script.google.com/home/projects/YOUR_PROJECT_ID_HERE/edit
 
 ## Google Sheet
 
-- **Sheet URL**: https://docs.google.com/spreadsheets/d/1oZaLkyoMuNpSyzPIZVDJFsi-uXFPRJgnyjhR7lN7HJE/edit
-- **Sheet ID**: `1oZaLkyoMuNpSyzPIZVDJFsi-uXFPRJgnyjhR7lN7HJE`
+- **Sheet URL**: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
+- **Sheet ID**: `YOUR_SHEET_ID_HERE`
 
 ---
 
@@ -16,7 +16,7 @@
 
 ### 1단계: Apps Script 코드 업데이트
 
-1. [프로젝트 편집 페이지](https://script.google.com/home/projects/1VHXYiw-E2Hk_ZimZzfnzsziQ_YjeToVjtrCB_qpuUwRyQOlseUDY4CGs/edit) 접속
+1. [프로젝트 편집 페이지](https://script.google.com/home/projects/YOUR_PROJECT_ID_HERE/edit) 접속
 2. `Code.gs` 파일 열기
 3. `GOOGLE_APPS_SCRIPT_CODE.js` 파일의 **전체 내용**을 복사
 4. `Code.gs`의 기존 내용을 모두 삭제하고 붙여넣기
@@ -78,7 +78,7 @@
      - 3단계에서 복사한 웹 앱 URL 붙여넣기
      - 예: `https://script.google.com/macros/s/AKfycb.../exec`
    - **Google Sheet ID**: 
-     - `1oZaLkyoMuNpSyzPIZVDJFsi-uXFPRJgnyjhR7lN7HJE`
+     - `YOUR_SHEET_ID_HERE` (자신의 Google Sheet ID로 교체하세요)
 5. **"설정 저장하기"** 클릭
 6. 성공 메시지 확인
 
@@ -136,7 +136,7 @@
 
 ## 📝 참고 정보
 
-- **Apps Script 프로젝트 편집**: https://script.google.com/home/projects/1VHXYiw-E2Hk_ZimZzfnzsziQ_YjeToVjtrCB_qpuUwRyQOlseUDY4CGs/edit
-- **Google Sheet**: https://docs.google.com/spreadsheets/d/1oZaLkyoMuNpSyzPIZVDJFsi-uXFPRJgnyjhR7lN7HJE/edit
+- **Apps Script 프로젝트 편집**: https://script.google.com/home/projects/YOUR_PROJECT_ID_HERE/edit
+- **Google Sheet**: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
 - **Google AI Studio (API 키 발급)**: https://makersuite.google.com/app/apikey
 

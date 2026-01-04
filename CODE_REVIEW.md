@@ -246,7 +246,7 @@ export const IMAGE_LIMITS = {
   MIN_BASE64_LENGTH: 5000,
 } as const;
 
-export const DEFAULT_SHEET_ID = '1AmD-6NBjgfRdwYRZlArkbhA3q-RpMxnx4u5FavQk9o0';
+export const DEFAULT_SHEET_ID = 'YOUR_SHEET_ID_HERE'; // 실제 Sheet ID로 교체 필요
 ```
 
 ### 2. 유틸리티 함수 통합
