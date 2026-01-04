@@ -4,7 +4,7 @@ import { ProductAnalysis, AppMode } from "../types";
 export const DEMO_SHEET_ID = '';
 
 // 제공된 기본 GAS Web App URL (데모용)
-export const DEFAULT_GAS_URL = import.meta.env.VITE_DEFAULT_GAS_URL || 'https://script.google.com/macros/s/AKfycbwaOL3xBQiE7uLhbRHLbrlitf5xMYTA-Lmo5p2XB9HkGNkKYYvy_4nK_ee2JtYUY_Fddw/exec';
+export const DEFAULT_GAS_URL = import.meta.env.VITE_DEFAULT_GAS_URL || '';
 
 // LocalStorage 키
 const GAS_URL_KEY = 'gemini_commerce_gas_url';
