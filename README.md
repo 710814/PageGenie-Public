@@ -91,32 +91,45 @@ GAS 프로젝트 설정(톱니바퀴 아이콘) > **스크립트 속성(Script P
 
 ---
 
-### 4. 환경 변수 및 프론트엔드 설정
+### 4. 사용 방법 (User Guide)
 
-앱이 GAS와 통신하기 위해 URL 설정이 필요합니다. 두 가지 방법 중 하나를 선택하세요.
-
-#### 방법 A: `.env` 파일로 기본값 설정 (개발자용)
-프로젝트 루트의 `.env` 파일에 GAS URL을 등록하면, 브라우저 로컬 스토리지에 값이 없을 때 기본값으로 사용됩니다.
-
-```bash
-# .env 파일
-VITE_GEMINI_API_KEY=your_gemini_api_key
-VITE_DEFAULT_GAS_URL=https://script.google.com/macros/s/xxxxxxxx/exec
-```
-
-#### 방법 B: 화면에서 직접 설정 (사용자용)
-앱 실행 후 우측 상단의 **설정(⚙️)** 버튼을 눌러 GAS URL과 Sheet ID를 입력할 수 있습니다.
-
-1. **설정 및 템플릿** 모달 창을 엽니다.
-2. **Google Apps Script (GAS) Web App URL** 필드에 배포한 URL을 붙여넣습니다.
-3. **Google Sheet ID** 필드에 데이터를 저장할 시트의 ID를 입력합니다.
+#### 1단계: 초기 설정 (Initial Setup)
+앱 실행 후 우측 상단의 **설정(⚙️)** 버튼을 눌러 GAS URL과 Sheet ID를 입력합니다.
 
 <div align="center">
-  <img src="docs/images/settings_1.png" width="600" alt="환경설정 화면 1" />
-  <p><em>설정 화면에서 GAS URL과 Sheet ID 입력</em></p>
+  <img src="docs/images/guide_01_setup.png" width="800" alt="1. GAS URL 설정" />
+  <p><em>GAS Web App URL과 Google Sheet ID를 입력하고 '설정 저장하기'를 클릭합니다.</em></p>
   <br/>
-  <img src="docs/images/settings_2.png" width="600" alt="환경설정 화면 2" />
-  <p><em>자동 백업 및 상세 설정</em></p>
+  <img src="docs/images/guide_02_backup.png" width="800" alt="2. 자동 백업 설정" />
+  <p><em>설정 정보는 브라우저에 저장되며, Google Drive 자동 백업 기능을 켤 수 있습니다.</em></p>
+</div>
+
+#### 2단계: 이미지 등록 (Upload)
+상세페이지를 생성할 상품의 이미지를 업로드합니다.
+- **파일 업로드**: PC에 저장된 이미지를 드래그 앤 드롭하거나 선택합니다.
+- **이미지 URL**: 웹상의 이미지 주소를 입력하여 가져올 수 있습니다.
+- **다중 분석**: 정면, 측면, 상세 컷 등 여러 장을 올리면 AI가 더 정확하게 분석합니다.
+
+<div align="center">
+  <img src="docs/images/guide_03_upload.png" width="800" alt="3. 이미지 로드" />
+</div>
+
+#### 3단계: AI 분석 및 기획 (Analysis)
+AI가 이미지를 분석하여 상품명, 특징, 마케팅 문구를 자동으로 작성합니다.
+- **섹션 구성**: AI가 제안한 상세페이지 구조(섹션)를 확인하고 수정할 수 있습니다.
+- **프롬프트 수정**: 각 섹션의 이미지 생성 프롬프트를 미리 수정하거나, 섹션을 추가/삭제할 수 있습니다.
+
+<div align="center">
+  <img src="docs/images/guide_04_analysis.png" width="800" alt="4. 분석 결과 검토" />
+</div>
+
+#### 4단계: 상세페이지 생성 및 편집 (Generation)
+"상세페이지 생성 시작" 버튼을 누르면 모든 섹션의 이미지가 생성되고 최종 결과물이 만들어집니다.
+- **이미지 재생성**: 마음에 들지 않는 이미지는 클릭하여 프롬프트를 수정하고 다시 생성할 수 있습니다.
+- **다운로드**: HTML 코드, 이미지 파일, 또는 전체 패키지(ZIP)로 다운로드하여 바로 사용할 수 있습니다.
+
+<div align="center">
+  <img src="docs/images/guide_05_result.png" width="800" alt="5. 최종 결과물" />
 </div>
 
 ---
